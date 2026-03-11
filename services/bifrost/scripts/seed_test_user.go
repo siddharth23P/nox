@@ -4,13 +4,17 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/jackc/pgx/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
-	connStr := "postgres://serpent@localhost:5432/nox?sslmode=disable"
+	connStr := os.Getenv("DATABASE_URL")
+	if connStr == "" {
+		connStr = "postgres://serpent@localhost:5432/nox?sslmode=disable"
+	}
 	conn, err := pgx.Connect(context.Background(), connStr)
 	if err != nil {
 		log.Fatalf("Unable to connect to database: %v", err)
