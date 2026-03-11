@@ -1,0 +1,68 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-go:
+    name: Build Bifrost (Go)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          cache-dependency-path: services/bifrost/go.sum
+
+      - name: Install Protoc
+        run: sudo apt-get install -y protobuf-compiler
+
+      - name: Install dependencies
+        working-directory: services/bifrost
+        run: go mod download
+
+      - name: Build
+        working-directory: services/bifrost
+        run: go build ./...
+
+  backend-rust:
+    name: Build Orchestrator (Rust)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Protoc
+        run: sudo apt-get install -y protobuf-compiler
+
+      - name: Build
+        working-directory: services/orchestrator
+        run: cargo build --verbose
+
+  frontend:
+    name: Build UI (React)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ui
+        run: npm ci
+
+      - name: Build
+        working-directory: ui
+        run: npm run build
