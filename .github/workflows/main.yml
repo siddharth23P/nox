@@ -26,28 +26,38 @@ jobs:
         working-directory: services/bifrost
         run: go mod download
 
+      - name: Lint
+        working-directory: services/bifrost
+        run: go vet ./...
+
       - name: Build
         working-directory: services/bifrost
         run: go build ./...
 
   backend-rust:
-    name: Build Orchestrator (Rust)
+    name: Build & Lint Orchestrator (Rust)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
 
       - name: Install Protoc
         run: sudo apt-get install -y protobuf-compiler
+
+      - name: Lint
+        working-directory: services/orchestrator
+        run: cargo clippy -- -D warnings
 
       - name: Build
         working-directory: services/orchestrator
         run: cargo build --verbose
 
   frontend:
-    name: Build UI (React)
+    name: Build & Lint UI (React)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -62,6 +72,10 @@ jobs:
       - name: Install dependencies
         working-directory: ui
         run: npm ci
+
+      - name: Lint
+        working-directory: ui
+        run: npm run lint
 
       - name: Build
         working-directory: ui
