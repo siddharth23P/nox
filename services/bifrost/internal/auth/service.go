@@ -100,12 +100,13 @@ func (s *AuthService) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Logi
 	}
 
 	var orgID string
-	err = s.repo.Pool.QueryRow(ctx, "SELECT org_id FROM organization_memberships WHERE user_id = $1 LIMIT 1", user.ID).Scan(&orgID)
+	var role string
+	err = s.repo.Pool.QueryRow(ctx, "SELECT org_id, role FROM organization_memberships WHERE user_id = $1 LIMIT 1", user.ID).Scan(&orgID, &role)
 	if err != nil {
 		return nil, errors.New("failed to retrieve organization context")
 	}
 
-	token, err := s.generateToken(user.ID, orgID)
+	token, err := s.generateToken(user.ID, orgID, role)
 	if err != nil {
 		return nil, err
 	}
@@ -116,6 +117,7 @@ func (s *AuthService) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Logi
 		OrgId:    orgID,
 		Email:    user.Email,
 		FullName: user.FullName,
+		Role:     role,
 	}, nil
 }
 
@@ -132,10 +134,11 @@ func (s *AuthService) VerifyEmail(ctx context.Context, req *pb.VerifyEmailReques
 	return &pb.VerifyEmailResponse{Success: true, Message: "Email verified successfully"}, nil
 }
 
-func (s *AuthService) generateToken(userID, orgID string) (string, error) {
+func (s *AuthService) generateToken(userID, orgID, role string) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,
 		"org_id":  orgID,
+		"role":    role,
 		"exp":     time.Now().Add(time.Hour * 72).Unix(),
 	}
 
@@ -157,10 +160,13 @@ func (s *AuthService) VerifySession(ctx context.Context, req *pb.VerifySessionRe
 		return &pb.VerifySessionResponse{Valid: false}, nil
 	}
 
+	role, _ := claims["role"].(string)
+
 	return &pb.VerifySessionResponse{
 		Valid:    true,
 		UserId:   claims["user_id"].(string),
 		TenantId: claims["org_id"].(string),
+		Role:     role,
 	}, nil
 }
 
@@ -233,7 +239,7 @@ func (s *AuthService) HandleGithubCallback(ctx context.Context, code string) (*p
 
 func (s *AuthService) provisionOAuthUser(ctx context.Context, email, name string) (*pb.LoginResponse, error) {
 	user, err := s.repo.GetUserByEmail(ctx, email)
-	var userID, orgID string
+	var userID, orgID, role string
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -251,13 +257,13 @@ func (s *AuthService) provisionOAuthUser(ctx context.Context, email, name string
 		}
 	} else {
 		userID = user.ID
-		err = s.repo.Pool.QueryRow(ctx, "SELECT org_id FROM organization_memberships WHERE user_id = $1 LIMIT 1", user.ID).Scan(&orgID)
+		err = s.repo.Pool.QueryRow(ctx, "SELECT org_id, role FROM organization_memberships WHERE user_id = $1 LIMIT 1", user.ID).Scan(&orgID, &role)
 		if err != nil {
 			return nil, errors.New("failed to retrieve organization context")
 		}
 	}
 
-	token, err := s.generateToken(userID, orgID)
+	token, err := s.generateToken(userID, orgID, role)
 	if err != nil {
 		return nil, err
 	}
@@ -268,6 +274,7 @@ func (s *AuthService) provisionOAuthUser(ctx context.Context, email, name string
 		Token:    token,
 		Email:    email,
 		FullName: name,
+		Role:     role,
 	}, nil
 }
 

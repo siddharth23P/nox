@@ -10,11 +10,13 @@ export const EmailVerification: React.FC = () => {
   const [message, setMessage] = useState('Verifying your identity...');
 
   const token = searchParams.get('token');
+  const hasVerified = React.useRef(false);
 
   useEffect(() => {
-    if (!token) {
+    if (!token || hasVerified.current) {
       return;
     }
+    hasVerified.current = true;
 
     const verify = async () => {
       try {

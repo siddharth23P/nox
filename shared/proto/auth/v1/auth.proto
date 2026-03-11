@@ -52,6 +52,7 @@ message LoginResponse {
   string org_id = 3;
   string email = 4;
   string full_name = 5;
+  string role = 6;
 }
 
 message VerifySessionRequest {
@@ -62,6 +63,7 @@ message VerifySessionResponse {
   bool valid = 1;
   string user_id = 2;
   string tenant_id = 3;
+  string role = 4;
 }
 
 message GetOrganizationRequest {

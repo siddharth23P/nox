@@ -27,6 +27,7 @@ impl AuthService for MyAuthService {
             valid: true,
             user_id: "zk-verified-user".to_string(),
             tenant_id: "zk-verified-tenant".to_string(),
+            role: "member".to_string(),
         }))
     }
 
