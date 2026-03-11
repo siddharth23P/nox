@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct IdentityProof {
     pub user_id: Uuid,
     pub org_id: Uuid,
@@ -10,15 +11,18 @@ pub struct IdentityProof {
     pub timestamp: i64,
 }
 
+#[allow(dead_code)]
 pub struct MasterOrchestrator {
     // Shared state and clients
 }
 
 impl MasterOrchestrator {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self {}
     }
 
+    #[allow(dead_code)]
     pub async fn verify_zk_identity(&self, proof: IdentityProof) -> Result<bool, String> {
         // [BLOCK 1 IMPLEMENTATION]
         // This will eventually interface with AWS Nitro Enclaves for attestation
