@@ -30,8 +30,8 @@ export const Login: React.FC<{ onSwitch?: () => void }> = ({ onSwitch }) => {
       if (!response.ok) throw new Error(data.error || 'Login failed');
 
       setAuth({ id: data.user_id, email }, data.token, data.org_id);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
       setLoading(false);
     }

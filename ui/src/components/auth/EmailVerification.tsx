@@ -13,8 +13,6 @@ export const EmailVerification: React.FC = () => {
 
   useEffect(() => {
     if (!token) {
-      setStatus('error');
-      setMessage('Invalid verification link.');
       return;
     }
 
@@ -30,7 +28,7 @@ export const EmailVerification: React.FC = () => {
           setStatus('error');
           setMessage(data.error || 'Verification failed. The link may be expired.');
         }
-      } catch (err) {
+      } catch {
         setStatus('error');
         setMessage('Unable to connect to Nexus services.');
       }

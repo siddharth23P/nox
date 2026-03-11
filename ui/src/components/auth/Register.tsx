@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { AuthLayout } from './AuthLayout';
-import { useAuthStore } from '../../stores/authStore';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 export const Register: React.FC<{ onSwitch?: () => void }> = ({ onSwitch }) => {
   const [email, setEmail] = useState('');
@@ -44,8 +43,8 @@ export const Register: React.FC<{ onSwitch?: () => void }> = ({ onSwitch }) => {
       if (!response.ok) throw new Error(data.error || 'Registration failed');
 
       setSuccess(true);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
       setLoading(false);
     }

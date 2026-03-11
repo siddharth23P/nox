@@ -1,11 +1,17 @@
 import { create } from 'zustand';
 
+interface User {
+  id: string;
+  email: string;
+  fullName?: string;
+}
+
 interface AuthState {
-  user: any | null;
+  user: User | null;
   token: string | null;
   orgId: string | null;
   isAuthenticated: boolean;
-  setAuth: (user: any, token: string, orgId: string) => void;
+  setAuth: (user: User, token: string, orgId: string) => void;
   logout: () => void;
 }
 
