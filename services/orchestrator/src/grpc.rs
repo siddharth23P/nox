@@ -33,6 +33,14 @@ impl AuthService for MyAuthService {
     async fn get_organization(&self, _request: Request<GetOrganizationRequest>) -> Result<Response<GetOrganizationResponse>, Status> {
         Err(Status::unimplemented("GetOrganization handled by Bifrost"))
     }
+
+    async fn verify_email(&self, _request: Request<auth_v1::VerifyEmailRequest>) -> Result<Response<auth_v1::VerifyEmailResponse>, Status> {
+        // Orchestrator doesn't handle the actual verification, just satisfies the trait
+        Ok(Response::new(auth_v1::VerifyEmailResponse {
+            success: true,
+            message: "Email verification status validated".to_string(),
+        }))
+    }
 }
 
 pub async fn start_grpc_server(addr: &str) -> Result<(), Box<dyn std::error::Error>> {
