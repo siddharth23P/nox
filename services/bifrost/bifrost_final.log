@@ -1,0 +1,31 @@
+Connecting to database with: postgres://serpent@localhost:5432/nox?sslmode=disable
+[GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
+
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] POST   /v1/auth/register         --> github.com/nox-labs/bifrost/internal/auth.(*AuthHandler).Register-fm (4 handlers)
+[GIN-debug] POST   /v1/auth/login            --> github.com/nox-labs/bifrost/internal/auth.(*AuthHandler).Login-fm (4 handlers)
+[GIN-debug] GET    /v1/auth/google           --> github.com/nox-labs/bifrost/internal/auth.(*AuthHandler).GoogleLogin-fm (4 handlers)
+[GIN-debug] GET    /v1/auth/google/callback  --> github.com/nox-labs/bifrost/internal/auth.(*AuthHandler).GoogleCallback-fm (4 handlers)
+[GIN-debug] GET    /v1/auth/github           --> github.com/nox-labs/bifrost/internal/auth.(*AuthHandler).GithubLogin-fm (4 handlers)
+[GIN-debug] GET    /v1/auth/github/callback  --> github.com/nox-labs/bifrost/internal/auth.(*AuthHandler).GithubCallback-fm (4 handlers)
+[GIN-debug] GET    /v1/auth/verify           --> github.com/nox-labs/bifrost/internal/auth.(*AuthHandler).VerifyEmail-fm (4 handlers)
+2026/03/11 14:50:30 Bifrost REST Gateway starting on port 8080
+[GIN-debug] [WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.
+Please check https://github.com/gin-gonic/gin/blob/master/docs/doc.md#dont-trust-all-proxies for details.
+[GIN-debug] Listening and serving HTTP on :8080
+2026/03/11 14:50:30 Bifrost gRPC starting on port 50051
+[GIN] 2026/03/11 - 14:52:21 | 204 | 325.791µs |             ::1 | OPTIONS  "/v1/auth/login"
+[GIN] 2026/03/11 - 14:52:22 | 401 |  67.46ms |             ::1 | POST     "/v1/auth/login"
+[GIN] 2026/03/11 - 14:59:46 | 307 | 96.708µs |             ::1 | GET      "/v1/auth/github"
+[GIN] 2026/03/11 - 14:59:48 | 307 |    1.69s |             ::1 | GET      "/v1/auth/github/callback?code=7b27fcf912094342288d&state=state"
+[GIN] 2026/03/11 - 14:59:55 | 307 | 47.125µs |             ::1 | GET      "/v1/auth/google"
+[GIN] 2026/03/11 - 15:12:34 | 204 | 10.875µs |             ::1 | OPTIONS  "/v1/auth/register"
+
+[EMAIL MOCK] Verification link for test77@nox.io: http://localhost:5173/verify-email?token=c75994a515772453495d5f10d86b4cb6e5da28c420df57192df951e99696f016
+
+[GIN] 2026/03/11 - 15:12:34 | 200 |  53.36ms |             ::1 | POST     "/v1/auth/register"
+[GIN] 2026/03/11 - 15:16:32 | 200 |   62.5ms |             ::1 | POST     "/v1/auth/login"
+[GIN] 2026/03/11 - 15:21:20 | 200 |  67.63ms |             ::1 | POST     "/v1/auth/login"

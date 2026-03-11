@@ -1,0 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@import "tailwindcss";
+
+:root {
+  --nox-bg: #030303;
+  --nox-card: #0d0d0d;
+  --nox-border: #1a1a1a;
+  --nox-accent: #1d8cf8;
+  --nox-text-primary: #ffffff;
+  --nox-text-secondary: #888888;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background-color: var(--nox-bg);
+  background-image: 
+    radial-gradient(circle at 50% -20%, #1a1a1a 0%, transparent 60%),
+    radial-gradient(circle at -20% 50%, #0d0d0d 0%, transparent 40%);
+  color: var(--nox-text-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--nox-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--nox-border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #252525;
+}
+
+@layer components {
+  .btn-premium {
+    @apply w-full py-3.5 rounded-xl font-semibold transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-2;
+  }
+}

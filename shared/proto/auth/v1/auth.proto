@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package nox.auth.v1;
+
+option go_package = "github.com/nox-labs/bifrost/pkg/authv1";
+
+service AuthService {
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc VerifySession(VerifySessionRequest) returns (VerifySessionResponse);
+  rpc GetOrganization(GetOrganizationRequest) returns (GetOrganizationResponse);
+  rpc VerifyEmail(VerifyEmailRequest) returns (VerifyEmailResponse);
+}
+
+message RecoveryQuestion {
+  string question = 1;
+  string answer = 2;
+}
+
+message RegisterRequest {
+  string email = 1;
+  string password = 2;
+  string full_name = 3;
+  string org_name = 4;
+  string username = 5;
+  repeated RecoveryQuestion recovery_questions = 6;
+}
+
+message RegisterResponse {
+  string user_id = 1;
+  string org_id = 2;
+  string token = 3;
+}
+
+message VerifyEmailRequest {
+  string token = 1;
+}
+
+message VerifyEmailResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string user_id = 1;
+  string token = 2;
+  string org_id = 3;
+  string email = 4;
+  string full_name = 5;
+}
+
+message VerifySessionRequest {
+  string token = 1;
+}
+
+message VerifySessionResponse {
+  bool valid = 1;
+  string user_id = 2;
+  string tenant_id = 3;
+}
+
+message GetOrganizationRequest {
+  string org_id = 1;
+}
+
+message GetOrganizationResponse {
+  string id = 1;
+  string name = 2;
+  string schema_version = 3;
+}

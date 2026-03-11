@@ -1,0 +1,22 @@
+.env
+# Directories to ignore
+nox-docs/
+AGENT.MD
+Roadmap_1.md 
+Roadmap_2.md 
+Roadmap_3.md
+universal_ssot.md
+
+
+# Rust build artifacts
+backend/rust-orchestrator/target/
+target/
+
+# Go build artifacts
+backend/bifrost-gateway/bin/
+bin/
+
+# Node.js build artifacts
+node_modules/
+dist/
+build/
