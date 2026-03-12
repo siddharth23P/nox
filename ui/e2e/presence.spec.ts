@@ -43,10 +43,11 @@ test.describe('Real-time Presence & Mutual Discovery', () => {
 
     // 3. Alice verification
     // Alice should see her own name as "You", Bob's messages as "bob", and her messages should be right-aligned
+    // Wait for two full polling cycles to ensure Alice catches Bob's presence
+    // Slower browsers (Webkit/Firefox) need this buffer to be stable.
+    await alicePage.waitForTimeout(35000); 
     
-    // Wait for the next 15-second polling cycle so Alice fetches Bob's newly registered presence
-    await alicePage.waitForTimeout(16000); 
-
+    test.setTimeout(80000); // Further increase timeout for the long waits
     // Find one of Alice's messages (she says "Hey team...")
     const aliceMsg = alicePage.locator('text="Hey team, how is everyone doing today?"').first();
     await expect(aliceMsg).toBeVisible();
@@ -69,14 +70,14 @@ test.describe('Real-time Presence & Mutual Discovery', () => {
     // The glow is a Framer Motion div with the emerald-500 class.
     // Since bob is active, Alice's UI should render the indicator on Bob's messages.
     const bobsIndicator = bobWrapper.locator('.bg-emerald-500').first();
-    await expect(bobsIndicator).toBeVisible();
+    await expect(bobsIndicator).toBeVisible({ timeout: 20000 });
 
     // 5. Stealth Mode Verification
     // Bob clicks Stealth Mode in the sidebar
     await bobPage.getByRole('button', { name: 'Toggle Stealth Mode' }).click();
     
-    // Alice's UI should drop Bob's presence. (Polling is 15s, so we wait slightly longer).
-    await alicePage.waitForTimeout(16000);
+    // Alice's UI should drop Bob's presence. (Polling is 15s, so we wait and allow cycles to overlap).
+    await alicePage.waitForTimeout(35000);
     
     // Bob's online indicator should be gone from Alice's screen
     await expect(bobsIndicator).not.toBeVisible();

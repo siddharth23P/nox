@@ -41,7 +41,7 @@ export const usePresenceStore = create<PresenceState>((set, get) => ({
   },
 
   startHeartbeat: (userId: string, token: string) => {
-    const { heartbeatInterval, isStealth } = get();
+    const { heartbeatInterval } = get();
     if (heartbeatInterval) return; // Already running
 
     const tick = async () => {
