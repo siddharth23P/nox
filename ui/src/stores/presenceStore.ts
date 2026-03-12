@@ -73,9 +73,10 @@ export const usePresenceStore = create<PresenceState>((set, get) => ({
       }
     };
 
-    // Run immediately, then every 15s
+    // Run immediately, then poll. Use a faster interval for E2E tests.
+    const interval = (window as unknown as { IS_PLAYWRIGHT?: boolean }).IS_PLAYWRIGHT ? 3000 : 15000;
     tick();
-    const intervalId = setInterval(tick, 15000);
+    const intervalId = setInterval(tick, interval);
     set({ heartbeatInterval: intervalId });
   },
 

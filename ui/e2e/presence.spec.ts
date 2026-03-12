@@ -3,53 +3,67 @@ import { test, expect } from '@playwright/test';
 // Use two isolated browser contexts to simulate Alice and Bob
 test.describe('Real-time Presence & Mutual Discovery', () => {
 
-  test('Alice and Bob see mutual presence, Alice sees distinct username, and Bob can go stealth', async ({ browser }) => {
-    test.setTimeout(45000);
+  test('Alice and Bob see mutual presence, Alice sees distinct username, and Bob can go stealth', async ({ browser, browserName }) => {
+    test.setTimeout(80000);
+    
+    // Select unique users per browser to avoid cross-test presence interference
+    let alice = { id: 'a1000000-0000-0000-0000-000000000000', username: 'alice', email: 'alice@nox.inc' };
+    let bob = { id: 'a2000000-0000-0000-0000-000000000000', username: 'bob', email: 'bob@nox.inc' };
+    let aliceMsgText = "Hey team, how is everyone doing today?";
+    let bobMsgText = "Doing great! Just finished the new design mocks for the dashboard.";
+
+    if (browserName === 'firefox') {
+      alice = { id: 'a3000000-0000-0000-0000-000000000000', username: 'charlie', email: 'charlie@nox.inc' };
+      bob = { id: 'a4000000-0000-0000-0000-000000000000', username: 'diana', email: 'diana@nox.inc' };
+      aliceMsgText = "Awesome Bob. Can you share the Figma link?";
+      bobMsgText = "Yes, please share. I need to update the frontend components to match.";
+    } else if (browserName === 'webkit') {
+      alice = { id: 'a5000000-0000-0000-0000-000000000000', username: 'evan', email: 'evan@nox.inc' };
+      bob = { id: 'a6000000-0000-0000-0000-000000000000', username: 'fiona', email: 'fiona@nox.inc' };
+      aliceMsgText = "Looks really clean. The new color palette is much better.";
+      bobMsgText = "Agreed. Much better contrast. By the way, has anyone seen the latest backend PR?";
+    }
     // 1. Setup Alice's Context
     const aliceContext = await browser.newContext();
+    await aliceContext.addInitScript(() => {
+      (window as unknown as { IS_PLAYWRIGHT?: boolean }).IS_PLAYWRIGHT = true;
+    });
     const alicePage = await aliceContext.newPage();
     
     // Login as Alice (id: a1000000-0000-0000-0000-000000000000, username: alice)
     await alicePage.goto('http://localhost:5173/login');
-    await alicePage.evaluate(() => {
+    await alicePage.evaluate((user) => {
       localStorage.setItem('nox_token', 'test_jwt_token');
       localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
       localStorage.setItem('nox_role', 'member');
-      localStorage.setItem('nox_user', JSON.stringify({
-        id: 'a1000000-0000-0000-0000-000000000000',
-        email: 'alice@nox.inc',
-        username: 'alice'
-      }));
-    });
+      localStorage.setItem('nox_user', JSON.stringify(user));
+    }, alice);
     await alicePage.goto('http://localhost:5173');
     
     // 2. Setup Bob's Context
     const bobContext = await browser.newContext();
+    await bobContext.addInitScript(() => {
+      (window as unknown as { IS_PLAYWRIGHT?: boolean }).IS_PLAYWRIGHT = true;
+    });
     const bobPage = await bobContext.newPage();
     
     // Login as Bob (id: a2000000-0000-0000-0000-000000000000, username: bob)
     await bobPage.goto('http://localhost:5173/login');
-    await bobPage.evaluate(() => {
+    await bobPage.evaluate((user) => {
       localStorage.setItem('nox_token', 'test_jwt_token_2');
       localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
       localStorage.setItem('nox_role', 'member');
-      localStorage.setItem('nox_user', JSON.stringify({
-        id: 'a2000000-0000-0000-0000-000000000000',
-        email: 'bob@nox.inc',
-        username: 'bob'
-      }));
-    });
+      localStorage.setItem('nox_user', JSON.stringify(user));
+    }, bob);
     await bobPage.goto('http://localhost:5173');
 
     // 3. Alice verification
-    // Alice should see her own name as "You", Bob's messages as "bob", and her messages should be right-aligned
-    // Wait for two full polling cycles to ensure Alice catches Bob's presence
-    // Slower browsers (Webkit/Firefox) need this buffer to be stable.
-    await alicePage.waitForTimeout(35000); 
     
-    test.setTimeout(80000); // Further increase timeout for the long waits
-    // Find one of Alice's messages (she says "Hey team...")
-    const aliceMsg = alicePage.locator('text="Hey team, how is everyone doing today?"').first();
+    // Wait for the next polling cycles (now 3s in test mode) so Alice fetches Bob's newly registered presence
+    await alicePage.waitForTimeout(6000); 
+    
+    // Find one of Alice's messages
+    const aliceMsg = alicePage.locator(`text="${aliceMsgText}"`).first();
     await expect(aliceMsg).toBeVisible();
     
     // Check right-alignment: In our UI, `flex-row-reverse` is applied to the message container
@@ -57,12 +71,12 @@ test.describe('Real-time Presence & Mutual Discovery', () => {
     await expect(aliceWrapper).toBeVisible();
 
     // Bob shouldn't be right-aligned on Alice's screen. Look for Bob's message
-    const bobTextMsg = alicePage.locator('text="Doing great! Just finished the new design mocks for the dashboard."').first();
+    const bobTextMsg = alicePage.locator(`text="${bobMsgText}"`).first();
     const bobWrapper = bobTextMsg.locator('xpath=./ancestor::div[contains(@class, "group relative")]').first();
     await expect(bobWrapper).not.toHaveClass(/flex-row-reverse/);
 
-    // Verify Bob's actual username "bob" is rendered next to his message, not User UUID
-    const bobNameLabel = bobWrapper.locator('text="bob"').first();
+    // Verify Bob's actual username is rendered next to his message, not User UUID
+    const bobNameLabel = bobWrapper.locator(`text="${bob.username}"`).first();
     await expect(bobNameLabel).toBeVisible();
 
     // 4. Presence Verification
@@ -76,8 +90,8 @@ test.describe('Real-time Presence & Mutual Discovery', () => {
     // Bob clicks Stealth Mode in the sidebar
     await bobPage.getByRole('button', { name: 'Toggle Stealth Mode' }).click();
     
-    // Alice's UI should drop Bob's presence. (Polling is 15s, so we wait and allow cycles to overlap).
-    await alicePage.waitForTimeout(35000);
+    // Alice's UI should drop Bob's presence. (Polling is 3s in test mode).
+    await alicePage.waitForTimeout(6000);
     
     // Bob's online indicator should be gone from Alice's screen
     await expect(bobsIndicator).not.toBeVisible();
