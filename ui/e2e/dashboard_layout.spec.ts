@@ -30,8 +30,8 @@ test.describe('Dashboard Layout & Sidebar', () => {
 
     // Verify Main Dashboard View
     const mainContent = page.locator('main');
-    await expect(mainContent).toContainText('Welcome to #general');
-    await expect(page.getByText('Message #general...')).toBeVisible();
+    await expect(mainContent).toContainText('Team discussion');
+    await expect(page.getByPlaceholder('Message #general...')).toBeVisible();
 
     // Verify Logout functionality
     await page.getByRole('button', { name: 'Log out' }).click();
