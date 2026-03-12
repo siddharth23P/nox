@@ -32,7 +32,7 @@ test.describe('Reaction Engine (E2E)', () => {
     const bobPage = await bobContext.newPage();
 
     // 1. Alice logs in (Bypassing UI via localStorage)
-    const aliceUser = { id: 'alice-id-123', username: 'AliceReacts', email: aliceEmail };
+    const aliceUser = { id: 'a1000000-0000-0000-0000-000000000000', username: 'AliceReacts', email: aliceEmail };
     await alicePage.goto('http://localhost:5173/login');
     await alicePage.evaluate((user) => {
       localStorage.setItem('nox_token', 'mock_jwt_token_alice');
@@ -73,7 +73,7 @@ test.describe('Reaction Engine (E2E)', () => {
 
     // --- Switch to Bob ---
     // 2. Bob logs in (Bypassing UI via localStorage)
-    const bobUser = { id: 'bob-id-456', username: 'BobReacts', email: bobEmail };
+    const bobUser = { id: 'a2000000-0000-0000-0000-000000000000', username: 'BobReacts', email: bobEmail };
     await bobPage.goto('http://localhost:5173/login');
     await bobPage.evaluate((user) => {
       localStorage.setItem('nox_token', 'mock_jwt_token_bob');
