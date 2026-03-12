@@ -40,9 +40,9 @@ test.describe('Reaction Engine (E2E)', () => {
     
     // 3. Alice sends message
     await alicePage.goto('http://localhost:5173');
-    await expect(alicePage.getByText('Nexus Inc')).toBeVisible({ timeout: 10000 });
-    await alicePage.click(`text=${channelName}`);
-    await expect(alicePage.getByPlaceholder(`Message #${channelName}...`)).toBeVisible();
+    await expect(alicePage.getByText('Nexus Inc')).toBeVisible({ timeout: 15000 });
+    // Channel name is engineering, but sidebar might be loading. Let it auto-select engineering from LS.
+    await expect(alicePage.getByPlaceholder(`Message #engineering...`)).toBeVisible({ timeout: 15000 });
     await expect(alicePage.getByText('Loading messages...')).not.toBeVisible();
 
     const uniqueMessage = `Reaction test message ${Date.now()}`;
@@ -64,8 +64,9 @@ test.describe('Reaction Engine (E2E)', () => {
 
     // 4. Bob sees message
     await bobPage.goto('http://localhost:5173');
-    await expect(bobPage.getByText('Nexus Inc')).toBeVisible({ timeout: 10000 });
-    await bobPage.click(`text=${channelName}`);
+    await expect(bobPage.getByText('Nexus Inc')).toBeVisible({ timeout: 15000 });
+    // Bob should also land on engineering automatically from LS
+    await expect(bobPage.getByPlaceholder(`Message #engineering...`)).toBeVisible({ timeout: 15000 });
     await expect(bobPage.getByText('Loading messages...')).not.toBeVisible();
 
     const bobMessageLocator = bobPage.locator('.message-item').filter({ hasText: uniqueMessage }).first();

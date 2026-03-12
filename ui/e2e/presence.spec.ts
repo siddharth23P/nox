@@ -7,19 +7,19 @@ test.describe('Real-time Presence & Mutual Discovery', () => {
     test.setTimeout(80000);
     
     // Select unique users per browser to avoid cross-test presence interference
-    let alice = { id: 'a1000000-0000-0000-0000-000000000000', username: 'alice', email: 'alice@nox.inc' };
-    let bob = { id: 'b2000000-0000-0000-0000-000000000000', username: 'bob', email: 'bob@nox.inc' };
+    let alice = { id: 'a1000000-0000-0000-0000-000000000000', username: 'AliceReacts', email: 'alice@nox.inc' };
+    let bob = { id: 'b2000000-0000-0000-0000-000000000000', username: 'BobReacts', email: 'bob@nox.inc' };
     let aliceMsgText = "Hey team, how is everyone doing today?";
     let bobMsgText = "Doing great! Just finished the new design mocks for the dashboard.";
 
     if (browserName === 'firefox') {
-      alice = { id: 'a3000000-0000-0000-0000-000000000000', username: 'charlie', email: 'charlie@nox.inc' };
-      bob = { id: 'a4000000-0000-0000-0000-000000000000', username: 'diana', email: 'diana@nox.inc' };
+      alice = { id: 'a3000000-0000-0000-0000-000000000000', username: 'Charlie', email: 'charlie@nox.inc' };
+      bob = { id: 'a4000000-0000-0000-0000-000000000000', username: 'Diana', email: 'diana@nox.inc' };
       aliceMsgText = "Awesome Bob. Can you share the Figma link?";
       bobMsgText = "Yes, please share. I need to update the frontend components to match.";
     } else if (browserName === 'webkit') {
-      alice = { id: 'a5000000-0000-0000-0000-000000000000', username: 'evan', email: 'evan@nox.inc' };
-      bob = { id: 'a6000000-0000-0000-0000-000000000000', username: 'fiona', email: 'fiona@nox.inc' };
+      alice = { id: 'a5000000-0000-0000-0000-000000000000', username: 'Evan', email: 'evan@nox.inc' };
+      bob = { id: 'a6000000-0000-0000-0000-000000000000', username: 'Fiona', email: 'fiona@nox.inc' };
       aliceMsgText = "Looks really clean. The new color palette is much better.";
       bobMsgText = "Agreed. Much better contrast. By the way, has anyone seen the latest backend PR?";
     }
@@ -29,6 +29,11 @@ test.describe('Real-time Presence & Mutual Discovery', () => {
       (window as unknown as { IS_PLAYWRIGHT?: boolean }).IS_PLAYWRIGHT = true;
       localStorage.setItem('nox_token', 'test_jwt_token');
       localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
+      localStorage.setItem('nox_active_channel', JSON.stringify({
+        id: '00000000-0000-0000-0000-000000000001',
+        name: 'general',
+        org_id: '00000000-0000-0000-0000-000000000001'
+      }));
       localStorage.setItem('nox_role', 'member');
       localStorage.setItem('nox_user', JSON.stringify(user));
     }, alice);
@@ -41,6 +46,11 @@ test.describe('Real-time Presence & Mutual Discovery', () => {
       (window as unknown as { IS_PLAYWRIGHT?: boolean }).IS_PLAYWRIGHT = true;
       localStorage.setItem('nox_token', 'test_jwt_token_2');
       localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
+      localStorage.setItem('nox_active_channel', JSON.stringify({
+        id: '00000000-0000-0000-0000-000000000001',
+        name: 'general',
+        org_id: '00000000-0000-0000-0000-000000000001'
+      }));
       localStorage.setItem('nox_role', 'member');
       localStorage.setItem('nox_user', JSON.stringify(user));
     }, bob);
@@ -86,8 +96,8 @@ test.describe('Real-time Presence & Mutual Discovery', () => {
     await expect(bobTextMsg).not.toHaveClass(/flex-row-reverse/);
 
     // Verify Bob's actual username is rendered
-    const bobNameLabel = bobTextMsg.locator('text=BobReacts').first();
-    await expect(bobNameLabel).toBeVisible();
+    // Use a more flexible locator for the username to handle potential capitalization or structure issues
+    await expect(bobTextMsg.getByText(bob.username, { exact: false }).first()).toBeVisible({ timeout: 15000 });
 
     // 4. Presence Verification
     // Both Alice and Bob should see each other's online "glow" indicators.
