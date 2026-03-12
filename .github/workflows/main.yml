@@ -114,14 +114,14 @@ jobs:
         run: npm ci
       - name: Install Playwright Browsers
         working-directory: ui
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps
       - name: Run Auth Tests
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/nox?sslmode=disable
         run: |
           psql "$DATABASE_URL" -f infra/db/schema.sql
           cd services/bifrost && go run cmd/gateway/main.go &
-          cd ui && npx wait-on tcp:8080 && npx playwright test e2e/auth_regression.spec.ts --workers=1
+          cd ui && npx wait-on tcp:8080 && npx playwright test e2e/auth_regression.spec.ts e2e/dashboard_layout.spec.ts --workers=1
 
   e2e-messaging:
     name: "E2E: Messaging & Threads"
@@ -152,7 +152,7 @@ jobs:
         run: npm ci
       - name: Install Playwright Browsers
         working-directory: ui
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps
       - name: Run Messaging Tests
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/nox?sslmode=disable
@@ -190,7 +190,7 @@ jobs:
         run: npm ci
       - name: Install Playwright Browsers
         working-directory: ui
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps
       - name: Run Real-time Tests
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/nox?sslmode=disable

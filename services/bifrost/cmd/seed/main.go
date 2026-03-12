@@ -4,13 +4,17 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/jackc/pgx/v5"
 )
 
 func main() {
-	connStr := "postgres://serpent@localhost:5432/nox?sslmode=disable"
 	ctx := context.Background()
+	connStr := os.Getenv("DATABASE_URL")
+	if connStr == "" {
+		connStr = "postgres://serpent@localhost:5432/nox?sslmode=disable"
+	}
 
 	conn, err := pgx.Connect(ctx, connStr)
 	if err != nil {
