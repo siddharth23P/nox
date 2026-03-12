@@ -50,8 +50,9 @@ func main() {
 	// 1. Initialize Auth Service
 	authService := auth.NewAuthService(jwtSecret, database)
 	
-	// Initialize Messaging Service
-	messagingService := messaging.NewMessagingService(database)
+	// Initialize Messaging & Reaction Service
+	reactionService := messaging.NewReactionService()
+	messagingService := messaging.NewMessagingService(database, reactionService)
 
 	// Initialize Presence Service
 	presenceService := presence.NewPresenceService()
@@ -101,6 +102,7 @@ func main() {
 		v1.GET("/channels/:id/messages/:messageId/replies", messagingHandler.GetThreadReplies)
 		v1.PATCH("/channels/:id/messages/:messageId", messagingHandler.EditMessage)
 		v1.GET("/channels/:id/messages/:messageId/history", messagingHandler.GetMessageEditHistory)
+		v1.POST("/channels/:id/messages/:messageId/react", messagingHandler.ReactToMessage)
 
 		// Presence Routes
 		v1.POST("/presence/heartbeat", presenceHandler.Heartbeat)

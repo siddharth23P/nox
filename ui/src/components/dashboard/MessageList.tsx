@@ -2,9 +2,11 @@ import React, { useEffect, useRef, useLayoutEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useMessageStore } from '../../stores/messageStore';
 import { useAuthStore } from '../../stores/authStore';
-import { MessageCircle, Edit2 } from 'lucide-react';
+import { MessageCircle, Edit2, SmilePlus } from 'lucide-react';
 import { PresenceAvatar } from '../common/PresenceAvatar';
 import { EditHistoryModal } from './EditHistoryModal';
+import { ReactionBubble } from './ReactionBubble';
+import { EmojiPicker } from './EmojiPicker';
 import type { Message } from '../../stores/messageStore';
 
 interface MessageListProps {
@@ -19,6 +21,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [historyModalMessageId, setHistoryModalMessageId] = useState<string | null>(null);
+  const [activeEmojiPickerMsgId, setActiveEmojiPickerMsgId] = useState<string | null>(null);
   
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -189,6 +192,21 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                         )}
                       </div>
                     )}
+                    
+                    {/* Reactions array */}
+                    {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                      <div className={`flex flex-wrap gap-1 mt-1.5 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+                        {Object.entries(msg.reactions).map(([emoji, count]) => (
+                          <ReactionBubble
+                            key={emoji}
+                            emoji={emoji}
+                            count={count}
+                            hasReacted={!!msg.user_reactions?.includes(emoji)}
+                            onClick={() => useMessageStore.getState().toggleReaction(channelId!, msg.id, emoji)}
+                          />
+                        ))}
+                      </div>
+                    )}
 
                   {/* Reply Count Indicator */}
                   {msg.reply_count && msg.reply_count > 0 ? (
@@ -216,6 +234,23 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                       <Edit2 size={14} />
                     </button>
                   )}
+                  
+                  <div className="relative">
+                    <button 
+                      onClick={() => setActiveEmojiPickerMsgId(activeEmojiPickerMsgId === msg.id ? null : msg.id)}
+                      className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-white hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                      title="Add reaction"
+                    >
+                      <SmilePlus size={14} />
+                    </button>
+                    {activeEmojiPickerMsgId === msg.id && (
+                      <EmojiPicker 
+                        onSelect={(emoji) => useMessageStore.getState().toggleReaction(channelId!, msg.id, emoji)}
+                        onClose={() => setActiveEmojiPickerMsgId(null)}
+                      />
+                    )}
+                  </div>
+                  
                   <button 
                     onClick={() => setActiveThread(msg.id)}
                     className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-white hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"

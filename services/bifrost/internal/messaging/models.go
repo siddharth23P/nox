@@ -22,10 +22,12 @@ type Message struct {
 	ParentID    *string   `json:"parent_id,omitempty"`
 	ContentMD   string    `json:"content_md"`
 	ContentHTML string    `json:"content_html"`
-	ReplyCount  int       `json:"reply_count,omitempty"`
-	IsEdited    bool      `json:"is_edited"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ReplyCount    int            `json:"reply_count,omitempty"`
+	IsEdited      bool           `json:"is_edited"`
+	Reactions     map[string]int `json:"reactions,omitempty"`
+	UserReactions []string       `json:"user_reactions,omitempty"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
 }
 
 type MessageEdit struct {
@@ -53,4 +55,9 @@ type CreateMessageRequest struct {
 type EditMessageRequest struct {
 	ContentMD   string `json:"content_md" binding:"required"`
 	ContentHTML string `json:"content_html"`
+}
+
+type ReactionRequest struct {
+	Emoji  string `json:"emoji" binding:"required"`
+	Action string `json:"action" binding:"required"` // "add" or "remove"
 }

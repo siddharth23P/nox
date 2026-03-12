@@ -8,11 +8,12 @@ import (
 )
 
 type MessagingService struct {
-	db *db.Database
+	db        *db.Database
+	Reactions *ReactionService
 }
 
-func NewMessagingService(database *db.Database) *MessagingService {
-	return &MessagingService{db: database}
+func NewMessagingService(database *db.Database, reactions *ReactionService) *MessagingService {
+	return &MessagingService{db: database, Reactions: reactions}
 }
 
 func (s *MessagingService) CreateChannel(ctx context.Context, orgID, name, description string, isPrivate bool) (*Channel, error) {
@@ -75,10 +76,11 @@ func (s *MessagingService) CreateMessage(ctx context.Context, channelID, userID,
 	}
 	// Initial reply count is 0
 	msg.ReplyCount = 0
+	msg.Reactions = make(map[string]int)
 	return &msg, nil
 }
 
-func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID string, before string) ([]Message, error) {
+func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID string, before string, currentUserID string) ([]Message, error) {
 	var query string
 	var args []interface{}
 
@@ -131,10 +133,12 @@ func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID s
 		messages[i], messages[j] = messages[j], messages[i]
 	}
 
+	messages = s.Reactions.InjectReactionsIntoMessages(messages, currentUserID)
+
 	return messages, nil
 }
 
-func (s *MessagingService) GetThreadReplies(ctx context.Context, messageID string) ([]Message, error) {
+func (s *MessagingService) GetThreadReplies(ctx context.Context, messageID string, currentUserID string) ([]Message, error) {
 	query := `
 		SELECT m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited 
 		FROM messages m
@@ -160,6 +164,9 @@ func (s *MessagingService) GetThreadReplies(ctx context.Context, messageID strin
 		msg.ReplyCount = 0 // Replies don't have replies in this simple 1-level thread model
 		messages = append(messages, msg)
 	}
+	
+	messages = s.Reactions.InjectReactionsIntoMessages(messages, currentUserID)
+	
 	return messages, nil
 }
 
@@ -221,7 +228,10 @@ func (s *MessagingService) EditMessage(ctx context.Context, messageID string, us
 	if err != nil {
 		return nil, err
 	}
-	return &msg, nil
+	
+	// Inject reactions for the returned edited message
+	msgs := s.Reactions.InjectReactionsIntoMessages([]Message{msg}, userID)
+	return &msgs[0], nil
 }
 
 func (s *MessagingService) GetMessageEditHistory(ctx context.Context, messageID string) ([]MessageEdit, error) {

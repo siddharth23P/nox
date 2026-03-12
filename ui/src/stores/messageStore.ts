@@ -10,6 +10,8 @@ export interface Message {
   content_html: string;
   reply_count?: number;
   is_edited?: boolean;
+  reactions?: Record<string, number>;
+  user_reactions?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -58,6 +60,7 @@ interface MessageState {
   
   editMessage: (channelId: string, messageId: string, contentMd: string) => Promise<void>;
   getMessageHistory: (channelId: string, messageId: string) => Promise<MessageEdit[]>;
+  toggleReaction: (channelId: string, messageId: string, emoji: string) => Promise<void>;
 }
 
 const API_BASE_URL = 'http://localhost:8080/v1';
@@ -260,6 +263,77 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     } catch (err) {
       set({ error: (err as Error).message });
       throw err;
+    }
+  },
+
+  toggleReaction: async (channelId, messageId, emoji) => {
+    try {
+      const state = get();
+      const userStr = localStorage.getItem('nox_user');
+      const userId = userStr ? JSON.parse(userStr).id : '22222222-2222-2222-2222-222222222222';
+      
+      // Find the message to determine whether we are adding or removing
+      let msg = state.messages.find(m => m.id === messageId);
+      if (!msg) {
+        msg = state.threadMessages.find(m => m.id === messageId);
+      }
+      
+      if (!msg) return; // Message not found in current views
+
+      const isReacted = msg.user_reactions?.includes(emoji);
+      const action = isReacted ? 'remove' : 'add';
+
+      // Optimistic update
+      const updateFn = (m: Message): Message => {
+        if (m.id !== messageId) return m;
+
+        const currentCount = m.reactions?.[emoji] || 0;
+        const newCount = isReacted ? currentCount - 1 : currentCount + 1;
+        
+        const newReactions = { ...m.reactions };
+        if (newCount <= 0) {
+          delete newReactions[emoji];
+        } else {
+          newReactions[emoji] = newCount;
+        }
+
+        const newUserReactions = isReacted 
+          ? (m.user_reactions || []).filter(e => e !== emoji)
+          : [...(m.user_reactions || []), emoji];
+
+        return {
+          ...m,
+          reactions: newReactions,
+          user_reactions: newUserReactions
+        };
+      };
+
+      set(state => ({
+        messages: state.messages.map(updateFn),
+        threadMessages: state.threadMessages.map(updateFn)
+      }));
+
+      // API Call
+      const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}/react`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
+          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
+        },
+        body: JSON.stringify({ emoji, action }),
+      });
+      
+      if (!response.ok) {
+        // Revert optimistic update on failure by re-fetching or reverting state (simplified here to throw)
+        throw new Error('Failed to toggle reaction');
+      }
+
+      // We could use the response data to ensure perfect sync, 
+      // but optimistic update is usually fine for reactions unless it drifted.
+    } catch (err) {
+      console.error('Failed to toggle reaction:', err);
+      // In a production app, we would revert the optimistic UI update here
     }
   }
 }));

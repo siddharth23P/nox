@@ -101,9 +101,10 @@ func (h *MessagingHandler) GetMessages(c *gin.Context) {
 		return
 	}
 
+	_, userID := getAuthInfo(c)
 	before := c.Query("before")
 
-	messages, err := h.service.GetMessagesByChannel(c.Request.Context(), channelID, before)
+	messages, err := h.service.GetMessagesByChannel(c.Request.Context(), channelID, before, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -122,7 +123,9 @@ func (h *MessagingHandler) GetThreadReplies(c *gin.Context) {
 		return
 	}
 
-	messages, err := h.service.GetThreadReplies(c.Request.Context(), messageID)
+	_, userID := getAuthInfo(c)
+
+	messages, err := h.service.GetThreadReplies(c.Request.Context(), messageID, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -183,4 +186,39 @@ func (h *MessagingHandler) GetMessageEditHistory(c *gin.Context) {
 		edits = []MessageEdit{}
 	}
 	c.JSON(http.StatusOK, edits)
+}
+
+func (h *MessagingHandler) ReactToMessage(c *gin.Context) {
+	_, userID := getAuthInfo(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "X-User-ID required"})
+		return
+	}
+
+	messageID := c.Param("messageId")
+	if messageID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Message ID required"})
+		return
+	}
+
+	var req ReactionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := h.service.Reactions.ToggleReaction(messageID, userID, req.Emoji, req.Action)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Fetch updated counts
+	counts, userReacted := h.service.Reactions.GetReactionsForMessage(messageID, userID)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message_id":     messageID,
+		"reactions":      counts,
+		"user_reactions": userReacted,
+	})
 }
