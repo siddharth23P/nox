@@ -7,7 +7,7 @@ import { PresenceAvatar } from '../common/PresenceAvatar';
 import { EditHistoryModal } from './EditHistoryModal';
 import { ReactionBubble } from './ReactionBubble';
 import { EmojiPicker } from './EmojiPicker';
-import { ReadReceiptsLine } from './ReadReceiptsLine';
+
 import type { Message } from '../../stores/messageStore';
 
 interface MessageListProps {
@@ -15,7 +15,7 @@ interface MessageListProps {
 }
 
 export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
-  const { messages, fetchMessages, loadMoreMessages, isLoading, hasMore, setActiveThread, editMessage, readReceipts, fetchReadReceipts, markAsRead } = useMessageStore();
+  const { messages, fetchMessages, loadMoreMessages, isLoading, hasMore, setActiveThread, editMessage } = useMessageStore();
   const { user } = useAuthStore();
   const currentUserId = user?.id;
   
@@ -32,57 +32,17 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
   useEffect(() => {
     if (channelId) {
       fetchMessages(channelId);
-      fetchReadReceipts(channelId);
     }
-  }, [channelId, fetchMessages, fetchReadReceipts]);
+  }, [channelId, fetchMessages]);
 
-  // Setup intersection observer for read receipts
-  useEffect(() => {
-    if (!channelId || messages.length === 0) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const msgId = entry.target.getAttribute('data-message-id');
-            const msgUserId = entry.target.getAttribute('data-user-id');
-            // Only mark as read if it's someone else's message
-            if (msgId && msgUserId !== currentUserId) {
-              markAsRead(channelId, msgId);
-            }
-          }
-        });
-      },
-      { threshold: 0.5 } // 50% visibility
-    );
-
-    const messageElements = document.querySelectorAll('.message-item');
-    messageElements.forEach((el) => observer.observe(el));
-
-    return () => observer.disconnect();
-  }, [messages, channelId, markAsRead, currentUserId]);
-
-  const messagesCount = messages.length;
-
-  // Group read receipts by message_id
-  const receiptsByMessageId: Record<string, string[]> = {};
-  if (readReceipts) {
-    Object.values(readReceipts).forEach(r => {
-      if (r.user_id !== currentUserId) {
-        if (!receiptsByMessageId[r.last_read_message_id]) {
-          receiptsByMessageId[r.last_read_message_id] = [];
-        }
-        receiptsByMessageId[r.last_read_message_id].push(r.user_id);
-      }
-    });
-  }
 
   useEffect(() => {
     // Scroll to bottom when channel changes and initial fetch completes
     if (!isFetchingOlder) {
       bottomRef.current?.scrollIntoView({ behavior: 'auto' });
     }
-  }, [messagesCount, channelId, isFetchingOlder]);
+  }, [messages.length, channelId, isFetchingOlder]);
 
   useLayoutEffect(() => {
     // Restore scroll position after prepending older messages
@@ -117,8 +77,27 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
 
   if (isLoading && messages.length === 0) {
     return (
+      <div className="flex-1 flex items-center justify-center text-gray-500" data-testid="loading-messages">
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+          <span>Loading messages...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isLoading && messages.length === 0) {
+    return (
       <div className="flex-1 flex items-center justify-center text-gray-500">
-        Loading messages...
+        <div className="flex flex-col items-center gap-4 max-w-sm text-center">
+          <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center text-gray-400">
+            <MessageCircle size={32} opacity={0.5} />
+          </div>
+          <div>
+            <h3 className="text-white font-medium mb-1">No messages yet</h3>
+            <p className="text-sm">Be the first to say hello in this channel!</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -223,11 +202,17 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                             isCurrentUser 
                               ? 'bg-blue-600/20 text-blue-100 px-4 py-2.5 rounded-2xl rounded-tr-sm inline-block text-right border border-blue-500/20' 
                               : 'text-gray-300'
-                          }`}
+                          } ${msg.status === 'sending' ? 'opacity-50' : ''}`}
                         >
                           <div dangerouslySetInnerHTML={{ __html: msg.content_html || msg.content_md }} />
                         </div>
                         <div className={`flex flex-col gap-1 items-start ${isCurrentUser ? 'mr-2' : 'ml-2'} mb-1`}>
+                          {msg.status === 'sending' && (
+                            <span className="text-[10px] text-gray-500 animate-pulse">Sending...</span>
+                          )}
+                          {msg.status === 'error' && (
+                            <span className="text-[10px] text-red-500">Failed to send</span>
+                          )}
                           {msg.is_edited && isConsecutive && (
                             <button 
                               onClick={() => setHistoryModalMessageId(msg.id)}
@@ -272,10 +257,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                     </div>
                   ) : null}
 
-                  {/* Read Receipts Line */}
-                  {receiptsByMessageId[msg.id] && (
-                    <ReadReceiptsLine userIds={receiptsByMessageId[msg.id]} />
-                  )}
+
                 </div>
 
                 {/* Hover Actions */}

@@ -10,6 +10,7 @@ export interface Message {
   content_html: string;
   reply_count?: number;
   is_edited?: boolean;
+  status?: 'sending' | 'sent' | 'error';
   reactions?: Record<string, number>;
   user_reactions?: string[];
   is_pinned?: boolean;
@@ -26,13 +27,6 @@ export interface MessageEdit {
   new_content_md: string;
   new_content_html: string;
   created_at: string;
-}
-
-export interface ReadReceipt {
-  channel_id: string;
-  user_id: string;
-  last_read_message_id: string;
-  updated_at: string;
 }
 
 export interface Channel {
@@ -73,24 +67,29 @@ interface MessageState {
   togglePin: (channelId: string, messageId: string) => Promise<void>;
   toggleBookmark: (channelId: string, messageId: string) => Promise<void>;
   
-  readReceipts: Record<string, ReadReceipt>;
-  fetchReadReceipts: (channelId: string) => Promise<void>;
-  markAsRead: (channelId: string, messageId: string) => void;
-  
   // Real-time Event Handlers
   onMessageReceived: (message: Message) => void;
   onMessageEdited: (message: Message) => void;
   onReactionUpdated: (messageId: string, reactions: Record<string, number>) => void;
-  onReadReceiptUpdated: (receipt: ReadReceipt) => void;
   onPinUpdated: (messageId: string, isPinned: boolean) => void;
 }
 
 const API_BASE_URL = 'http://localhost:8080/v1';
 
-let readTimeout: ReturnType<typeof setTimeout> | null = null;
+const getInitialChannel = (): Channel | null => {
+  const saved = localStorage.getItem('nox_active_channel');
+  if (saved) {
+    try {
+      return JSON.parse(saved);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+};
 
 export const useMessageStore = create<MessageState>((set, get) => ({
-  activeChannel: null,
+  activeChannel: getInitialChannel(),
   channels: [],
   messages: [],
   activeThreadId: null,
@@ -98,81 +97,114 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   isLoading: false,
   error: null,
   hasMore: true,
-  readReceipts: {},
 
-  setActiveChannel: (channel) => set({ activeChannel: channel }),
+  setActiveChannel: (channel) => set((state) => {
+    if (state.activeChannel?.id === channel.id) return state;
+    
+    // Persist to localStorage for initial load hydration
+    localStorage.setItem('nox_active_channel', JSON.stringify(channel));
+    
+    return { 
+      activeChannel: channel, 
+      messages: [], 
+      isLoading: true,
+      activeThreadId: null,
+      threadMessages: []
+    };
+  }),
   setChannels: (channels) => set({ channels }),
   setMessages: (messages) => set({ messages }),
   addMessage: (message) => set((state) => {
+    // 1. Prevent exact ID duplicates
     if (state.messages.some(m => m.id === message.id)) return state;
-    return { messages: [message, ...state.messages] };
+    // 2. Only add if it belongs to the current active channel
+    if (state.activeChannel && message.channel_id !== state.activeChannel.id) return state;
+    
+    return { messages: [...state.messages, message] };
   }),
   
   // Handlers
   onMessageReceived: (message) => set((state) => {
-    // Prevent duplicates
+    // 1. Prevent exact ID duplicates
     if (state.messages.some(m => m.id === message.id)) return state;
     
+    // 2. Prevent content duplicates for own messages that are still 'sending'
+    // This handles the race condition where WS arrives before POST response
+    const isDuplicate = state.messages.some(m => 
+      m.status === 'sending' && 
+      m.user_id === message.user_id && 
+      m.content_md === message.content_md
+    );
+    if (isDuplicate) return state;
+
     // If it's a thread reply, update threadMessages, else update main messages
     if (message.parent_id && state.activeThreadId === message.parent_id) {
+      if (state.threadMessages.some(m => m.id === message.id)) return state;
       return { threadMessages: [...state.threadMessages, message] };
     }
     
     if (state.activeChannel && message.channel_id === state.activeChannel.id && !message.parent_id) {
-      return { messages: [message, ...state.messages] };
+      return { messages: [...state.messages, message] };
     }
     
     return state;
   }),
   
-  onMessageEdited: (message) => set((state) => {
-    return {
-      messages: state.messages.map(m => m.id === message.id ? message : m),
-      threadMessages: state.threadMessages.map(m => m.id === message.id ? message : m)
-    };
-  }),
+  onMessageEdited: (message) => set((state) => ({
+    messages: state.messages.map(m => m.id === message.id ? message : m),
+    threadMessages: state.threadMessages.map(m => m.id === message.id ? message : m)
+  })),
   
-  onReactionUpdated: (messageId, reactions) => set((state) => {
-    return {
-      messages: state.messages.map(m => m.id === messageId ? { ...m, reactions } : m),
-      threadMessages: state.threadMessages.map(m => m.id === messageId ? { ...m, reactions } : m)
-    };
-  }),
+  onReactionUpdated: (messageId, reactions) => set((state) => ({
+    messages: state.messages.map(m => m.id === messageId ? { ...m, reactions } : m),
+    threadMessages: state.threadMessages.map(m => m.id === messageId ? { ...m, reactions } : m)
+  })),
 
-  onReadReceiptUpdated: (receipt) => set((state) => {
-    return {
-      readReceipts: {
-        ...state.readReceipts,
-        [receipt.user_id]: receipt
-      }
-    };
-  }),
-
-  onPinUpdated: (messageId, isPinned) => set((state) => {
-    return {
-      messages: state.messages.map(m => m.id === messageId ? { ...m, is_pinned: isPinned } : m),
-      threadMessages: state.threadMessages.map(m => m.id === messageId ? { ...m, is_pinned: isPinned } : m)
-    };
-  }),
+  onPinUpdated: (messageId, isPinned) => set((state) => ({
+    messages: state.messages.map(m => m.id === messageId ? { ...m, is_pinned: isPinned } : m),
+    threadMessages: state.threadMessages.map(m => m.id === messageId ? { ...m, is_pinned: isPinned } : m)
+  })),
 
   fetchMessages: async (channelId) => {
+    const userStr = localStorage.getItem('nox_user');
+    const user = userStr ? JSON.parse(userStr) : null;
+    const userId = user?.id || '';
+    
     set({ isLoading: true, error: null, hasMore: true });
+    
     try {
-      const userStr = localStorage.getItem('nox_user');
-      const userId = userStr ? JSON.parse(userStr).id : '' ;
-      
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages`, {
         headers: {
           'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
           'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
         }
       });
-      if (!response.ok) throw new Error('Failed to fetch messages');
+      
+      if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
       
       const data = await response.json();
-      set({ messages: data, isLoading: false, hasMore: data.length === 50 });
+      const reversedData = [...data].reverse();
+
+      set((state) => {
+        const currentChannelId = state.activeChannel?.id;
+        
+        if (currentChannelId === channelId) {
+          const fetchedIds = new Set(reversedData.map((m: Message) => m.id));
+          const localMessages = state.messages.filter(m => !fetchedIds.has(m.id));
+          
+          return { 
+            messages: [...reversedData, ...localMessages], 
+            isLoading: false, 
+            hasMore: data.length === 50 
+          };
+        }
+        
+        return state;
+      });
     } catch (err) {
-      set({ error: (err as Error).message, isLoading: false });
+      if (get().activeChannel?.id === channelId) {
+        set({ error: (err as Error).message, isLoading: false });
+      }
     }
   },
 
@@ -194,8 +226,11 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       if (!response.ok) throw new Error('Failed to load more messages');
       
       const data = await response.json();
+      // data is DESC (older messages relative to the 'before' timestamp).
+      // We reverse it to prepend in ASC order.
+      const reversedData = [...data].reverse();
       set((prev) => ({ 
-        messages: [...data, ...prev.messages], 
+        messages: [...reversedData, ...prev.messages], 
         isLoading: false,
         hasMore: data.length === 50 
       }));
@@ -205,10 +240,26 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   },
 
   sendMessage: async (channelId, contentMd) => {
-    try {
-      const userStr = localStorage.getItem('nox_user');
-      const userId = userStr ? JSON.parse(userStr).id : '' ;
+    const userStr = localStorage.getItem('nox_user');
+    const user = userStr ? JSON.parse(userStr) : null;
+    const userId = user?.id || '';
+    
+    const tempId = `temp-${Date.now()}`;
+    const tempMessage: Message = {
+      id: tempId,
+      channel_id: channelId,
+      user_id: userId,
+      username: user?.username || 'You',
+      content_md: contentMd,
+      content_html: contentMd,
+      status: 'sending',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
 
+    set((state) => ({ messages: [...state.messages, tempMessage] }));
+
+    try {
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages`, {
         method: 'POST',
         headers: {
@@ -219,13 +270,24 @@ export const useMessageStore = create<MessageState>((set, get) => ({
         body: JSON.stringify({ content_md: contentMd }),
       });
       
-      if (!response.ok) throw new Error('Failed to send message');
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`sendMessage failed with status ${response.status}:`, errorText);
+        throw new Error(`Failed to send message: ${response.status}`);
+      }
       
       const newMessage = await response.json();
-      // Assume WebSocket will eventually broadcast this, but for now we optimistically UI update.
-      get().addMessage(newMessage);
+      
+      // Replace temp message with real one
+      set((state) => ({
+        messages: state.messages.map(m => m.id === tempId ? { ...newMessage, status: 'sent' } : m)
+      }));
     } catch (err) {
-      set({ error: (err as Error).message });
+      console.error('sendMessage fetch exception:', err);
+      set((state) => ({
+        messages: state.messages.map(m => m.id === tempId ? { ...m, status: 'error' } : m),
+        error: (err as Error).message 
+      }));
       throw err;
     }
   },
@@ -271,10 +333,8 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       if (!response.ok) throw new Error('Failed to send reply');
       
       const newReply = await response.json();
-      // Optimistically update threadMessages
       set((state) => ({ 
         threadMessages: [...state.threadMessages, newReply],
-        // Optimistically update reply_count of the parent message in the main view
         messages: state.messages.map(m => 
           m.id === messageId 
             ? { ...m, reply_count: (m.reply_count || 0) + 1 } 
@@ -302,14 +362,9 @@ export const useMessageStore = create<MessageState>((set, get) => ({
         body: JSON.stringify({ content_md: contentMd }),
       });
       
-      if (!response.ok) {
-        if (response.status === 403) throw new Error('Forbidden: You cannot edit this message.');
-        throw new Error('Failed to edit message');
-      }
+      if (!response.ok) throw new Error('Failed to edit message');
       
       const updatedMessage = await response.json();
-      
-      // Update both main messages and thread messages if needed
       set((state) => ({
         messages: state.messages.map(m => m.id === messageId ? updatedMessage : m),
         threadMessages: state.threadMessages.map(m => m.id === messageId ? updatedMessage : m)
@@ -332,9 +387,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
         }
       });
       if (!response.ok) throw new Error('Failed to fetch message history');
-      
-      const data = await response.json();
-      return data;
+      return await response.json();
     } catch (err) {
       set({ error: (err as Error).message });
       throw err;
@@ -342,54 +395,40 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   },
 
   toggleReaction: async (channelId, messageId, emoji) => {
+    const state = get();
+    const userStr = localStorage.getItem('nox_user');
+    const userId = userStr ? JSON.parse(userStr).id : '' ;
+    
+    const msg = state.messages.find(m => m.id === messageId) || state.threadMessages.find(m => m.id === messageId);
+    if (!msg) return;
+
+    const isReacted = msg.user_reactions?.includes(emoji);
+    const action = isReacted ? 'remove' : 'add';
+
+    const updateFn = (m: Message): Message => {
+      if (m.id !== messageId) return m;
+
+      const currentCount = m.reactions?.[emoji] || 0;
+      const newCount = isReacted ? currentCount - 1 : currentCount + 1;
+      
+      const newReactions = { ...m.reactions };
+      if (newCount <= 0) delete newReactions[emoji];
+      else newReactions[emoji] = newCount;
+
+      const newUserReactions = isReacted 
+        ? (m.user_reactions || []).filter(e => e !== emoji)
+        : [...(m.user_reactions || []), emoji];
+
+      return { ...m, reactions: newReactions, user_reactions: newUserReactions };
+    };
+
+    set(state => ({
+      messages: state.messages.map(updateFn),
+      threadMessages: state.threadMessages.map(updateFn)
+    }));
+
     try {
-      const state = get();
-      const userStr = localStorage.getItem('nox_user');
-      const userId = userStr ? JSON.parse(userStr).id : '' ;
-      
-      // Find the message to determine whether we are adding or removing
-      let msg = state.messages.find(m => m.id === messageId);
-      if (!msg) {
-        msg = state.threadMessages.find(m => m.id === messageId);
-      }
-      
-      if (!msg) return; // Message not found in current views
-
-      const isReacted = msg.user_reactions?.includes(emoji);
-      const action = isReacted ? 'remove' : 'add';
-
-      // Optimistic update
-      const updateFn = (m: Message): Message => {
-        if (m.id !== messageId) return m;
-
-        const currentCount = m.reactions?.[emoji] || 0;
-        const newCount = isReacted ? currentCount - 1 : currentCount + 1;
-        
-        const newReactions = { ...m.reactions };
-        if (newCount <= 0) {
-          delete newReactions[emoji];
-        } else {
-          newReactions[emoji] = newCount;
-        }
-
-        const newUserReactions = isReacted 
-          ? (m.user_reactions || []).filter(e => e !== emoji)
-          : [...(m.user_reactions || []), emoji];
-
-        return {
-          ...m,
-          reactions: newReactions,
-          user_reactions: newUserReactions
-        };
-      };
-
-      set(state => ({
-        messages: state.messages.map(updateFn),
-        threadMessages: state.threadMessages.map(updateFn)
-      }));
-
-      // API Call
-      const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}/react`, {
+      await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}/react`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -398,36 +437,22 @@ export const useMessageStore = create<MessageState>((set, get) => ({
         },
         body: JSON.stringify({ emoji, action }),
       });
-      
-      if (!response.ok) {
-        // Revert optimistic update on failure by re-fetching or reverting state (simplified here to throw)
-        throw new Error('Failed to toggle reaction');
-      }
-
-      // We could use the response data to ensure perfect sync, 
-      // but optimistic update is usually fine for reactions unless it drifted.
     } catch (err) {
       console.error('Failed to toggle reaction:', err);
-      // In a production app, we would revert the optimistic UI update here
     }
   },
 
   togglePin: async (channelId, messageId) => {
+    const updateFn = (m: Message): Message => m.id === messageId ? { ...m, is_pinned: !m.is_pinned } : m;
+    set(state => ({
+      messages: state.messages.map(updateFn),
+      threadMessages: state.threadMessages.map(updateFn)
+    }));
+
     try {
       const userStr = localStorage.getItem('nox_user');
       const userId = userStr ? JSON.parse(userStr).id : '' ;
-      
-      const updateFn = (m: Message): Message => {
-        if (m.id !== messageId) return m;
-        return { ...m, is_pinned: !m.is_pinned };
-      };
-
-      set(state => ({
-        messages: state.messages.map(updateFn),
-        threadMessages: state.threadMessages.map(updateFn)
-      }));
-
-      const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}/pin`, {
+      await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}/pin`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -435,29 +460,22 @@ export const useMessageStore = create<MessageState>((set, get) => ({
           'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
         }
       });
-      
-      if (!response.ok) throw new Error('Failed to toggle pin');
     } catch (err) {
       console.error('Failed to toggle pin:', err);
     }
   },
 
   toggleBookmark: async (channelId, messageId) => {
+    const updateFn = (m: Message): Message => m.id === messageId ? { ...m, is_bookmarked: !m.is_bookmarked } : m;
+    set(state => ({
+      messages: state.messages.map(updateFn),
+      threadMessages: state.threadMessages.map(updateFn)
+    }));
+
     try {
       const userStr = localStorage.getItem('nox_user');
       const userId = userStr ? JSON.parse(userStr).id : '' ;
-      
-      const updateFn = (m: Message): Message => {
-        if (m.id !== messageId) return m;
-        return { ...m, is_bookmarked: !m.is_bookmarked };
-      };
-
-      set(state => ({
-        messages: state.messages.map(updateFn),
-        threadMessages: state.threadMessages.map(updateFn)
-      }));
-
-      const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}/bookmark`, {
+      await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}/bookmark`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -465,69 +483,8 @@ export const useMessageStore = create<MessageState>((set, get) => ({
           'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
         }
       });
-      
-      if (!response.ok) throw new Error('Failed to toggle bookmark');
     } catch (err) {
       console.error('Failed to toggle bookmark:', err);
     }
-  },
-
-  fetchReadReceipts: async (channelId) => {
-    try {
-      const userStr = localStorage.getItem('nox_user');
-      const userId = userStr ? JSON.parse(userStr).id : '' ;
-      
-      const response = await fetch(`${API_BASE_URL}/channels/${channelId}/reads`, {
-        headers: {
-          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
-          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
-        }
-      });
-      if (!response.ok) return;
-      
-      const data: ReadReceipt[] = await response.json();
-      const receiptsMap: Record<string, ReadReceipt> = {};
-      data.forEach(r => receiptsMap[r.user_id] = r);
-      set({ readReceipts: receiptsMap });
-    } catch (err) {
-      console.error('Failed to fetch read receipts:', err);
-    }
-  },
-
-  markAsRead: (channelId, messageId) => {
-    const userStr = localStorage.getItem('nox_user');
-    const userId = userStr ? JSON.parse(userStr).id : '' ;
-
-    // Optimistically update
-    set(state => ({
-      readReceipts: {
-        ...state.readReceipts,
-        [userId]: { 
-          channel_id: channelId, 
-          user_id: userId, 
-          last_read_message_id: messageId, 
-          updated_at: new Date().toISOString() 
-        }
-      }
-    }));
-
-    // Debounce API call
-    if (readTimeout) clearTimeout(readTimeout);
-    readTimeout = setTimeout(async () => {
-      try {
-        await fetch(`${API_BASE_URL}/channels/${channelId}/read`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
-            'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
-          },
-          body: JSON.stringify({ message_id: messageId }),
-        });
-      } catch (err) {
-        console.error('Failed to update read receipt:', err);
-      }
-    }, 2000); // 2 second debounce
   }
 }));
-

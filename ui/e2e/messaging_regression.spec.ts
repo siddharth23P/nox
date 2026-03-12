@@ -1,38 +1,31 @@
 import { test, expect } from '@playwright/test';
-import { waitForElementStable } from './utils';
 
 test.describe('Core Messaging Flow', () => {
   test('Send and receive a basic message', async ({ page }) => {
-    // Navigate to root
     await page.goto('/');
     
-    // Inject auth state into localStorage to bypass login
     await page.evaluate(() => {
-      localStorage.setItem('nox_token', 'fake-jwt-token');
-      localStorage.setItem('nox_org_id', 'test-org-123');
+      localStorage.setItem('nox_token', 'test_jwt_token_msg_reg');
+      localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
       localStorage.setItem('nox_role', 'admin');
+      localStorage.setItem('nox_user', JSON.stringify({
+        id: '22222222-2222-2222-2222-222222222222',
+        username: 'TestUser',
+        email: 'test@example.com'
+      }));
     });
 
-    // Reload the page to trigger state re-evaluation
     await page.reload();
-
-    // Verify it automatically redirects to /dashboard
-    await expect(page).toHaveURL(/.*\/dashboard/, { timeout: 10000 });
+    await expect(page).toHaveURL(/.*\/dashboard/);
 
     const messageInput = page.locator('textarea[placeholder="Message #general..."]');
-    await waitForElementStable(page, 'textarea[placeholder="Message #general..."]');
+    await expect(messageInput).toBeVisible({ timeout: 15000 });
 
     const testMessage = `E2E Test Message: ${Date.now()}`;
     await messageInput.fill(testMessage);
-    
-    // Send the message and allow processing time
     await messageInput.press('Enter');
-    await waitForElementStable(page, `text=${testMessage}`);
 
-    // Verify it appears in the MessageList
-    // Verify it appears in the MessageList with stable wait
-    await waitForElementStable(page, `.flex-1.overflow-y-auto >> text=${testMessage}`, 60000);
     const msgElement = page.locator('.flex-1.overflow-y-auto').getByText(testMessage).first();
-    await expect(msgElement).toBeVisible({ timeout: 10000 });
+    await expect(msgElement).toBeVisible({ timeout: 15000 });
   });
 });

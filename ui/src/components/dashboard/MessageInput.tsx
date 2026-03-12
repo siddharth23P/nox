@@ -11,6 +11,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
   const [content, setContent] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const sendMessage = useMessageStore((state) => state.sendMessage);
+  const activeChannel = useMessageStore((state) => state.activeChannel);
+  const placeholderSuffix = activeChannel?.name || "general";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,22 +62,21 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
             onKeyDown={handleKeyDown}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            placeholder="Message #general..."
+            placeholder={`Message #${placeholderSuffix}...`}
             className="w-full bg-transparent text-white px-4 py-4 resize-none outline-none min-h-[56px] max-h-[40vh] text-[15px] placeholder:text-gray-500 rounded-t-2xl custom-scrollbar"
             rows={1}
-            style={{ height: 'auto' }}
           />
 
           {/* Action formatting bar */}
           <div className="flex items-center justify-between px-3 py-2 bg-white/[0.02] border-t border-white/5 rounded-b-2xl">
             <div className="flex items-center gap-1">
-              <button type="button" className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+              <button type="button" title="Attach file" className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
                 <Paperclip size={18} />
               </button>
-              <button type="button" className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+              <button type="button" title="Mention user" className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
                 <AtSign size={18} />
               </button>
-              <button type="button" className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+              <button type="button" title="Add emoji" className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
                 <Smile size={18} />
               </button>
             </div>

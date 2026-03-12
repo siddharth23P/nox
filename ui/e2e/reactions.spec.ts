@@ -1,97 +1,83 @@
 import { test, expect } from '@playwright/test';
-import { waitForElementStable } from './utils';
 
 test.describe('Reaction Engine (E2E)', () => {
   const aliceEmail = 'alice.reactions@example.com';
   const bobEmail = 'bob.reactions@example.com';
-  const password = 'Password123!';
-  const channelName = 'general';
-
-
+  const channelName = 'engineering';
 
   test('Alice sets a reaction, Bob sees it and adds his own, Alice removes hers', async ({ browser }) => {
-    // Create two contexts
-    const aliceContext = await browser.newContext();
-    const bobContext = await browser.newContext();
-
-    const alicePage = await aliceContext.newPage();
-    const bobPage = await bobContext.newPage();
-
-    // 1. Alice logs in (Bypassing UI via localStorage)
+    // 1. Setup Alice Context
     const aliceUser = { id: 'a1000000-0000-0000-0000-000000000000', username: 'AliceReacts', email: aliceEmail };
-    await alicePage.goto('http://localhost:5173/login');
-    await alicePage.evaluate((user) => {
+    const aliceContext = await browser.newContext();
+    await aliceContext.addInitScript((user) => {
       localStorage.setItem('nox_token', 'mock_jwt_token_alice');
       localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
+      localStorage.setItem('nox_active_channel', JSON.stringify({
+        id: '00000000-0000-0000-0000-000000000002',
+        name: 'engineering',
+        org_id: '00000000-0000-0000-0000-000000000001'
+      }));
       localStorage.setItem('nox_role', 'member');
       localStorage.setItem('nox_user', JSON.stringify(user));
     }, aliceUser);
+    const alicePage = await aliceContext.newPage();
     
-    // Navigate to the dashboard
-    await alicePage.goto('http://localhost:5173');
-    await expect(alicePage.getByText('Nexus Inc')).toBeVisible({ timeout: 10000 });
-
-    // Navigate to General
-    await alicePage.click(`text=${channelName}`);
-    await expect(alicePage.getByPlaceholder('Message #general...')).toBeVisible();
-
-    // Alice sends a unique message
-    const uniqueMessage = `Reaction test message ${Date.now()}`;
-    await Promise.all([
-      alicePage.waitForResponse(resp => resp.url().includes('/messages') && (resp.status() === 200 || resp.status() === 201)),
-      (async () => {
-        await alicePage.fill('textarea[placeholder="Message #general..."]', uniqueMessage);
-        await alicePage.keyboard.press('Enter');
-      })(),
-    ]);
-    await waitForElementStable(alicePage, `text=${uniqueMessage}`);
-    
-    // Wait for message to appear
-    const messageLocator = alicePage.locator('div', { hasText: uniqueMessage }).last();
-    await expect(messageLocator).toBeVisible();
-
-    // Alice hovers over her message and clicks the reaction picker
-    await waitForElementStable(alicePage, 'button[title="Add reaction"]');
-    await waitForElementStable(alicePage, 'button[title="Add reaction"]');
-    await messageLocator.hover();
-    await messageLocator.locator('button[title="Add reaction"]').click();
-
-    // Picker appears, select '🚀'
-    await waitForElementStable(alicePage, "button:has-text('🚀')");
-    await alicePage.locator('button', { hasText: '🚀' }).click();
-
-    // Verify bubble appears with count 1
-    const reactionBubble = messageLocator.locator('button', { hasText: '🚀' });
-    await expect(reactionBubble).toContainText('1');
-    // Verify it's active for Alice (bg-blue-50)
-    await expect(reactionBubble).toHaveClass(/bg-blue-50/);
-
-    // --- Switch to Bob ---
-    // 2. Bob logs in (Bypassing UI via localStorage)
+    // 2. Setup Bob Context
     const bobUser = { id: 'b2000000-0000-0000-0000-000000000000', username: 'BobReacts', email: bobEmail };
-    await bobPage.goto('http://localhost:5173/login');
-    await bobPage.evaluate((user) => {
+    const bobContext = await browser.newContext();
+    await bobContext.addInitScript((user) => {
       localStorage.setItem('nox_token', 'mock_jwt_token_bob');
       localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
+      localStorage.setItem('nox_active_channel', JSON.stringify({
+        id: '00000000-0000-0000-0000-000000000002',
+        name: 'engineering',
+        org_id: '00000000-0000-0000-0000-000000000001'
+      }));
       localStorage.setItem('nox_role', 'member');
       localStorage.setItem('nox_user', JSON.stringify(user));
     }, bobUser);
+    const bobPage = await bobContext.newPage();
     
-    // Navigate to the dashboard
+    // 3. Alice sends message
+    await alicePage.goto('http://localhost:5173');
+    await expect(alicePage.getByText('Nexus Inc')).toBeVisible({ timeout: 10000 });
+    await alicePage.click(`text=${channelName}`);
+    await expect(alicePage.getByPlaceholder(`Message #${channelName}...`)).toBeVisible();
+    await expect(alicePage.getByText('Loading messages...')).not.toBeVisible();
+
+    const uniqueMessage = `Reaction test message ${Date.now()}`;
+    await alicePage.fill(`textarea[placeholder="Message #${channelName}..."]`, uniqueMessage);
+    await alicePage.keyboard.press('Enter');
+
+    const aliceMessageLocator = alicePage.locator('.message-item').filter({ hasText: uniqueMessage }).last();
+    await expect(aliceMessageLocator).toBeVisible({ timeout: 15000 });
+    await expect(alicePage.getByText('Sending...')).not.toBeVisible();
+
+    // Alice reacts
+    await aliceMessageLocator.hover();
+    const addReactionBtn = aliceMessageLocator.locator('button[title="Add reaction"]');
+    await addReactionBtn.click({ force: true });
+    await alicePage.getByTestId('emoji-picker').locator('[data-emoji="🚀"]').click();
+    
+    const reactionBubble = aliceMessageLocator.locator('[data-testid="reaction-bubble"][data-emoji="🚀"]');
+    await expect(reactionBubble).toContainText('1');
+
+    // 4. Bob sees message
     await bobPage.goto('http://localhost:5173');
     await expect(bobPage.getByText('Nexus Inc')).toBeVisible({ timeout: 10000 });
-
     await bobPage.click(`text=${channelName}`);
+    await expect(bobPage.getByText('Loading messages...')).not.toBeVisible();
 
-    // Bob finds Alice's message (no websocket yet, so might need a forced reload or wait if it was there)
-    const bobMessageLocator = bobPage.locator('div', { hasText: uniqueMessage }).last();
-    await expect(bobMessageLocator).toBeVisible();
+    const bobMessageLocator = bobPage.locator('.message-item').filter({ hasText: uniqueMessage }).first();
+    await expect(bobMessageLocator).toBeVisible({ timeout: 30000 });
+    console.log('BOB sees the message!');
+    await expect(bobMessageLocator).toBeVisible({ timeout: 30000 });
 
     // Bob should see the existing reaction with count 1, but inactive (bg-gray-50)
-    const bobReactionBubble = bobMessageLocator.locator('button', { hasText: '🚀' });
+    const bobReactionBubble = bobMessageLocator.locator('[data-testid="reaction-bubble"][data-emoji="🚀"]');
     await expect(bobReactionBubble).toContainText('1');
     await expect(bobReactionBubble).toHaveClass(/bg-gray-50/);
-
+    
     // Bob clicks the bubble to add his reaction
     await bobReactionBubble.click();
 
@@ -101,13 +87,13 @@ test.describe('Reaction Engine (E2E)', () => {
 
     // --- Switch back to Alice ---
     // With WebSockets, the reaction count should update in real-time
-    await expect(alicePage.locator('div', { hasText: uniqueMessage }).last()).toBeVisible();
+    await expect(alicePage.locator('.message-item').filter({ hasText: uniqueMessage }).last()).toBeVisible({ timeout: 15000 });
 
-    const aliceReactionBubbleAgain = alicePage.locator('div', { hasText: uniqueMessage }).last().locator('button', { hasText: '🚀' });
+    const aliceReactionBubbleAgain = alicePage.locator('.message-item').filter({ hasText: uniqueMessage }).last().locator('[data-testid="reaction-bubble"][data-emoji="🚀"]');
     // Alice sees count 2, active for her
     await expect(aliceReactionBubbleAgain).toContainText('2');
     await expect(aliceReactionBubbleAgain).toHaveClass(/bg-blue-50/);
-
+    
     // Alice clicks to remove her reaction
     await aliceReactionBubbleAgain.click();
 

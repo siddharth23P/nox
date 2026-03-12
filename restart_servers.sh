@@ -16,8 +16,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "Cleaning and Seeding Database..."
 cd "$SCRIPT_DIR/services/bifrost"
-go run clean_db.go
-go run seed_test_users.go
+go run cmd/clean/main.go
+go run cmd/seed/main.go
 
 echo "Starting Bifrost Gateway Server (Backend)..."
 cd "$SCRIPT_DIR/services/bifrost"

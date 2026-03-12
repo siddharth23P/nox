@@ -33,9 +33,10 @@ func (s *ReactionService) ToggleReaction(messageID, userID, emoji, action string
 		s.state[messageID][emoji] = make(map[string]bool)
 	}
 
-	if action == "add" {
+	switch action {
+	case "add":
 		s.state[messageID][emoji][userID] = true
-	} else if action == "remove" {
+	case "remove":
 		delete(s.state[messageID][emoji], userID)
 		
 		// Cleanup empty maps to prevent memory bloat over time
@@ -48,7 +49,7 @@ func (s *ReactionService) ToggleReaction(messageID, userID, emoji, action string
 	}
 
 	// Calculate new totals for broadcasting
-	counts, _ := s.GetReactionsForMessage(messageID, "")
+	counts, _ := s.getReactionsForMessageNoLock(messageID, "")
 
 	// Broadcast the reaction update
 	s.Hub.BroadcastEvent("REACTION_UPDATED", map[string]interface{}{
@@ -59,11 +60,8 @@ func (s *ReactionService) ToggleReaction(messageID, userID, emoji, action string
 	return nil
 }
 
-// GetReactionsForMessage returns the aggregated counts and the current user's specific reactions
-func (s *ReactionService) GetReactionsForMessage(messageID, currentUserID string) (map[string]int, []string) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
+// getReactionsForMessageNoLock is an internal helper that assumes the lock is already held
+func (s *ReactionService) getReactionsForMessageNoLock(messageID, currentUserID string) (map[string]int, []string) {
 	counts := make(map[string]int)
 	var userReacted []string
 
@@ -83,6 +81,13 @@ func (s *ReactionService) GetReactionsForMessage(messageID, currentUserID string
 	}
 
 	return counts, userReacted
+}
+
+// GetReactionsForMessage returns the aggregated counts and the current user's specific reactions
+func (s *ReactionService) GetReactionsForMessage(messageID, currentUserID string) (map[string]int, []string) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.getReactionsForMessageNoLock(messageID, currentUserID)
 }
 
 // InjectReactionsIntoMessages is a helper to hydrate database models with ephemeral reaction state

@@ -25,7 +25,7 @@ test.describe('Dashboard Layout & Sidebar', () => {
     await expect(sidebar).toContainText('Channels');
     await expect(sidebar).toContainText('Direct Messages');
     await expect(sidebar).toContainText('general');
-    await expect(sidebar).toContainText('Alice Chen');
+    await expect(sidebar).toContainText('AliceReacts');
     await expect(sidebar).toContainText('Log out');
 
     // Verify Main Dashboard View

@@ -27,10 +27,16 @@ func main() {
 	}{
 		{"a1000000-0000-0000-0000-000000000000", "AliceReacts", "alice.reactions@example.com"},
 		{"b2000000-0000-0000-0000-000000000000", "BobReacts", "bob.reactions@example.com"},
+		{"a3000000-0000-0000-0000-000000000000", "Charlie", "charlie@nox.inc"},
+		{"a4000000-0000-0000-0000-000000000000", "Diana", "diana@nox.inc"},
+		{"a5000000-0000-0000-0000-000000000000", "Evan", "evan@nox.inc"},
+		{"a6000000-0000-0000-0000-000000000000", "Fiona", "fiona@nox.inc"},
 		{"22222222-2222-2222-2222-222222222222", "TestUser", "test@example.com"},
 		{"33333333-3333-3333-3333-333333333333", "ThreadMaster", "threads@example.com"},
 		{"a1111111-1111-1111-1111-111111111111", "AliceReads", "alice.reads@example.com"},
 		{"b2222222-2222-2222-2222-222222222222", "BobReads", "bob.reads@example.com"},
+		{"c7f8b902-7785-46f6-8144-07d0d526f5c0", "RogueUser", "rogue@example.com"},
+		{"27453400-ca82-4f54-a36d-f790915b7b76", "Siddharth", "siddharth23P@github.com"},
 	}
 
 	_, _ = conn.Exec(ctx, "INSERT INTO organizations (id, name, slug) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING", orgID, "Nexus Inc", "nexus-inc")
@@ -57,11 +63,26 @@ func main() {
 		`, u.ID, orgID, "member")
 	}
 
-	_, _ = conn.Exec(ctx, `
-		INSERT INTO channels (id, org_id, name)
-		VALUES ('00000000-0000-0000-0000-000000000001', $1, 'general')
-		ON CONFLICT (id) DO NOTHING
-	`, orgID)
+	channels := []struct {
+		ID   string
+		Name string
+	}{
+		{"00000000-0000-0000-0000-000000000001", "general"},
+		{"00000000-0000-0000-0000-000000000002", "engineering"},
+		{"00000000-0000-0000-0000-000000000003", "design"},
+		{"00000000-0000-0000-0000-000000000004", "random"},
+	}
+
+	for _, ch := range channels {
+		_, err = conn.Exec(ctx, `
+			INSERT INTO channels (id, org_id, name)
+			VALUES ($1, $2, $3)
+			ON CONFLICT (id) DO NOTHING
+		`, ch.ID, orgID, ch.Name)
+		if err != nil {
+			log.Printf("Failed to seed channel %s: %v", ch.Name, err)
+		}
+	}
 
 	fmt.Println("Seeding complete.")
 }

@@ -95,8 +95,8 @@ export const Sidebar: React.FC = () => {
             <span className="cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity hover:text-white">+</span>
           </div>
           <div className="space-y-1">
-            <NavItem icon={MessageSquare} text="Alice Chen" />
-            <NavItem icon={MessageSquare} text="Bob Smith" />
+            <NavItem icon={MessageSquare} text="AliceReacts" />
+            <NavItem icon={MessageSquare} text="BobReacts" />
           </div>
         </div>
 

@@ -8,7 +8,7 @@ type Channel struct {
 	ID          string    `json:"id"`
 	OrgID       string    `json:"org_id"`
 	Name        string    `json:"name"`
-	Description string    `json:"description,omitempty"`
+	Description *string   `json:"description,omitempty"`
 	IsPrivate   bool      `json:"is_private"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`

@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const process: any;
 
 export default defineConfig({

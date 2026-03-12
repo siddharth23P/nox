@@ -12,6 +12,8 @@ export function ReactionBubble({ emoji, count, hasReacted, onClick }: ReactionBu
   return (
     <button
       onClick={onClick}
+      data-testid="reaction-bubble"
+      data-emoji={emoji}
       className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium border transition-colors ${
         hasReacted
           ? 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'
@@ -19,7 +21,7 @@ export function ReactionBubble({ emoji, count, hasReacted, onClick }: ReactionBu
       }`}
     >
       <span>{emoji}</span>
-      <span>{count}</span>
+      <span className="reaction-count">{count}</span>
     </button>
   );
 }

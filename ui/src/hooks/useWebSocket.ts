@@ -9,7 +9,6 @@ export function useWebSocket() {
     onMessageReceived, 
     onMessageEdited, 
     onReactionUpdated, 
-    onReadReceiptUpdated,
     onPinUpdated 
   } = useMessageStore();
   const { user } = useAuthStore();
@@ -48,9 +47,7 @@ export function useWebSocket() {
           case 'REACTION_UPDATED':
             onReactionUpdated(payload.message_id, payload.reactions);
             break;
-          case 'READ_RECEIPT_UPDATED':
-            onReadReceiptUpdated(payload);
-            break;
+
           case 'PIN_UPDATED':
             onPinUpdated(payload.message_id, payload.is_pinned);
             break;
@@ -74,5 +71,5 @@ export function useWebSocket() {
         ws.current = null;
       }
     };
-  }, [user, onMessageReceived, onMessageEdited, onReactionUpdated, onReadReceiptUpdated, onPinUpdated]);
+  }, [user, onMessageReceived, onMessageEdited, onReactionUpdated, onPinUpdated]);
 }

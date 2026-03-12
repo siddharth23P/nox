@@ -25,6 +25,22 @@ export const DashboardHome: React.FC = () => {
     return () => stopHeartbeat();
   }, [user, token, startHeartbeat, stopHeartbeat]);
 
+  // Ensure active channel is set in store for real-time sync
+  const { setActiveChannel } = useMessageStore();
+  React.useEffect(() => {
+    if (!activeChannel) {
+      setActiveChannel({
+        id: "00000000-0000-0000-0000-000000000001",
+        name: "general",
+        org_id: '00000000-0000-0000-0000-000000000001',
+        description: 'Team discussion',
+        is_private: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+    }
+  }, [activeChannel, setActiveChannel]);
+
   return (
     <div className="w-full h-full flex flex-row border-l border-white/5 relative bg-[#010309] overflow-hidden">
       

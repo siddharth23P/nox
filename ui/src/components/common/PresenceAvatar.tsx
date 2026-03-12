@@ -55,7 +55,7 @@ export const PresenceAvatar: React.FC<PresenceAvatarProps> = ({
       {isOnline && !hideStatus && (
         <div className="absolute bottom-0 right-0 transform translate-x-1/4 translate-y-1/4">
           <motion.div
-            className={`${indicatorSize[size]} bg-emerald-500 rounded-full border-2 border-slate-900 shadow-sm`}
+            className={`${indicatorSize[size]} bg-emerald-500 rounded-full border-2 border-slate-900 shadow-sm presence-indicator`}
             animate={{ 
               boxShadow: ['0 0 0 0 rgba(16, 185, 129, 0)', '0 0 0 4px rgba(16, 185, 129, 0.3)', '0 0 0 0 rgba(16, 185, 129, 0)'] 
             }}

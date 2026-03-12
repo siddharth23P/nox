@@ -8,10 +8,11 @@ interface EmojiPickerProps {
 
 export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
   return (
-    <div className="absolute z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-2 flex gap-1 -top-10 right-0 animate-in fade-in zoom-in duration-150">
+    <div data-testid="emoji-picker" className="absolute z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-2 flex gap-1 -top-10 right-0 animate-in fade-in zoom-in duration-150">
       {STANDARD_EMOJIS.map(emoji => (
         <button
           key={emoji}
+          data-emoji={emoji}
           onClick={() => {
             onSelect(emoji);
             onClose();

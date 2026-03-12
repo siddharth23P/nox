@@ -1,6 +1,7 @@
 package messaging
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -74,6 +75,7 @@ func (h *MessagingHandler) CreateMessage(c *gin.Context) {
 	}
 
 	channelID := c.Param("id")
+	log.Printf("DEBUG: CreateMessage - ChannelID: %s, UserID: %s", channelID, userID)
 	if channelID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Channel ID required"})
 		return
@@ -87,6 +89,7 @@ func (h *MessagingHandler) CreateMessage(c *gin.Context) {
 
 	msg, err := h.service.CreateMessage(c.Request.Context(), channelID, userID, req.ContentMD, req.ContentHTML, req.ParentID)
 	if err != nil {
+		log.Printf("ERROR in CreateMessage: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -108,6 +111,7 @@ func (h *MessagingHandler) GetMessages(c *gin.Context) {
 
 	messages, err := h.service.GetMessagesByChannel(c.Request.Context(), channelID, before, userID)
 	if err != nil {
+		log.Printf("ERROR in GetMessages: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -302,6 +306,7 @@ func (h *MessagingHandler) UpdateLastRead(c *gin.Context) {
 
 	err := h.service.UpdateLastRead(c.Request.Context(), channelID, userID, req.MessageID)
 	if err != nil {
+		log.Printf("ERROR in UpdateLastRead: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

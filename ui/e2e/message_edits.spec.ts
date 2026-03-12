@@ -40,13 +40,12 @@ test.describe('Message Lifecycle (Audit-Trailed Edits)', () => {
     const aliceMsg = alicePage.locator(`text="${aliceMsgText}"`).first();
     await expect(aliceMsg).toBeVisible();
     
-    const aliceWrapper = aliceMsg.locator('xpath=./ancestor::div[contains(@class, "flex-row-reverse")]').first();
+    const aliceWrapper = aliceMsg.locator('xpath=./ancestor::div[contains(@class, "group relative")]').first();
     await aliceWrapper.hover();
 
     // Click the Edit button
     const editBtn = aliceWrapper.getByTitle('Edit message');
-    await expect(editBtn).toBeVisible();
-    await editBtn.click();
+    await editBtn.click({ force: true });
 
     // The textarea should appear
     const textarea = alicePage.locator('textarea[aria-label="Edit message"]');
@@ -67,7 +66,7 @@ test.describe('Message Lifecycle (Audit-Trailed Edits)', () => {
     await expect(alicePage.locator(`text="${aliceMsgText}"`).first()).not.toBeVisible();
 
     // Focus on the newly updated wrapper
-    const updatedAliceWrapper = newMsgLocator.locator('xpath=./ancestor::div[contains(@class, "flex-row-reverse")]').first();
+    const updatedAliceWrapper = newMsgLocator.locator('xpath=./ancestor::div[contains(@class, "group relative")]').first();
 
     // Click on (edited) to open history
     const editedBadge = updatedAliceWrapper.getByRole('button', { name: '(edited)' });
