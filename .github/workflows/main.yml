@@ -81,8 +81,8 @@ jobs:
         working-directory: ui
         run: npm run build
 
-  e2e-tests:
-    name: Run E2E Tests (Playwright)
+  e2e-auth:
+    name: "E2E: Auth & Identity"
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -101,61 +101,100 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.21'
-          cache-dependency-path: services/bifrost/go.sum
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install Protoc
-        run: sudo apt-get install -y protobuf-compiler
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
-          cache-dependency-path: ui/package-lock.json
-
       - name: Install UI Dependencies
         working-directory: ui
         run: npm ci
-
       - name: Install Playwright Browsers
         working-directory: ui
-        run: npx playwright install --with-deps
-
-      - name: Run E2E Tests
+        run: npx playwright install --with-deps chromium
+      - name: Run Auth Tests
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/nox?sslmode=disable
         run: |
-          # Start Orchestrator
-          cd services/orchestrator
-          cargo run &
-          cd ../../
-          
-          # Start Bifrost Gateway
-          sudo apt-get install -y postgresql-client
           psql "$DATABASE_URL" -f infra/db/schema.sql
-          NODE_PATH=ui/node_modules node infra/db/seed_chat.js
-          cd services/bifrost
-          go run scripts/seed_test_user.go || true
-          go run cmd/gateway/main.go &
-          cd ../../
-          
-          # Run Playwright tests
-          cd ui
-          npx wait-on tcp:50052 tcp:8080 -t 120000
-          npx playwright test --workers=2
+          cd services/bifrost && go run cmd/gateway/main.go &
+          cd ui && npx wait-on tcp:8080 && npx playwright test e2e/auth_regression.spec.ts --workers=1
 
-      - name: Upload Playwright Report
-        uses: actions/upload-artifact@v4
-        if: always()
+  e2e-messaging:
+    name: "E2E: Messaging & Threads"
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: nox
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          name: playwright-report
-          path: ui/playwright-report/
-          retention-days: 7
+          go-version: '1.21'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install UI Dependencies
+        working-directory: ui
+        run: npm ci
+      - name: Install Playwright Browsers
+        working-directory: ui
+        run: npx playwright install --with-deps chromium
+      - name: Run Messaging Tests
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/nox?sslmode=disable
+        run: |
+          psql "$DATABASE_URL" -f infra/db/schema.sql
+          cd services/bifrost && go run cmd/seed/main.go && go run cmd/gateway/main.go &
+          cd ui && npx wait-on tcp:8080 && npx playwright test e2e/messaging_regression.spec.ts e2e/message_edits.spec.ts e2e/thread_regression.spec.ts --workers=1
+
+  e2e-realtime:
+    name: "E2E: Real-time Presence & Reactions"
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: nox
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install UI Dependencies
+        working-directory: ui
+        run: npm ci
+      - name: Install Playwright Browsers
+        working-directory: ui
+        run: npx playwright install --with-deps chromium
+      - name: Run Real-time Tests
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/nox?sslmode=disable
+        run: |
+          psql "$DATABASE_URL" -f infra/db/schema.sql
+          cd services/bifrost && go run cmd/seed/main.go && go run cmd/gateway/main.go &
+          cd ui && npx wait-on tcp:8080 && npx playwright test e2e/presence.spec.ts e2e/reactions.spec.ts --workers=1

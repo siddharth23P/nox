@@ -35,6 +35,8 @@ func main() {
 		{"33333333-3333-3333-3333-333333333333", "ThreadMaster", "threads@example.com"},
 		{"a1111111-1111-1111-1111-111111111111", "AliceReads", "alice.reads@example.com"},
 		{"b2222222-2222-2222-2222-222222222222", "BobReads", "bob.reads@example.com"},
+		{"p1000000-0000-0000-0000-000000000000", "AlicePresence", "alice.presence@example.com"},
+		{"p2000000-0000-0000-0000-000000000000", "BobPresence", "bob.presence@example.com"},
 		{"c7f8b902-7785-46f6-8144-07d0d526f5c0", "RogueUser", "rogue@example.com"},
 		{"27453400-ca82-4f54-a36d-f790915b7b76", "Siddharth", "siddharth23P@github.com"},
 	}

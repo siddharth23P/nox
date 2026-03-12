@@ -7,8 +7,8 @@ test.describe('Real-time Presence & Mutual Discovery', () => {
     test.setTimeout(80000);
     
     // Select unique users per browser to avoid cross-test presence interference
-    let alice = { id: 'a1000000-0000-0000-0000-000000000000', username: 'AliceReacts', email: 'alice@nox.inc' };
-    let bob = { id: 'b2000000-0000-0000-0000-000000000000', username: 'BobReacts', email: 'bob@nox.inc' };
+    let alice = { id: 'p1000000-0000-0000-0000-000000000000', username: 'AlicePresence', email: 'alice.presence@example.com' };
+    let bob = { id: 'p2000000-0000-0000-0000-000000000000', username: 'BobPresence', email: 'bob.presence@example.com' };
     let aliceMsgText = "Hey team, how is everyone doing today?";
     let bobMsgText = "Doing great! Just finished the new design mocks for the dashboard.";
 

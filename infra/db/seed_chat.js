@@ -62,8 +62,6 @@ async function seed() {
 
     let baseTime = new Date(Date.now() - 1000 * 60 * 60 * 24); // 1 day ago
     
-    // Clear old messages from this channel to avoid clutter
-    await client.query('DELETE FROM messages WHERE channel_id = $1', [channelId]);
 
     for (let i = 0; i < messages.length; i++) {
       const msg = messages[i];
