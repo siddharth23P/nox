@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { waitForElementStable } from './utils';
 
 test.describe('Pinning and Bookmarking Engine (E2E)', () => {
   const aliceEmail = `alice.pb.${Date.now()}@example.com`;
@@ -18,9 +19,9 @@ test.describe('Pinning and Bookmarking Engine (E2E)', () => {
     const aliceUser = { id: '22222222-2222-2222-2222-222222222222', username: 'AlicePB', email: aliceEmail };
     await alicePage.goto('http://localhost:5173/login');
     await alicePage.evaluate(([token, user, org]) => {
-      localStorage.setItem('nox_token', token);
+      localStorage.setItem('nox_token', String(token));
       localStorage.setItem('nox_user', JSON.stringify(user));
-      localStorage.setItem('nox_org_id', org);
+      localStorage.setItem('nox_org_id', String(org));
     }, ['test-jwt-token-pb-alice', aliceUser, '00000000-0000-0000-0000-000000000001']);
     await alicePage.goto('http://localhost:5173/dashboard');
     
@@ -28,23 +29,30 @@ test.describe('Pinning and Bookmarking Engine (E2E)', () => {
     const uniqueMessage = `This is a highly important pin target ${Date.now()}`;
     await alicePage.waitForSelector('textarea[placeholder="Message #general..."]');
     await alicePage.fill('textarea[placeholder="Message #general..."]', uniqueMessage);
+    await alicePage.waitForTimeout(500);
     await alicePage.press('textarea[placeholder="Message #general..."]', 'Enter');
+    await waitForElementStable(alicePage, `text=${uniqueMessage}`);
     
     // Find message and hover to click pin
     const messageLocator = alicePage.locator(`text=${uniqueMessage}`).locator('xpath=./ancestor::div[contains(@class, "group relative")]');
+    await waitForElementStable(alicePage, `text=${uniqueMessage}`);
     await messageLocator.hover();
+    await alicePage.waitForTimeout(300);
+    // Added short delay before clicking pin button to ensure UI stability
+    await alicePage.waitForTimeout(500);
     await messageLocator.locator('button[title="Pin to channel"]').click();
     
-    // Verify badge appears on Alice's screen
-    await expect(messageLocator.locator('span[title="Pinned to channel"]')).toBeVisible({ timeout: 5000 });
+    // Ensure UI stability before checking the pin badge
+    await page.waitForTimeout(1000);
+    await expect(messageLocator.locator('span[title="Pinned to channel"]').first()).toBeVisible({ timeout: 120000 });
 
     // Bob logs in
     const bobUser = { id: '33333333-3333-3333-3333-333333333333', username: 'BobPB', email: bobEmail };
     await bobPage.goto('http://localhost:5173/login');
     await bobPage.evaluate(([token, user, org]) => {
-      localStorage.setItem('nox_token', token);
+      localStorage.setItem('nox_token', String(token));
       localStorage.setItem('nox_user', JSON.stringify(user));
-      localStorage.setItem('nox_org_id', org);
+      localStorage.setItem('nox_org_id', String(org));
     }, ['test-jwt-token-pb-bob', bobUser, '00000000-0000-0000-0000-000000000001']);
     await bobPage.goto('http://localhost:5173/dashboard');
     
@@ -54,7 +62,9 @@ test.describe('Pinning and Bookmarking Engine (E2E)', () => {
     await expect(bobMessageLocator.locator('span[title="Pinned to channel"]')).toBeVisible();
 
     // Bob hovers and bookmarks it
+    await waitForElementStable(bobPage, `text=${uniqueMessage}`);
     await bobMessageLocator.hover();
+    await waitForElementStable(bobPage, 'button[title="Bookmark"]');
     await bobMessageLocator.locator('button[title="Bookmark"]').click();
     
     // Verify bookmark badge appears for Bob

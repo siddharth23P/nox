@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { waitForElementStable } from './utils';
 
 test.describe('Reaction Engine (E2E)', () => {
   const aliceEmail = 'alice.reactions@example.com';
@@ -36,18 +37,27 @@ test.describe('Reaction Engine (E2E)', () => {
 
     // Alice sends a unique message
     const uniqueMessage = `Reaction test message ${Date.now()}`;
-    await alicePage.fill('textarea[placeholder="Message #general..."]', uniqueMessage);
-    await alicePage.keyboard.press('Enter');
+    await Promise.all([
+      alicePage.waitForResponse(resp => resp.url().includes('/messages') && resp.status() === 200),
+      (async () => {
+        await alicePage.fill('textarea[placeholder="Message #general..."]', uniqueMessage);
+        await alicePage.keyboard.press('Enter');
+      })(),
+    ]);
+    await waitForElementStable(alicePage, `text=${uniqueMessage}`);
     
     // Wait for message to appear
     const messageLocator = alicePage.locator('div', { hasText: uniqueMessage }).last();
     await expect(messageLocator).toBeVisible();
 
     // Alice hovers over her message and clicks the reaction picker
+    await waitForElementStable(alicePage, 'button[title="Add reaction"]');
+    await waitForElementStable(alicePage, 'button[title="Add reaction"]');
     await messageLocator.hover();
     await messageLocator.locator('button[title="Add reaction"]').click();
 
     // Picker appears, select '🚀'
+    await waitForElementStable(alicePage, "button:has-text('🚀')");
     await alicePage.locator('button', { hasText: '🚀' }).click();
 
     // Verify bubble appears with count 1
@@ -90,8 +100,7 @@ test.describe('Reaction Engine (E2E)', () => {
     await expect(bobReactionBubble).toHaveClass(/bg-blue-50/);
 
     // --- Switch back to Alice ---
-    // Reload Alice's page to fetch the new counts from Bob (until WebSocket is there)
-    await alicePage.reload();
+    // With WebSockets, the reaction count should update in real-time
     await expect(alicePage.locator('div', { hasText: uniqueMessage }).last()).toBeVisible();
 
     const aliceReactionBubbleAgain = alicePage.locator('div', { hasText: uniqueMessage }).last().locator('button', { hasText: '🚀' });

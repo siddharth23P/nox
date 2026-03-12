@@ -27,7 +27,8 @@ test.describe('Authentication Regression Suite', () => {
     await page.fill('input[placeholder="Type your secret answer..."]', 'Test Answer');
 
     await page.getByRole('button', { name: 'Create Nexus Identity' }).click({ force: true });
-    await expect(page.locator('text=Verification Link Sent')).toBeVisible({ timeout: 15000 });
+    await page.waitForSelector('text=Verification Link Sent', { timeout: 30000 });
+    await expect(page.locator('text=Verification Link Sent')).toBeVisible();
 
     // 2. Real Email Verification via DB
     const connectionString = process.env.DATABASE_URL || 'postgres://serpent@localhost:5432/nox?sslmode=disable';

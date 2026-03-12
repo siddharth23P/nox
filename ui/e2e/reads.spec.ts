@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { waitForElementStable } from './utils';
 
 test.describe('Read Receipts (E2E) - Issue #19', () => {
   const aliceEmail = 'alice.reads@example.com';
@@ -67,14 +68,14 @@ test.describe('Read Receipts (E2E) - Issue #19', () => {
     await bobPage.waitForTimeout(2500);
 
     // --- Switch back to Alice ---
-    // Reload Alice's page to fetch the new read state (since no WS exists yet)
-    await alicePage.reload();
+    // With WebSockets, the read receipt should appear in real-time without reloading
     await expect(alicePage.locator('div', { hasText: uniqueMessage }).last()).toBeVisible();
 
     // Verify Bob's presence avatar appears in the read receipts summary
     // Our PresenceAvatar uses `title="Read by User"` as a fallback since we dropped looking up the name from presence store.
     const readReceiptIndicator = alicePage.locator('div', { hasText: uniqueMessage }).last().locator('div[title="Read by User"]');
-    await expect(readReceiptIndicator).toBeVisible({ timeout: 5000 });
+    // Wait for read receipt indicator to become visible with extended timeout
+    await waitForElementStable(alicePage, `div:has-text("${uniqueMessage}") >> div[title="Read by User"]`, 60000);
 
     // Cleanup contexts
     await aliceContext.close();

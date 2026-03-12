@@ -76,6 +76,13 @@ interface MessageState {
   readReceipts: Record<string, ReadReceipt>;
   fetchReadReceipts: (channelId: string) => Promise<void>;
   markAsRead: (channelId: string, messageId: string) => void;
+  
+  // Real-time Event Handlers
+  onMessageReceived: (message: Message) => void;
+  onMessageEdited: (message: Message) => void;
+  onReactionUpdated: (messageId: string, reactions: Record<string, number>) => void;
+  onReadReceiptUpdated: (receipt: ReadReceipt) => void;
+  onPinUpdated: (messageId: string, isPinned: boolean) => void;
 }
 
 const API_BASE_URL = 'http://localhost:8080/v1';
@@ -96,7 +103,54 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   setActiveChannel: (channel) => set({ activeChannel: channel }),
   setChannels: (channels) => set({ channels }),
   setMessages: (messages) => set({ messages }),
-  addMessage: (message) => set((state) => ({ messages: [...state.messages, message] })),
+  addMessage: (message) => set((state) => ({ messages: [message, ...state.messages] })),
+  
+  // Handlers
+  onMessageReceived: (message) => set((state) => {
+    // Prevent duplicates
+    if (state.messages.some(m => m.id === message.id)) return state;
+    
+    // If it's a thread reply, update threadMessages, else update main messages
+    if (message.parent_id && state.activeThreadId === message.parent_id) {
+      return { threadMessages: [...state.threadMessages, message] };
+    }
+    
+    if (state.activeChannel && message.channel_id === state.activeChannel.id && !message.parent_id) {
+      return { messages: [message, ...state.messages] };
+    }
+    
+    return state;
+  }),
+  
+  onMessageEdited: (message) => set((state) => {
+    return {
+      messages: state.messages.map(m => m.id === message.id ? message : m),
+      threadMessages: state.threadMessages.map(m => m.id === message.id ? message : m)
+    };
+  }),
+  
+  onReactionUpdated: (messageId, reactions) => set((state) => {
+    return {
+      messages: state.messages.map(m => m.id === messageId ? { ...m, reactions } : m),
+      threadMessages: state.threadMessages.map(m => m.id === messageId ? { ...m, reactions } : m)
+    };
+  }),
+
+  onReadReceiptUpdated: (receipt) => set((state) => {
+    return {
+      readReceipts: {
+        ...state.readReceipts,
+        [receipt.user_id]: receipt
+      }
+    };
+  }),
+
+  onPinUpdated: (messageId, isPinned) => set((state) => {
+    return {
+      messages: state.messages.map(m => m.id === messageId ? { ...m, is_pinned: isPinned } : m),
+      threadMessages: state.threadMessages.map(m => m.id === messageId ? { ...m, is_pinned: isPinned } : m)
+    };
+  }),
 
   fetchMessages: async (channelId) => {
     set({ isLoading: true, error: null, hasMore: true });

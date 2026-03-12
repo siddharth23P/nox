@@ -1,8 +1,11 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
+import { useWebSocket } from '../../hooks/useWebSocket';
 
 export const DashboardLayout: React.FC = () => {
+  useWebSocket();
+
   return (
     <div className="h-screen w-full bg-[#030712] flex overflow-hidden">
       <Sidebar />

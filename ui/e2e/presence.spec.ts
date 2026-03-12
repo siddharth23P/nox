@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { waitForElementStable } from './utils';
 
 // Use two isolated browser contexts to simulate Alice and Bob
 test.describe('Real-time Presence & Mutual Discovery', () => {
@@ -60,20 +61,25 @@ test.describe('Real-time Presence & Mutual Discovery', () => {
     // 3. Alice verification
     
     // Wait for messages to load
-    await alicePage.waitForTimeout(2000);
+    await waitForElementStable(alicePage, 'textarea[placeholder="Message #general..."]', 30000);
 
     // Alice sends a unique message
     const aliceUniqueText = `${aliceMsgText} (${Date.now()})`;
     const aliceInput = alicePage.getByPlaceholder('Message #general...');
     await aliceInput.fill(aliceUniqueText);
     await aliceInput.press('Enter');
+    await waitForElementStable(alicePage, `text=${aliceUniqueText}`);
 
     // Bob sends a unique message
     await bobPage.waitForTimeout(2000);
     const bobUniqueText = `${bobMsgText} (${Date.now() + 1})`;
     const bobInput = bobPage.getByPlaceholder('Message #general...');
     await bobInput.fill(bobUniqueText);
-    await bobInput.press('Enter');
+    await Promise.all([
+      bobPage.waitForResponse(resp => resp.url().includes('/messages') && resp.status() === 200),
+      bobInput.press('Enter'),
+    ]);
+    await waitForElementStable(bobPage, `text=${bobUniqueText}`);
 
     // Wait for the next polling cycles for presence
     await alicePage.waitForTimeout(3000); 

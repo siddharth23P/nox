@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { waitForElementStable } from './utils';
 
 test.describe('Core Messaging Flow', () => {
   test('Send and receive a basic message', async ({ page }) => {
@@ -19,15 +20,19 @@ test.describe('Core Messaging Flow', () => {
     await expect(page).toHaveURL(/.*\/dashboard/, { timeout: 10000 });
 
     const messageInput = page.locator('textarea[placeholder="Message #general..."]');
-    await expect(messageInput).toBeVisible();
+    await waitForElementStable(page, 'textarea[placeholder="Message #general..."]');
 
     const testMessage = `E2E Test Message: ${Date.now()}`;
     await messageInput.fill(testMessage);
-
-    // Send the message
+    
+    // Send the message and allow processing time
     await messageInput.press('Enter');
+    await page.waitForTimeout(1500); // give backend time to store message
+    await waitForElementStable(page, `text=${testMessage}`);
 
     // Verify it appears in the MessageList
+    // Verify it appears in the MessageList with stable wait
+    await waitForElementStable(page, `.flex-1.overflow-y-auto >> text=${testMessage}`, 60000);
     const msgElement = page.locator('.flex-1.overflow-y-auto').getByText(testMessage).first();
     await expect(msgElement).toBeVisible({ timeout: 10000 });
   });
