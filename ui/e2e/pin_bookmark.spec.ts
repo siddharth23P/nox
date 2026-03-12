@@ -4,7 +4,6 @@ import { waitForElementStable } from './utils';
 test.describe('Pinning and Bookmarking Engine (E2E)', () => {
   const aliceEmail = `alice.pb.${Date.now()}@example.com`;
   const bobEmail = `bob.pb.${Date.now()}@example.com`;
-  const password = 'Password123!';
 
 
 
