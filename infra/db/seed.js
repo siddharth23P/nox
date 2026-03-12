@@ -23,14 +23,12 @@ async function seed() {
       `, [orgId]);
     }
 
-    const testUserUuid = '123e4567-e89b-12d3-a456-426614174000';
-    const usrCheck = await client.query('SELECT id FROM users WHERE id = $1', [testUserUuid]);
-    if (usrCheck.rows.length === 0) {
-      await client.query(`
-        INSERT INTO users (id, email, username, password_hash) 
-        VALUES ($1, 'test@nox.inc', 'testuser', 'nope')
-      `, [testUserUuid]);
-    }
+    const testUserUuid = '22222222-2222-2222-2222-222222222222';
+    await client.query(`
+      INSERT INTO users (id, email, username, password_hash) 
+      VALUES ($1, 'test@nox.inc', 'testuser', 'nope')
+      ON CONFLICT (username) DO NOTHING
+    `, [testUserUuid]);
 
     const chanCheck = await client.query('SELECT id FROM channels WHERE id = $1', [channelId]);
     if (chanCheck.rows.length === 0) {
