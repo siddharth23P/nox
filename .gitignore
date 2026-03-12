@@ -1,5 +1,15 @@
 .env
 .DS_Store
+# Local development and OS files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+
 # Directories to ignore
 nox-docs/
 AGENT.MD
@@ -7,7 +17,6 @@ Roadmap_1.md
 Roadmap_2.md 
 Roadmap_3.md
 universal_ssot.md
-
 
 # Rust build artifacts
 backend/rust-orchestrator/target/
@@ -20,4 +29,21 @@ bin/
 # Node.js build artifacts
 node_modules/
 dist/
+dist-ssr/
 build/
+*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Playwright
+ui/playwright-report/
+ui/playwright-report-ci/
+ui/test-results/
+*.zip
