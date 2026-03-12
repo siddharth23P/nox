@@ -1,4 +1,5 @@
 .env
+.DS_Store
 # Directories to ignore
 nox-docs/
 AGENT.MD

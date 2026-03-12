@@ -25,4 +25,6 @@ dist-ssr
 
 # Playwright
 playwright-report/
+playwright-report-ci/
 test-results/
+*.zip
