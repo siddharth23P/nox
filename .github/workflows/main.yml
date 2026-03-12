@@ -141,7 +141,7 @@ jobs:
           # Start Bifrost Gateway
           sudo apt-get install -y postgresql-client
           psql "$DATABASE_URL" -f infra/db/schema.sql
-          node infra/db/seed_chat.js
+          NODE_PATH=ui/node_modules node infra/db/seed_chat.js
           cd services/bifrost
           go run scripts/seed_test_user.go || true
           go run cmd/gateway/main.go &
