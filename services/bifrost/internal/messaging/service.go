@@ -74,8 +74,10 @@ func (s *MessagingService) CreateMessage(ctx context.Context, channelID, userID,
 	if err != nil {
 		return nil, err
 	}
-	// Initial reply count is 0
+	// Initial state for new message
 	msg.ReplyCount = 0
+	msg.IsPinned = false
+	msg.IsBookmarked = false
 	msg.Reactions = make(map[string]int)
 	return &msg, nil
 }
@@ -88,26 +90,30 @@ func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID s
 		query = `
 			SELECT 
 				m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited,
-				(SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id) as reply_count
+				(SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id) as reply_count,
+				EXISTS(SELECT 1 FROM channel_pins cp WHERE cp.message_id = m.id) as is_pinned,
+				EXISTS(SELECT 1 FROM user_bookmarks ub WHERE ub.message_id = m.id AND ub.user_id = $3) as is_bookmarked
 			FROM messages m
 			JOIN users u ON m.user_id = u.id
 			WHERE m.channel_id = $1 AND m.parent_id IS NULL AND m.created_at < $2::timestamp
 			ORDER BY m.created_at DESC
 			LIMIT 50
 		`
-		args = []interface{}{channelID, before}
+		args = []interface{}{channelID, before, currentUserID}
 	} else {
 		query = `
 			SELECT 
 				m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited,
-				(SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id) as reply_count
+				(SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id) as reply_count,
+				EXISTS(SELECT 1 FROM channel_pins cp WHERE cp.message_id = m.id) as is_pinned,
+				EXISTS(SELECT 1 FROM user_bookmarks ub WHERE ub.message_id = m.id AND ub.user_id = $2) as is_bookmarked
 			FROM messages m
 			JOIN users u ON m.user_id = u.id
 			WHERE m.channel_id = $1 AND m.parent_id IS NULL
 			ORDER BY m.created_at DESC
 			LIMIT 50
 		`
-		args = []interface{}{channelID}
+		args = []interface{}{channelID, currentUserID}
 	}
 
 	rows, err := s.db.Pool.Query(ctx, query, args...)
@@ -122,7 +128,7 @@ func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID s
 	var messages []Message
 	for rows.Next() {
 		var msg Message
-		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.IsEdited, &msg.ReplyCount); err != nil {
+		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.IsEdited, &msg.ReplyCount, &msg.IsPinned, &msg.IsBookmarked); err != nil {
 			return nil, err
 		}
 		messages = append(messages, msg)
@@ -140,13 +146,15 @@ func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID s
 
 func (s *MessagingService) GetThreadReplies(ctx context.Context, messageID string, currentUserID string) ([]Message, error) {
 	query := `
-		SELECT m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited 
+		SELECT m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited,
+			EXISTS(SELECT 1 FROM channel_pins cp WHERE cp.message_id = m.id) as is_pinned,
+			EXISTS(SELECT 1 FROM user_bookmarks ub WHERE ub.message_id = m.id AND ub.user_id = $2) as is_bookmarked 
 		FROM messages m
 		JOIN users u ON m.user_id = u.id
 		WHERE m.parent_id = $1 
 		ORDER BY m.created_at ASC
 	`
-	rows, err := s.db.Pool.Query(ctx, query, messageID)
+	rows, err := s.db.Pool.Query(ctx, query, messageID, currentUserID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return []Message{}, nil
@@ -158,7 +166,7 @@ func (s *MessagingService) GetThreadReplies(ctx context.Context, messageID strin
 	var messages []Message
 	for rows.Next() {
 		var msg Message
-		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.IsEdited); err != nil {
+		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.IsEdited, &msg.IsPinned, &msg.IsBookmarked); err != nil {
 			return nil, err
 		}
 		msg.ReplyCount = 0 // Replies don't have replies in this simple 1-level thread model
@@ -219,11 +227,13 @@ func (s *MessagingService) EditMessage(ctx context.Context, messageID string, us
 	var msg Message
 	err = s.db.Pool.QueryRow(ctx, `
 		SELECT m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited,
-			(SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id) as reply_count
+			(SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id) as reply_count,
+			EXISTS(SELECT 1 FROM channel_pins cp WHERE cp.message_id = m.id) as is_pinned,
+			EXISTS(SELECT 1 FROM user_bookmarks ub WHERE ub.message_id = m.id AND ub.user_id = $2) as is_bookmarked
 		FROM messages m
 		JOIN users u ON m.user_id = u.id
 		WHERE m.id = $1
-	`, messageID).Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.IsEdited, &msg.ReplyCount)
+	`, messageID, userID).Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.IsEdited, &msg.ReplyCount, &msg.IsPinned, &msg.IsBookmarked)
 
 	if err != nil {
 		return nil, err
@@ -260,3 +270,50 @@ func (s *MessagingService) GetMessageEditHistory(ctx context.Context, messageID 
 	}
 	return edits, nil
 }
+
+func (s *MessagingService) TogglePin(ctx context.Context, messageID string, channelID string, userID string) (bool, error) {
+	// First check if already pinned
+	var exists bool
+	err := s.db.Pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM channel_pins WHERE channel_id = $1 AND message_id = $2)`, channelID, messageID).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+
+	if exists {
+		_, err = s.db.Pool.Exec(ctx, `DELETE FROM channel_pins WHERE channel_id = $1 AND message_id = $2`, channelID, messageID)
+		if err != nil {
+			return false, err
+		}
+		return false, nil
+	} else {
+		_, err = s.db.Pool.Exec(ctx, `INSERT INTO channel_pins (channel_id, message_id, pinned_by) VALUES ($1, $2, $3)`, channelID, messageID, userID)
+		if err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+}
+
+func (s *MessagingService) ToggleBookmark(ctx context.Context, messageID string, userID string) (bool, error) {
+	// First check if already bookmarked
+	var exists bool
+	err := s.db.Pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM user_bookmarks WHERE user_id = $1 AND message_id = $2)`, userID, messageID).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+
+	if exists {
+		_, err = s.db.Pool.Exec(ctx, `DELETE FROM user_bookmarks WHERE user_id = $1 AND message_id = $2`, userID, messageID)
+		if err != nil {
+			return false, err
+		}
+		return false, nil
+	} else {
+		_, err = s.db.Pool.Exec(ctx, `INSERT INTO user_bookmarks (user_id, message_id) VALUES ($1, $2)`, userID, messageID)
+		if err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+}
+

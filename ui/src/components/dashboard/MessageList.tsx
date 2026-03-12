@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useLayoutEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useMessageStore } from '../../stores/messageStore';
 import { useAuthStore } from '../../stores/authStore';
-import { MessageCircle, Edit2, SmilePlus } from 'lucide-react';
+import { MessageCircle, Edit2, SmilePlus, Pin, Bookmark } from 'lucide-react';
 import { PresenceAvatar } from '../common/PresenceAvatar';
 import { EditHistoryModal } from './EditHistoryModal';
 import { ReactionBubble } from './ReactionBubble';
@@ -134,6 +134,8 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                               (edited)
                             </button>
                           )}
+                          {msg.is_pinned && <span title="Pinned to channel"><Pin size={12} className="text-yellow-500 fill-yellow-500 ml-1" /></span>}
+                          {msg.is_bookmarked && <span title="Bookmarked"><Bookmark size={12} className="text-blue-400 fill-blue-400 ml-1" /></span>}
                         </span>
                       </div>
                     )}
@@ -250,6 +252,22 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                       />
                     )}
                   </div>
+
+                  <button 
+                    onClick={() => useMessageStore.getState().toggleBookmark(channelId!, msg.id)}
+                    className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-blue-400 hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                    title={msg.is_bookmarked ? "Remove bookmark" : "Bookmark"}
+                  >
+                    <Bookmark size={14} className={msg.is_bookmarked ? "fill-blue-400 text-blue-400" : ""} />
+                  </button>
+
+                  <button 
+                    onClick={() => useMessageStore.getState().togglePin(channelId!, msg.id)}
+                    className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-yellow-500 hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                    title={msg.is_pinned ? "Unpin message" : "Pin to channel"}
+                  >
+                    <Pin size={14} className={msg.is_pinned ? "fill-yellow-500 text-yellow-500" : ""} />
+                  </button>
                   
                   <button 
                     onClick={() => setActiveThread(msg.id)}

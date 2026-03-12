@@ -222,3 +222,60 @@ func (h *MessagingHandler) ReactToMessage(c *gin.Context) {
 		"user_reactions": userReacted,
 	})
 }
+
+func (h *MessagingHandler) TogglePin(c *gin.Context) {
+	_, userID := getAuthInfo(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "X-User-ID required"})
+		return
+	}
+
+	channelID := c.Param("id")
+	if channelID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Channel ID required"})
+		return
+	}
+
+	messageID := c.Param("messageId")
+	if messageID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Message ID required"})
+		return
+	}
+
+	pinned, err := h.service.TogglePin(c.Request.Context(), messageID, channelID, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message_id": messageID,
+		"is_pinned":  pinned,
+	})
+}
+
+func (h *MessagingHandler) ToggleBookmark(c *gin.Context) {
+	_, userID := getAuthInfo(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "X-User-ID required"})
+		return
+	}
+
+	messageID := c.Param("messageId")
+	if messageID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Message ID required"})
+		return
+	}
+
+	bookmarked, err := h.service.ToggleBookmark(c.Request.Context(), messageID, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message_id":    messageID,
+		"is_bookmarked": bookmarked,
+	})
+}
+

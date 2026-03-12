@@ -26,6 +26,8 @@ type Message struct {
 	IsEdited      bool           `json:"is_edited"`
 	Reactions     map[string]int `json:"reactions,omitempty"`
 	UserReactions []string       `json:"user_reactions,omitempty"`
+	IsPinned      bool           `json:"is_pinned"`
+	IsBookmarked  bool           `json:"is_bookmarked"`
 	CreatedAt     time.Time      `json:"created_at"`
 	UpdatedAt     time.Time      `json:"updated_at"`
 }

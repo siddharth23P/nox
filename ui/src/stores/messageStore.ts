@@ -12,6 +12,8 @@ export interface Message {
   is_edited?: boolean;
   reactions?: Record<string, number>;
   user_reactions?: string[];
+  is_pinned?: boolean;
+  is_bookmarked?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -61,6 +63,8 @@ interface MessageState {
   editMessage: (channelId: string, messageId: string, contentMd: string) => Promise<void>;
   getMessageHistory: (channelId: string, messageId: string) => Promise<MessageEdit[]>;
   toggleReaction: (channelId: string, messageId: string, emoji: string) => Promise<void>;
+  togglePin: (channelId: string, messageId: string) => Promise<void>;
+  toggleBookmark: (channelId: string, messageId: string) => Promise<void>;
 }
 
 const API_BASE_URL = 'http://localhost:8080/v1';
@@ -335,5 +339,66 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       console.error('Failed to toggle reaction:', err);
       // In a production app, we would revert the optimistic UI update here
     }
+  },
+
+  togglePin: async (channelId, messageId) => {
+    try {
+      const userStr = localStorage.getItem('nox_user');
+      const userId = userStr ? JSON.parse(userStr).id : '22222222-2222-2222-2222-222222222222';
+      
+      const updateFn = (m: Message): Message => {
+        if (m.id !== messageId) return m;
+        return { ...m, is_pinned: !m.is_pinned };
+      };
+
+      set(state => ({
+        messages: state.messages.map(updateFn),
+        threadMessages: state.threadMessages.map(updateFn)
+      }));
+
+      const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}/pin`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
+          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
+        }
+      });
+      
+      if (!response.ok) throw new Error('Failed to toggle pin');
+    } catch (err) {
+      console.error('Failed to toggle pin:', err);
+    }
+  },
+
+  toggleBookmark: async (channelId, messageId) => {
+    try {
+      const userStr = localStorage.getItem('nox_user');
+      const userId = userStr ? JSON.parse(userStr).id : '22222222-2222-2222-2222-222222222222';
+      
+      const updateFn = (m: Message): Message => {
+        if (m.id !== messageId) return m;
+        return { ...m, is_bookmarked: !m.is_bookmarked };
+      };
+
+      set(state => ({
+        messages: state.messages.map(updateFn),
+        threadMessages: state.threadMessages.map(updateFn)
+      }));
+
+      const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}/bookmark`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
+          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
+        }
+      });
+      
+      if (!response.ok) throw new Error('Failed to toggle bookmark');
+    } catch (err) {
+      console.error('Failed to toggle bookmark:', err);
+    }
   }
 }));
+

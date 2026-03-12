@@ -83,3 +83,20 @@ CREATE TABLE IF NOT EXISTS message_edits (
     new_content_html TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- 8. Channel Pins (Global)
+CREATE TABLE IF NOT EXISTS channel_pins (
+    channel_id UUID REFERENCES channels(id) ON DELETE CASCADE,
+    message_id UUID REFERENCES messages(id) ON DELETE CASCADE,
+    pinned_by UUID REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    PRIMARY KEY (channel_id, message_id)
+);
+
+-- 9. User Bookmarks (Personal)
+CREATE TABLE IF NOT EXISTS user_bookmarks (
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    message_id UUID REFERENCES messages(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    PRIMARY KEY (user_id, message_id)
+);

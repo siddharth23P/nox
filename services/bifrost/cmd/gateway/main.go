@@ -103,6 +103,8 @@ func main() {
 		v1.PATCH("/channels/:id/messages/:messageId", messagingHandler.EditMessage)
 		v1.GET("/channels/:id/messages/:messageId/history", messagingHandler.GetMessageEditHistory)
 		v1.POST("/channels/:id/messages/:messageId/react", messagingHandler.ReactToMessage)
+		v1.POST("/channels/:id/messages/:messageId/pin", messagingHandler.TogglePin)
+		v1.POST("/channels/:id/messages/:messageId/bookmark", messagingHandler.ToggleBookmark)
 
 		// Presence Routes
 		v1.POST("/presence/heartbeat", presenceHandler.Heartbeat)

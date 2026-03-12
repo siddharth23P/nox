@@ -1,8 +1,9 @@
-import React from 'react';
-import { Hash } from 'lucide-react';
+import React, { useState } from 'react';
+import { Hash, Pin } from 'lucide-react';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 import { ThreadPanel } from './ThreadPanel';
+import { PinManager } from './PinManager';
 import { useMessageStore } from '../../stores/messageStore';
 import { useAuthStore } from '../../stores/authStore';
 import { usePresenceStore } from '../../stores/presenceStore';
@@ -11,6 +12,8 @@ export const DashboardHome: React.FC = () => {
   const { activeChannel } = useMessageStore();
   const { user, token } = useAuthStore();
   const { startHeartbeat, stopHeartbeat } = usePresenceStore();
+  
+  const [isPinManagerOpen, setIsPinManagerOpen] = useState(false);
 
   const activeChannelId = activeChannel?.id || "00000000-0000-0000-0000-000000000001";
   const activeChannelName = activeChannel?.name || "general";
@@ -41,6 +44,15 @@ export const DashboardHome: React.FC = () => {
               </span>
             </h2>
           </div>
+          <div className="ml-auto flex items-center gap-4">
+            <button 
+              onClick={() => setIsPinManagerOpen(true)}
+              className={`p-1.5 pl-2 pr-3 rounded-lg flex items-center gap-2 transition-colors border ${isPinManagerOpen ? 'bg-white/10 border-white/20 text-white' : 'bg-[#2a2a2a] border-white/5 text-gray-400 hover:text-white hover:bg-[#333]'}`}
+            >
+              <Pin size={16} />
+              <span className="text-sm font-medium">Saved Items</span>
+            </button>
+          </div>
         </div>
 
         {/* Main Messages Area */}
@@ -50,6 +62,8 @@ export const DashboardHome: React.FC = () => {
         <MessageInput channelId={activeChannelId} />
       </div>
 
+      <PinManager isOpen={isPinManagerOpen} onClose={() => setIsPinManagerOpen(false)} />
+      
       {/* Slide-out Thread Panel */}
       <ThreadPanel channelId={activeChannelId} />
       
