@@ -39,6 +39,7 @@ test.describe('Real-time Presence & Mutual Discovery', () => {
     }, alice);
     const alicePage = await aliceContext.newPage();
     await alicePage.goto('http://localhost:5173');
+    await alicePage.waitForFunction(() => (window as unknown as { WS_CONNECTED?: boolean }).WS_CONNECTED === true, { timeout: 15000 });
     
     // 2. Setup Bob's Context
     const bobContext = await browser.newContext();
@@ -56,6 +57,7 @@ test.describe('Real-time Presence & Mutual Discovery', () => {
     }, bob);
     const bobPage = await bobContext.newPage();
     await bobPage.goto('http://localhost:5173');
+    await bobPage.waitForFunction(() => (window as unknown as { WS_CONNECTED?: boolean }).WS_CONNECTED === true, { timeout: 15000 });
 
     // 3. Alice verification
     

@@ -29,6 +29,10 @@ export function useWebSocket() {
 
     ws.current.onopen = () => {
       console.log('WebSocket connected');
+      const win = window as unknown as { IS_PLAYWRIGHT?: boolean; WS_CONNECTED?: boolean };
+      if (win.IS_PLAYWRIGHT) {
+        win.WS_CONNECTED = true;
+      }
     };
 
     ws.current.onmessage = (event) => {

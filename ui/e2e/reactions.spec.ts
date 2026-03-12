@@ -10,6 +10,7 @@ test.describe('Reaction Engine (E2E)', () => {
     const aliceUser = { id: 'a1000000-0000-0000-0000-000000000000', username: 'AliceReacts', email: aliceEmail };
     const aliceContext = await browser.newContext();
     await aliceContext.addInitScript((user) => {
+      (window as unknown as { IS_PLAYWRIGHT?: boolean }).IS_PLAYWRIGHT = true;
       localStorage.setItem('nox_token', 'mock_jwt_token_alice');
       localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
       localStorage.setItem('nox_active_channel', JSON.stringify({
@@ -21,11 +22,14 @@ test.describe('Reaction Engine (E2E)', () => {
       localStorage.setItem('nox_user', JSON.stringify(user));
     }, aliceUser);
     const alicePage = await aliceContext.newPage();
+    await alicePage.goto('http://localhost:5173');
+    await alicePage.waitForFunction(() => (window as unknown as { WS_CONNECTED?: boolean }).WS_CONNECTED === true, { timeout: 15000 });
     
     // 2. Setup Bob Context
     const bobUser = { id: 'b2000000-0000-0000-0000-000000000000', username: 'BobReacts', email: bobEmail };
     const bobContext = await browser.newContext();
     await bobContext.addInitScript((user) => {
+      (window as unknown as { IS_PLAYWRIGHT?: boolean }).IS_PLAYWRIGHT = true;
       localStorage.setItem('nox_token', 'mock_jwt_token_bob');
       localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
       localStorage.setItem('nox_active_channel', JSON.stringify({
@@ -37,9 +41,10 @@ test.describe('Reaction Engine (E2E)', () => {
       localStorage.setItem('nox_user', JSON.stringify(user));
     }, bobUser);
     const bobPage = await bobContext.newPage();
+    await bobPage.goto('http://localhost:5173');
+    await bobPage.waitForFunction(() => (window as unknown as { WS_CONNECTED?: boolean }).WS_CONNECTED === true, { timeout: 15000 });
     
     // 3. Alice sends message
-    await alicePage.goto('http://localhost:5173');
     await expect(alicePage.getByText('Nexus Inc')).toBeVisible({ timeout: 15000 });
     // Channel name is engineering, but sidebar might be loading. Let it auto-select engineering from LS.
     await expect(alicePage.getByPlaceholder(`Message #engineering...`)).toBeVisible({ timeout: 15000 });
@@ -63,7 +68,6 @@ test.describe('Reaction Engine (E2E)', () => {
     await expect(reactionBubble).toContainText('1');
 
     // 4. Bob sees message
-    await bobPage.goto('http://localhost:5173');
     await expect(bobPage.getByText('Nexus Inc')).toBeVisible({ timeout: 15000 });
     // Bob should also land on engineering automatically from LS
     await expect(bobPage.getByPlaceholder(`Message #engineering...`)).toBeVisible({ timeout: 15000 });
