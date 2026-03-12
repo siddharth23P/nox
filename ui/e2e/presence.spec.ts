@@ -27,7 +27,7 @@ test.describe('Real-time Presence & Mutual Discovery', () => {
     const aliceContext = await browser.newContext();
     await aliceContext.addInitScript((user) => {
       (window as unknown as { IS_PLAYWRIGHT?: boolean }).IS_PLAYWRIGHT = true;
-      localStorage.setItem('nox_token', 'test_jwt_token');
+      localStorage.setItem('nox_token', 'mock_jwt_token_alice');
       localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
       localStorage.setItem('nox_active_channel', JSON.stringify({
         id: '00000000-0000-0000-0000-000000000001',
@@ -45,7 +45,7 @@ test.describe('Real-time Presence & Mutual Discovery', () => {
     const bobContext = await browser.newContext();
     await bobContext.addInitScript((user) => {
       (window as unknown as { IS_PLAYWRIGHT?: boolean }).IS_PLAYWRIGHT = true;
-      localStorage.setItem('nox_token', 'test_jwt_token_2');
+      localStorage.setItem('nox_token', 'mock_jwt_token_bob');
       localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
       localStorage.setItem('nox_active_channel', JSON.stringify({
         id: '00000000-0000-0000-0000-000000000001',

@@ -5,13 +5,7 @@ import { useAuthStore } from '../stores/authStore';
 const WS_URL = 'ws://localhost:8080/ws';
 
 export function useWebSocket() {
-  const { 
-    onMessageReceived, 
-    onMessageEdited, 
-    onReactionUpdated, 
-    onPinUpdated 
-  } = useMessageStore();
-  const { user } = useAuthStore();
+  const user = useAuthStore(state => state.user);
   const ws = useRef<WebSocket | null>(null);
 
   useEffect(() => {
@@ -28,7 +22,6 @@ export function useWebSocket() {
     ws.current = new WebSocket(WS_URL);
 
     ws.current.onopen = () => {
-      console.log('WebSocket connected');
       const win = window as unknown as { IS_PLAYWRIGHT?: boolean; WS_CONNECTED?: boolean };
       if (win.IS_PLAYWRIGHT) {
         win.WS_CONNECTED = true;
@@ -39,34 +32,31 @@ export function useWebSocket() {
       try {
         const data = JSON.parse(event.data);
         const { type, payload } = data;
-        console.log('WS RECEIVED:', type, payload);
+
+        // Get fresh handlers from store to avoid dependency on store state in this effect
+        const store = useMessageStore.getState();
 
         switch (type) {
           case 'MESSAGE_CREATED':
-            onMessageReceived(payload);
+            store.onMessageReceived(payload);
             break;
           case 'MESSAGE_EDITED':
-            onMessageEdited(payload);
+            store.onMessageEdited(payload);
             break;
           case 'REACTION_UPDATED':
-            onReactionUpdated(payload.message_id, payload.reactions);
+            store.onReactionUpdated(payload.message_id, payload.reactions);
             break;
-
           case 'PIN_UPDATED':
-            onPinUpdated(payload.message_id, payload.is_pinned);
+            store.onPinUpdated(payload.message_id, payload.is_pinned);
             break;
-          default:
-            console.log('Unhandled WS Event:', type, payload);
         }
-      } catch (err) {
-        console.error('WebSocket parsing error:', err);
+      } catch {
+        // Silently handle parsing errors in production
       }
     };
 
     ws.current.onclose = () => {
-      console.log('WebSocket disconnected');
       ws.current = null;
-      // In production, you would add reconnection logic here
     };
 
     return () => {
@@ -75,5 +65,5 @@ export function useWebSocket() {
         ws.current = null;
       }
     };
-  }, [user, onMessageReceived, onMessageEdited, onReactionUpdated, onPinUpdated]);
+  }, [user, user?.id]); // Reconnect only if user object or ID changes
 }
