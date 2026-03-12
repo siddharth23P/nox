@@ -9,8 +9,19 @@ export interface Message {
   content_md: string;
   content_html: string;
   reply_count?: number;
+  is_edited?: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface MessageEdit {
+  id: string;
+  message_id: string;
+  old_content_md: string;
+  old_content_html: string;
+  new_content_md: string;
+  new_content_html: string;
+  created_at: string;
 }
 
 export interface Channel {
@@ -44,6 +55,9 @@ interface MessageState {
   setActiveThread: (messageId: string | null) => void;
   fetchThread: (channelId: string, messageId: string) => Promise<void>;
   sendThreadReply: (channelId: string, messageId: string, contentMd: string) => Promise<void>;
+  
+  editMessage: (channelId: string, messageId: string, contentMd: string) => Promise<void>;
+  getMessageHistory: (channelId: string, messageId: string) => Promise<MessageEdit[]>;
 }
 
 const API_BASE_URL = 'http://localhost:8080/v1';
@@ -189,6 +203,60 @@ export const useMessageStore = create<MessageState>((set, get) => ({
             : m
         )
       }));
+    } catch (err) {
+      set({ error: (err as Error).message });
+      throw err;
+    }
+  },
+
+  editMessage: async (channelId, messageId, contentMd) => {
+    try {
+      const userStr = localStorage.getItem('nox_user');
+      const userId = userStr ? JSON.parse(userStr).id : '22222222-2222-2222-2222-222222222222';
+
+      const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
+          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
+        },
+        body: JSON.stringify({ content_md: contentMd }),
+      });
+      
+      if (!response.ok) {
+        if (response.status === 403) throw new Error('Forbidden: You cannot edit this message.');
+        throw new Error('Failed to edit message');
+      }
+      
+      const updatedMessage = await response.json();
+      
+      // Update both main messages and thread messages if needed
+      set((state) => ({
+        messages: state.messages.map(m => m.id === messageId ? updatedMessage : m),
+        threadMessages: state.threadMessages.map(m => m.id === messageId ? updatedMessage : m)
+      }));
+    } catch (err) {
+      set({ error: (err as Error).message });
+      throw err;
+    }
+  },
+
+  getMessageHistory: async (channelId, messageId) => {
+    try {
+      const userStr = localStorage.getItem('nox_user');
+      const userId = userStr ? JSON.parse(userStr).id : '22222222-2222-2222-2222-222222222222';
+
+      const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}/history`, {
+        headers: {
+          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
+          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch message history');
+      
+      const data = await response.json();
+      return data;
     } catch (err) {
       set({ error: (err as Error).message });
       throw err;

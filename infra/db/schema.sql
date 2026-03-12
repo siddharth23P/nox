@@ -69,3 +69,17 @@ CREATE TABLE IF NOT EXISTS messages (
 
 -- Add parent_id to existing table safely
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS parent_id UUID REFERENCES messages(id) ON DELETE CASCADE;
+
+-- Add is_edited flag for Issue #16
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_edited BOOLEAN DEFAULT FALSE;
+
+-- 7. Message Edit History (Audit Trail)
+CREATE TABLE IF NOT EXISTS message_edits (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    message_id UUID REFERENCES messages(id) ON DELETE CASCADE,
+    old_content_md TEXT NOT NULL,
+    old_content_html TEXT NOT NULL,
+    new_content_md TEXT NOT NULL,
+    new_content_html TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);

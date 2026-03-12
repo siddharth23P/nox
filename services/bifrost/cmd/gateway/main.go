@@ -99,6 +99,8 @@ func main() {
 		v1.POST("/channels/:id/messages", messagingHandler.CreateMessage)
 		v1.GET("/channels/:id/messages", messagingHandler.GetMessages)
 		v1.GET("/channels/:id/messages/:messageId/replies", messagingHandler.GetThreadReplies)
+		v1.PATCH("/channels/:id/messages/:messageId", messagingHandler.EditMessage)
+		v1.GET("/channels/:id/messages/:messageId/history", messagingHandler.GetMessageEditHistory)
 
 		// Presence Routes
 		v1.POST("/presence/heartbeat", presenceHandler.Heartbeat)

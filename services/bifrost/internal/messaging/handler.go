@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
 )
 
 type MessagingHandler struct {
@@ -131,4 +132,55 @@ func (h *MessagingHandler) GetThreadReplies(c *gin.Context) {
 		messages = []Message{}
 	}
 	c.JSON(http.StatusOK, messages)
+}
+
+func (h *MessagingHandler) EditMessage(c *gin.Context) {
+	_, userID := getAuthInfo(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "X-User-ID required"})
+		return
+	}
+
+	messageID := c.Param("messageId")
+	if messageID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Message ID required"})
+		return
+	}
+
+	var req EditMessageRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	msg, err := h.service.EditMessage(c.Request.Context(), messageID, userID, req.ContentMD, req.ContentHTML)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden: You cannot edit this message."})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, msg)
+}
+
+func (h *MessagingHandler) GetMessageEditHistory(c *gin.Context) {
+	messageID := c.Param("messageId")
+	if messageID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Message ID required"})
+		return
+	}
+
+	edits, err := h.service.GetMessageEditHistory(c.Request.Context(), messageID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if edits == nil {
+		edits = []MessageEdit{}
+	}
+	c.JSON(http.StatusOK, edits)
 }

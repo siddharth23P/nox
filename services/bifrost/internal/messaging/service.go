@@ -60,16 +60,16 @@ func (s *MessagingService) CreateMessage(ctx context.Context, channelID, userID,
 		WITH new_message AS (
 			INSERT INTO messages (channel_id, user_id, parent_id, content_md, content_html)
 			VALUES ($1, $2, $3, $4, $5)
-			RETURNING id, channel_id, user_id, parent_id, content_md, content_html, created_at, updated_at
+			RETURNING id, channel_id, user_id, parent_id, content_md, content_html, created_at, updated_at, is_edited
 		)
-		SELECT m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.content_md, m.content_html, m.created_at, m.updated_at
+		SELECT m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited
 		FROM new_message m
 		JOIN users u ON m.user_id = u.id
 	`
 	row := s.db.Pool.QueryRow(ctx, query, channelID, userID, parentID, contentMD, contentHTML)
 
 	var msg Message
-	err := row.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt)
+	err := row.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.IsEdited)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID s
 	if before != "" {
 		query = `
 			SELECT 
-				m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.content_md, m.content_html, m.created_at, m.updated_at,
+				m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited,
 				(SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id) as reply_count
 			FROM messages m
 			JOIN users u ON m.user_id = u.id
@@ -97,7 +97,7 @@ func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID s
 	} else {
 		query = `
 			SELECT 
-				m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.content_md, m.content_html, m.created_at, m.updated_at,
+				m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited,
 				(SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id) as reply_count
 			FROM messages m
 			JOIN users u ON m.user_id = u.id
@@ -120,7 +120,7 @@ func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID s
 	var messages []Message
 	for rows.Next() {
 		var msg Message
-		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.ReplyCount); err != nil {
+		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.IsEdited, &msg.ReplyCount); err != nil {
 			return nil, err
 		}
 		messages = append(messages, msg)
@@ -136,7 +136,7 @@ func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID s
 
 func (s *MessagingService) GetThreadReplies(ctx context.Context, messageID string) ([]Message, error) {
 	query := `
-		SELECT m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.content_md, m.content_html, m.created_at, m.updated_at 
+		SELECT m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited 
 		FROM messages m
 		JOIN users u ON m.user_id = u.id
 		WHERE m.parent_id = $1 
@@ -154,11 +154,99 @@ func (s *MessagingService) GetThreadReplies(ctx context.Context, messageID strin
 	var messages []Message
 	for rows.Next() {
 		var msg Message
-		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt); err != nil {
+		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.IsEdited); err != nil {
 			return nil, err
 		}
 		msg.ReplyCount = 0 // Replies don't have replies in this simple 1-level thread model
 		messages = append(messages, msg)
 	}
 	return messages, nil
+}
+
+func (s *MessagingService) EditMessage(ctx context.Context, messageID string, userID string, contentMD string, contentHTML string) (*Message, error) {
+	if contentHTML == "" {
+		contentHTML = "<p>" + contentMD + "</p>"
+	}
+
+	tx, err := s.db.Pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	// Fetch old content and verify author
+	var oldMD, oldHTML, authorID string
+	err = tx.QueryRow(ctx, "SELECT content_md, content_html, user_id FROM messages WHERE id = $1", messageID).Scan(&oldMD, &oldHTML, &authorID)
+	if err != nil {
+		return nil, err
+	}
+	if authorID != userID {
+		return nil, pgx.ErrNoRows // Using ErrNoRows to signify unauthorized / not found
+	}
+
+	// Insert into history
+	_, err = tx.Exec(ctx, `
+		INSERT INTO message_edits (message_id, old_content_md, old_content_html, new_content_md, new_content_html)
+		VALUES ($1, $2, $3, $4, $5)
+	`, messageID, oldMD, oldHTML, contentMD, contentHTML)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update main record
+	_, err = tx.Exec(ctx, `
+		UPDATE messages 
+		SET content_md = $1, content_html = $2, is_edited = TRUE, updated_at = NOW()
+		WHERE id = $3
+	`, contentMD, contentHTML, messageID)
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch returning object
+	var msg Message
+	err = s.db.Pool.QueryRow(ctx, `
+		SELECT m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited,
+			(SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id) as reply_count
+		FROM messages m
+		JOIN users u ON m.user_id = u.id
+		WHERE m.id = $1
+	`, messageID).Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.IsEdited, &msg.ReplyCount)
+
+	if err != nil {
+		return nil, err
+	}
+	return &msg, nil
+}
+
+func (s *MessagingService) GetMessageEditHistory(ctx context.Context, messageID string) ([]MessageEdit, error) {
+	query := `
+		SELECT id, message_id, old_content_md, old_content_html, new_content_md, new_content_html, created_at
+		FROM message_edits
+		WHERE message_id = $1
+		ORDER BY created_at DESC
+	`
+	rows, err := s.db.Pool.Query(ctx, query, messageID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return []MessageEdit{}, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	var edits []MessageEdit
+	for rows.Next() {
+		var e MessageEdit
+		if err := rows.Scan(&e.ID, &e.MessageID, &e.OldContentMD, &e.OldContentHTML, &e.NewContentMD, &e.NewContentHTML, &e.CreatedAt); err != nil {
+			return nil, err
+		}
+		edits = append(edits, e)
+	}
+	return edits, nil
 }

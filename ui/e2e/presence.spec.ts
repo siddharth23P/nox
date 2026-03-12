@@ -59,23 +59,44 @@ test.describe('Real-time Presence & Mutual Discovery', () => {
 
     // 3. Alice verification
     
-    // Wait for the next polling cycles (now 3s in test mode) so Alice fetches Bob's newly registered presence
-    await alicePage.waitForTimeout(6000); 
+    // Wait for messages to load
+    await alicePage.waitForTimeout(2000);
+
+    // Alice sends a unique message
+    const aliceUniqueText = `${aliceMsgText} (${Date.now()})`;
+    const aliceInput = alicePage.getByPlaceholder('Message #general...');
+    await aliceInput.fill(aliceUniqueText);
+    await aliceInput.press('Enter');
+
+    // Bob sends a unique message
+    await bobPage.waitForTimeout(2000);
+    const bobUniqueText = `${bobMsgText} (${Date.now() + 1})`;
+    const bobInput = bobPage.getByPlaceholder('Message #general...');
+    await bobInput.fill(bobUniqueText);
+    await bobInput.press('Enter');
+
+    // Wait for the next polling cycles for presence
+    await alicePage.waitForTimeout(3000); 
+
+    // Because real-time messaging WebSocket isn't implemented, reload Alice's page 
+    // to fetch Bob's newly sent message. 
+    await alicePage.reload();
+    await alicePage.waitForTimeout(3000);
     
-    // Find one of Alice's messages
-    const aliceMsg = alicePage.locator(`text="${aliceMsgText}"`).first();
+    // Find Alice's message
+    const aliceMsg = alicePage.locator(`text="${aliceUniqueText}"`).first();
     await expect(aliceMsg).toBeVisible();
     
-    // Check right-alignment: In our UI, `flex-row-reverse` is applied to the message container
+    // Check right-alignment
     const aliceWrapper = aliceMsg.locator('xpath=./ancestor::div[contains(@class, "flex-row-reverse")]').first();
     await expect(aliceWrapper).toBeVisible();
 
     // Bob shouldn't be right-aligned on Alice's screen. Look for Bob's message
-    const bobTextMsg = alicePage.locator(`text="${bobMsgText}"`).first();
+    const bobTextMsg = alicePage.locator(`text="${bobUniqueText}"`).first();
     const bobWrapper = bobTextMsg.locator('xpath=./ancestor::div[contains(@class, "group relative")]').first();
     await expect(bobWrapper).not.toHaveClass(/flex-row-reverse/);
 
-    // Verify Bob's actual username is rendered next to his message, not User UUID
+    // Verify Bob's actual username is rendered
     const bobNameLabel = bobWrapper.locator(`text="${bob.username}"`).first();
     await expect(bobNameLabel).toBeVisible();
 

@@ -23,8 +23,19 @@ type Message struct {
 	ContentMD   string    `json:"content_md"`
 	ContentHTML string    `json:"content_html"`
 	ReplyCount  int       `json:"reply_count,omitempty"`
+	IsEdited    bool      `json:"is_edited"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type MessageEdit struct {
+	ID             string    `json:"id"`
+	MessageID      string    `json:"message_id"`
+	OldContentMD   string    `json:"old_content_md"`
+	OldContentHTML string    `json:"old_content_html"`
+	NewContentMD   string    `json:"new_content_md"`
+	NewContentHTML string    `json:"new_content_html"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 type CreateChannelRequest struct {
@@ -37,4 +48,9 @@ type CreateMessageRequest struct {
 	ContentMD   string  `json:"content_md" binding:"required"`
 	ContentHTML string  `json:"content_html"`
 	ParentID    *string `json:"parent_id"`
+}
+
+type EditMessageRequest struct {
+	ContentMD   string `json:"content_md" binding:"required"`
+	ContentHTML string `json:"content_html"`
 }
