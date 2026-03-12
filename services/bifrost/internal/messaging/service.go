@@ -73,16 +73,35 @@ func (s *MessagingService) CreateMessage(ctx context.Context, channelID, userID,
 	return &msg, nil
 }
 
-func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID string) ([]Message, error) {
-	query := `
-		SELECT 
-			m.id, m.channel_id, m.user_id, m.parent_id, m.content_md, m.content_html, m.created_at, m.updated_at,
-			(SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id) as reply_count
-		FROM messages m
-		WHERE m.channel_id = $1 AND m.parent_id IS NULL
-		ORDER BY m.created_at ASC
-	`
-	rows, err := s.db.Pool.Query(ctx, query, channelID)
+func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID string, before string) ([]Message, error) {
+	var query string
+	var args []interface{}
+
+	if before != "" {
+		query = `
+			SELECT 
+				m.id, m.channel_id, m.user_id, m.parent_id, m.content_md, m.content_html, m.created_at, m.updated_at,
+				(SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id) as reply_count
+			FROM messages m
+			WHERE m.channel_id = $1 AND m.parent_id IS NULL AND m.created_at < $2::timestamp
+			ORDER BY m.created_at DESC
+			LIMIT 50
+		`
+		args = []interface{}{channelID, before}
+	} else {
+		query = `
+			SELECT 
+				m.id, m.channel_id, m.user_id, m.parent_id, m.content_md, m.content_html, m.created_at, m.updated_at,
+				(SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id) as reply_count
+			FROM messages m
+			WHERE m.channel_id = $1 AND m.parent_id IS NULL
+			ORDER BY m.created_at DESC
+			LIMIT 50
+		`
+		args = []interface{}{channelID}
+	}
+
+	rows, err := s.db.Pool.Query(ctx, query, args...)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return []Message{}, nil
@@ -99,6 +118,12 @@ func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID s
 		}
 		messages = append(messages, msg)
 	}
+
+	// Reverse messages to return them in chronological order (oldest first)
+	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
+		messages[i], messages[j] = messages[j], messages[i]
+	}
+
 	return messages, nil
 }
 

@@ -100,7 +100,9 @@ func (h *MessagingHandler) GetMessages(c *gin.Context) {
 		return
 	}
 
-	messages, err := h.service.GetMessagesByChannel(c.Request.Context(), channelID)
+	before := c.Query("before")
+
+	messages, err := h.service.GetMessagesByChannel(c.Request.Context(), channelID, before)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../stores/authStore';
+import { useMessageStore } from '../../stores/messageStore';
 import { 
   Hash, 
   MessageSquare, 
@@ -11,10 +12,11 @@ import {
   ChevronDown
 } from 'lucide-react';
 
-const NavItem = ({ icon: Icon, text, active }: { icon: React.ElementType, text: string, active?: boolean }) => (
+const NavItem = ({ icon: Icon, text, active, onClick }: { icon: React.ElementType, text: string, active?: boolean, onClick?: () => void }) => (
   <motion.button 
     whileHover={{ x: 4, backgroundColor: 'rgba(255,255,255,0.05)' }}
     whileTap={{ scale: 0.98 }}
+    onClick={onClick}
     className={`w-full h-10 px-3 rounded-xl flex items-center gap-3 transition-colors ${
       active ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'
     }`}
@@ -26,6 +28,21 @@ const NavItem = ({ icon: Icon, text, active }: { icon: React.ElementType, text: 
 
 export const Sidebar: React.FC = () => {
   const logout = useAuthStore((state) => state.logout);
+  const { activeChannel, setActiveChannel } = useMessageStore();
+
+  const handleChannelSelect = (id: string, name: string) => {
+    setActiveChannel({
+      id,
+      name,
+      org_id: '00000000-0000-0000-0000-000000000001',
+      description: '',
+      is_private: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+  };
+
+  const currentChannelId = activeChannel?.id || '00000000-0000-0000-0000-000000000001';
 
   return (
     <div className="w-64 h-full bg-[#0d0d0d] border-r border-white/5 flex flex-col pt-4 pb-4">
@@ -58,10 +75,10 @@ export const Sidebar: React.FC = () => {
             <span className="cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity hover:text-white">+</span>
           </div>
           <div className="space-y-1">
-            <NavItem icon={Hash} text="general" active />
-            <NavItem icon={Hash} text="engineering" />
-            <NavItem icon={Hash} text="design" />
-            <NavItem icon={Hash} text="random" />
+            <NavItem icon={Hash} text="general" active={currentChannelId === '00000000-0000-0000-0000-000000000001'} onClick={() => handleChannelSelect('00000000-0000-0000-0000-000000000001', 'general')} />
+            <NavItem icon={Hash} text="engineering" active={currentChannelId === '00000000-0000-0000-0000-000000000002'} onClick={() => handleChannelSelect('00000000-0000-0000-0000-000000000002', 'engineering')} />
+            <NavItem icon={Hash} text="design" active={currentChannelId === '00000000-0000-0000-0000-000000000003'} onClick={() => handleChannelSelect('00000000-0000-0000-0000-000000000003', 'design')} />
+            <NavItem icon={Hash} text="random" active={currentChannelId === '00000000-0000-0000-0000-000000000004'} onClick={() => handleChannelSelect('00000000-0000-0000-0000-000000000004', 'random')} />
           </div>
         </div>
 

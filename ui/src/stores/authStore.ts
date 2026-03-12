@@ -27,12 +27,16 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.setItem('nox_token', token);
     localStorage.setItem('nox_org_id', orgId);
     localStorage.setItem('nox_role', role);
+    if (user) {
+      localStorage.setItem('nox_user', JSON.stringify(user));
+    }
     set({ user, token, orgId, role, isAuthenticated: true });
   },
   logout: () => {
     localStorage.removeItem('nox_token');
     localStorage.removeItem('nox_org_id');
     localStorage.removeItem('nox_role');
+    localStorage.removeItem('nox_user');
     set({ user: null, token: null, orgId: null, role: null, isAuthenticated: false });
   },
 }));

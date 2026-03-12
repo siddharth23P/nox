@@ -30,12 +30,14 @@ interface MessageState {
   threadMessages: Message[];
   isLoading: boolean;
   error: string | null;
+  hasMore: boolean;
   
   setActiveChannel: (channel: Channel) => void;
   setChannels: (channels: Channel[]) => void;
   setMessages: (messages: Message[]) => void;
   addMessage: (message: Message) => void;
   fetchMessages: (channelId: string) => Promise<void>;
+  loadMoreMessages: (channelId: string, before: string) => Promise<void>;
   sendMessage: (channelId: string, contentMd: string) => Promise<void>;
   
   setActiveThread: (messageId: string | null) => void;
@@ -53,6 +55,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   threadMessages: [],
   isLoading: false,
   error: null,
+  hasMore: true,
 
   setActiveChannel: (channel) => set({ activeChannel: channel }),
   setChannels: (channels) => set({ channels }),
@@ -60,7 +63,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   addMessage: (message) => set((state) => ({ messages: [...state.messages, message] })),
 
   fetchMessages: async (channelId) => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null, hasMore: true });
     try {
       const userStr = localStorage.getItem('nox_user');
       const userId = userStr ? JSON.parse(userStr).id : '22222222-2222-2222-2222-222222222222';
@@ -74,7 +77,35 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       if (!response.ok) throw new Error('Failed to fetch messages');
       
       const data = await response.json();
-      set({ messages: data, isLoading: false });
+      set({ messages: data, isLoading: false, hasMore: data.length === 50 });
+    } catch (err) {
+      set({ error: (err as Error).message, isLoading: false });
+    }
+  },
+
+  loadMoreMessages: async (channelId, before) => {
+    const state = get();
+    if (state.isLoading || !state.hasMore) return;
+    
+    set({ isLoading: true, error: null });
+    try {
+      const userStr = localStorage.getItem('nox_user');
+      const userId = userStr ? JSON.parse(userStr).id : '22222222-2222-2222-2222-222222222222';
+      
+      const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages?before=${encodeURIComponent(before)}`, {
+        headers: {
+          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
+          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
+        }
+      });
+      if (!response.ok) throw new Error('Failed to load more messages');
+      
+      const data = await response.json();
+      set((prev) => ({ 
+        messages: [...data, ...prev.messages], 
+        isLoading: false,
+        hasMore: data.length === 50 
+      }));
     } catch (err) {
       set({ error: (err as Error).message, isLoading: false });
     }
