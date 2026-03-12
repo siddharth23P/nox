@@ -67,7 +67,7 @@ test.describe('Authentication Regression Suite', () => {
     await page.getByRole('button', { name: 'Enter Nexus' }).click({ force: true });
 
     await expect(page).toHaveURL(/.*\/dashboard/, { timeout: 15000 });
-    await expect(page.locator('text=Nox')).toBeVisible();
+    await expect(page.locator('text=#general').first()).toBeVisible();
 
     // 4. Logout
     await page.click('button:has-text("Sign out of Nexus")');

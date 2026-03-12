@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/nox-labs/bifrost/internal/auth"
 	"github.com/nox-labs/bifrost/internal/db"
+	"github.com/nox-labs/bifrost/internal/messaging"
 	pb "github.com/nox-labs/bifrost/pkg/authv1/auth/v1"
 	"google.golang.org/grpc"
 	"context"
@@ -47,6 +48,9 @@ func main() {
 
 	// 1. Initialize Auth Service
 	authService := auth.NewAuthService(jwtSecret, database)
+	
+	// Initialize Messaging Service
+	messagingService := messaging.NewMessagingService(database)
 
 	// 2. Start gRPC Server
 	go func() {
@@ -67,8 +71,11 @@ func main() {
 	r.Use(cors.Default())
 	
 	authHandler := auth.NewAuthHandler(authService)
+	messagingHandler := messaging.NewMessagingHandler(messagingService)
+
 	v1 := r.Group("/v1")
 	{
+		// Auth Routes
 		v1.POST("/auth/register", authHandler.Register)
 		v1.POST("/auth/login", authHandler.Login)
 		v1.GET("/auth/google", authHandler.GoogleLogin)
@@ -76,6 +83,12 @@ func main() {
 		v1.GET("/auth/github", authHandler.GithubLogin)
 		v1.GET("/auth/github/callback", authHandler.GithubCallback)
 		v1.GET("/auth/verify", authHandler.VerifyEmail)
+
+		// Messaging Routes
+		v1.POST("/channels", messagingHandler.CreateChannel)
+		v1.GET("/channels", messagingHandler.GetChannels)
+		v1.POST("/channels/:id/messages", messagingHandler.CreateMessage)
+		v1.GET("/channels/:id/messages", messagingHandler.GetMessages)
 	}
 
 	log.Printf("Bifrost REST Gateway starting on port %s", httpPort)

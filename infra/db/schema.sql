@@ -43,3 +43,25 @@ ALTER TABLE organization_memberships ENABLE ROW LEVEL SECURITY;
 
 -- Note: RLS Policies will be injected by the Bifrost service user role
 -- example: CREATE POLICY tenant_isolation_policy ON organizations USING (id = current_setting('app.current_org_id')::UUID);
+
+-- 5. Channels
+CREATE TABLE IF NOT EXISTS channels (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    org_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    description TEXT,
+    is_private BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 6. Messages
+CREATE TABLE IF NOT EXISTS messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    channel_id UUID REFERENCES channels(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    content_md TEXT NOT NULL,
+    content_html TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
