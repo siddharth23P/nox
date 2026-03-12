@@ -12,6 +12,7 @@ import (
 	"github.com/nox-labs/bifrost/internal/auth"
 	"github.com/nox-labs/bifrost/internal/db"
 	"github.com/nox-labs/bifrost/internal/messaging"
+	"github.com/nox-labs/bifrost/internal/presence"
 	pb "github.com/nox-labs/bifrost/pkg/authv1/auth/v1"
 	"google.golang.org/grpc"
 	"context"
@@ -52,6 +53,9 @@ func main() {
 	// Initialize Messaging Service
 	messagingService := messaging.NewMessagingService(database)
 
+	// Initialize Presence Service
+	presenceService := presence.NewPresenceService()
+
 	// 2. Start gRPC Server
 	go func() {
 		lis, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
@@ -76,6 +80,7 @@ func main() {
 	
 	authHandler := auth.NewAuthHandler(authService)
 	messagingHandler := messaging.NewMessagingHandler(messagingService)
+	presenceHandler := presence.NewPresenceHandler(presenceService)
 
 	v1 := r.Group("/v1")
 	{
@@ -94,6 +99,10 @@ func main() {
 		v1.POST("/channels/:id/messages", messagingHandler.CreateMessage)
 		v1.GET("/channels/:id/messages", messagingHandler.GetMessages)
 		v1.GET("/channels/:id/messages/:messageId/replies", messagingHandler.GetThreadReplies)
+
+		// Presence Routes
+		v1.POST("/presence/heartbeat", presenceHandler.Heartbeat)
+		v1.GET("/presence/active", presenceHandler.GetActiveUsers)
 	}
 
 	log.Printf("Bifrost REST Gateway starting on port %s", httpPort)

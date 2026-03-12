@@ -4,6 +4,7 @@ export interface Message {
   id: string;
   channel_id: string;
   user_id: string;
+  username?: string;
   parent_id?: string;
   content_md: string;
   content_html: string;

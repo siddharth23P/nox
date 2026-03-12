@@ -57,14 +57,19 @@ func (s *MessagingService) CreateMessage(ctx context.Context, channelID, userID,
 	}
 
 	query := `
-		INSERT INTO messages (channel_id, user_id, parent_id, content_md, content_html)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, channel_id, user_id, parent_id, content_md, content_html, created_at, updated_at
+		WITH new_message AS (
+			INSERT INTO messages (channel_id, user_id, parent_id, content_md, content_html)
+			VALUES ($1, $2, $3, $4, $5)
+			RETURNING id, channel_id, user_id, parent_id, content_md, content_html, created_at, updated_at
+		)
+		SELECT m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.content_md, m.content_html, m.created_at, m.updated_at
+		FROM new_message m
+		JOIN users u ON m.user_id = u.id
 	`
 	row := s.db.Pool.QueryRow(ctx, query, channelID, userID, parentID, contentMD, contentHTML)
 
 	var msg Message
-	err := row.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.ParentID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt)
+	err := row.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -80,9 +85,10 @@ func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID s
 	if before != "" {
 		query = `
 			SELECT 
-				m.id, m.channel_id, m.user_id, m.parent_id, m.content_md, m.content_html, m.created_at, m.updated_at,
+				m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.content_md, m.content_html, m.created_at, m.updated_at,
 				(SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id) as reply_count
 			FROM messages m
+			JOIN users u ON m.user_id = u.id
 			WHERE m.channel_id = $1 AND m.parent_id IS NULL AND m.created_at < $2::timestamp
 			ORDER BY m.created_at DESC
 			LIMIT 50
@@ -91,9 +97,10 @@ func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID s
 	} else {
 		query = `
 			SELECT 
-				m.id, m.channel_id, m.user_id, m.parent_id, m.content_md, m.content_html, m.created_at, m.updated_at,
+				m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.content_md, m.content_html, m.created_at, m.updated_at,
 				(SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id) as reply_count
 			FROM messages m
+			JOIN users u ON m.user_id = u.id
 			WHERE m.channel_id = $1 AND m.parent_id IS NULL
 			ORDER BY m.created_at DESC
 			LIMIT 50
@@ -113,7 +120,7 @@ func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID s
 	var messages []Message
 	for rows.Next() {
 		var msg Message
-		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.ParentID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.ReplyCount); err != nil {
+		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.ReplyCount); err != nil {
 			return nil, err
 		}
 		messages = append(messages, msg)
@@ -129,10 +136,11 @@ func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID s
 
 func (s *MessagingService) GetThreadReplies(ctx context.Context, messageID string) ([]Message, error) {
 	query := `
-		SELECT id, channel_id, user_id, parent_id, content_md, content_html, created_at, updated_at 
-		FROM messages 
-		WHERE parent_id = $1 
-		ORDER BY created_at ASC
+		SELECT m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.content_md, m.content_html, m.created_at, m.updated_at 
+		FROM messages m
+		JOIN users u ON m.user_id = u.id
+		WHERE m.parent_id = $1 
+		ORDER BY m.created_at ASC
 	`
 	rows, err := s.db.Pool.Query(ctx, query, messageID)
 	if err != nil {
@@ -146,7 +154,7 @@ func (s *MessagingService) GetThreadReplies(ctx context.Context, messageID strin
 	var messages []Message
 	for rows.Next() {
 		var msg Message
-		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.ParentID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt); err != nil {
+		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt); err != nil {
 			return nil, err
 		}
 		msg.ReplyCount = 0 // Replies don't have replies in this simple 1-level thread model

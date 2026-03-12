@@ -4,11 +4,23 @@ import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 import { ThreadPanel } from './ThreadPanel';
 import { useMessageStore } from '../../stores/messageStore';
+import { useAuthStore } from '../../stores/authStore';
+import { usePresenceStore } from '../../stores/presenceStore';
 
 export const DashboardHome: React.FC = () => {
   const { activeChannel } = useMessageStore();
+  const { user, token } = useAuthStore();
+  const { startHeartbeat, stopHeartbeat } = usePresenceStore();
+
   const activeChannelId = activeChannel?.id || "00000000-0000-0000-0000-000000000001";
   const activeChannelName = activeChannel?.name || "general";
+
+  React.useEffect(() => {
+    if (user && token) {
+      startHeartbeat(user.id, token);
+    }
+    return () => stopHeartbeat();
+  }, [user, token, startHeartbeat, stopHeartbeat]);
 
   return (
     <div className="w-full h-full flex flex-row border-l border-white/5 relative bg-[#010309] overflow-hidden">

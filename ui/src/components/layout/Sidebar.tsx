@@ -2,6 +2,8 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../stores/authStore';
 import { useMessageStore } from '../../stores/messageStore';
+import { usePresenceStore } from '../../stores/presenceStore';
+import { PresenceAvatar } from '../common/PresenceAvatar';
 import { 
   Hash, 
   MessageSquare, 
@@ -27,8 +29,9 @@ const NavItem = ({ icon: Icon, text, active, onClick }: { icon: React.ElementTyp
 );
 
 export const Sidebar: React.FC = () => {
-  const logout = useAuthStore((state) => state.logout);
+  const { user, logout } = useAuthStore();
   const { activeChannel, setActiveChannel } = useMessageStore();
+  const { isStealth, setStealth } = usePresenceStore();
 
   const handleChannelSelect = (id: string, name: string) => {
     setActiveChannel({
@@ -53,9 +56,13 @@ export const Sidebar: React.FC = () => {
         className="px-4 py-2 mx-2 mb-6 rounded-xl flex items-center justify-between cursor-pointer group"
       >
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-sm border border-blue-500/20 group-hover:border-blue-500/40 transition-colors">
-            N
-          </div>
+          {user ? (
+            <PresenceAvatar userId={user.id} username={user.username || 'U'} size="sm" />
+          ) : (
+            <div className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-sm border border-blue-500/20 group-hover:border-blue-500/40 transition-colors">
+              N
+            </div>
+          )}
           <span className="text-white font-semibold text-sm">Nexus Inc</span>
         </div>
         <ChevronDown size={14} className="text-gray-500 group-hover:text-white transition-colors" />
@@ -97,6 +104,28 @@ export const Sidebar: React.FC = () => {
 
       {/* Footer / User Profile */}
       <div className="px-3 pt-4 border-t border-white/5 space-y-1">
+        {/* Stealth Toggle */}
+        <div className="px-3 py-2 flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-400">Stealth Mode</span>
+          <button 
+            title="Toggle Stealth Mode"
+            aria-label="Toggle Stealth Mode"
+            onClick={() => setStealth(!isStealth)}
+            className={`w-10 h-5 rounded-full relative transition-colors ${
+              isStealth ? 'bg-emerald-500/80' : 'bg-gray-700'
+            }`}
+          >
+            <motion.div 
+              layout
+              className="w-3.5 h-3.5 bg-white rounded-full absolute top-[3px]"
+              animate={{ 
+                left: isStealth ? '22px' : '4px' 
+              }}
+              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            />
+          </button>
+        </div>
+        
         <NavItem icon={Settings} text="Settings" />
         <motion.button 
           whileHover={{ x: 4, backgroundColor: 'rgba(239, 68, 68, 0.1)' }}

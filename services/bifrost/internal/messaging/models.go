@@ -18,6 +18,7 @@ type Message struct {
 	ID          string    `json:"id"`
 	ChannelID   string    `json:"channel_id"`
 	UserID      string    `json:"user_id"`
+	Username    string    `json:"username,omitempty"`
 	ParentID    *string   `json:"parent_id,omitempty"`
 	ContentMD   string    `json:"content_md"`
 	ContentHTML string    `json:"content_html"`

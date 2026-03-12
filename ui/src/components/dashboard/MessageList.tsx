@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useMessageStore } from '../../stores/messageStore';
 import { useAuthStore } from '../../stores/authStore';
 import { MessageCircle } from 'lucide-react';
+import { PresenceAvatar } from '../common/PresenceAvatar';
 import type { Message } from '../../stores/messageStore';
 
 interface MessageListProps {
@@ -91,11 +92,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                 {/* Avatar area */}
                 <div className="w-10 flex-shrink-0 flex justify-center">
                   {!isConsecutive ? (
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center overflow-hidden">
-                      <span className="text-white/70 font-medium text-sm">
-                        {msg.user_id.substring(0, 2).toUpperCase() || 'U'}
-                      </span>
-                    </div>
+                    <PresenceAvatar userId={msg.user_id} username={msg.username || 'U'} size="md" />
                   ) : (
                     <span className="text-[10px] text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity mt-2">
                       {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -107,7 +104,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                 <div className={`flex-1 min-w-0 flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'}`}>
                   {!isConsecutive && (
                     <div className={`flex items-baseline gap-2 mb-1 ${isCurrentUser ? 'flex-row-reverse' : ''}`}>
-                      <span className="text-[15px] font-semibold text-gray-100">{isCurrentUser ? 'You' : `User ${msg.user_id.substring(0, 4)}`}</span>
+                      <span className="text-[15px] font-semibold text-gray-100">{isCurrentUser ? 'You' : msg.username || 'Unknown'}</span>
                       <span className="text-xs text-gray-500 font-medium">
                         {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
