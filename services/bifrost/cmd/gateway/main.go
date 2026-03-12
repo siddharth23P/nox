@@ -68,7 +68,11 @@ func main() {
 
 	// 3. Start Gin REST Gateway
 	r := gin.Default()
-	r.Use(cors.Default())
+	
+	config := cors.DefaultConfig()
+	config.AllowAllOrigins = true
+	config.AllowHeaders = append(config.AllowHeaders, "X-Org-ID", "X-User-ID", "Authorization")
+	r.Use(cors.New(config))
 	
 	authHandler := auth.NewAuthHandler(authService)
 	messagingHandler := messaging.NewMessagingHandler(messagingService)
@@ -89,6 +93,7 @@ func main() {
 		v1.GET("/channels", messagingHandler.GetChannels)
 		v1.POST("/channels/:id/messages", messagingHandler.CreateMessage)
 		v1.GET("/channels/:id/messages", messagingHandler.GetMessages)
+		v1.GET("/channels/:id/messages/:messageId/replies", messagingHandler.GetThreadReplies)
 	}
 
 	log.Printf("Bifrost REST Gateway starting on port %s", httpPort)

@@ -82,7 +82,7 @@ func (h *MessagingHandler) CreateMessage(c *gin.Context) {
 		return
 	}
 
-	msg, err := h.service.CreateMessage(c.Request.Context(), channelID, userID, req.ContentMD, req.ContentHTML)
+	msg, err := h.service.CreateMessage(c.Request.Context(), channelID, userID, req.ContentMD, req.ContentHTML, req.ParentID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -101,6 +101,25 @@ func (h *MessagingHandler) GetMessages(c *gin.Context) {
 	}
 
 	messages, err := h.service.GetMessagesByChannel(c.Request.Context(), channelID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if messages == nil {
+		messages = []Message{}
+	}
+	c.JSON(http.StatusOK, messages)
+}
+
+func (h *MessagingHandler) GetThreadReplies(c *gin.Context) {
+	messageID := c.Param("messageId")
+	if messageID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Message ID required"})
+		return
+	}
+
+	messages, err := h.service.GetThreadReplies(c.Request.Context(), messageID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

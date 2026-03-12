@@ -18,8 +18,10 @@ type Message struct {
 	ID          string    `json:"id"`
 	ChannelID   string    `json:"channel_id"`
 	UserID      string    `json:"user_id"`
+	ParentID    *string   `json:"parent_id,omitempty"`
 	ContentMD   string    `json:"content_md"`
 	ContentHTML string    `json:"content_html"`
+	ReplyCount  int       `json:"reply_count,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -31,6 +33,7 @@ type CreateChannelRequest struct {
 }
 
 type CreateMessageRequest struct {
-	ContentMD   string `json:"content_md" binding:"required"`
-	ContentHTML string `json:"content_html"`
+	ContentMD   string  `json:"content_md" binding:"required"`
+	ContentHTML string  `json:"content_html"`
+	ParentID    *string `json:"parent_id"`
 }

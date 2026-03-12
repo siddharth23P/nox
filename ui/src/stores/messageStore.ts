@@ -4,8 +4,10 @@ export interface Message {
   id: string;
   channel_id: string;
   user_id: string;
+  parent_id?: string;
   content_md: string;
   content_html: string;
+  reply_count?: number;
   created_at: string;
   updated_at: string;
 }
@@ -24,6 +26,8 @@ interface MessageState {
   activeChannel: Channel | null;
   channels: Channel[];
   messages: Message[];
+  activeThreadId: string | null;
+  threadMessages: Message[];
   isLoading: boolean;
   error: string | null;
   
@@ -33,6 +37,10 @@ interface MessageState {
   addMessage: (message: Message) => void;
   fetchMessages: (channelId: string) => Promise<void>;
   sendMessage: (channelId: string, contentMd: string) => Promise<void>;
+  
+  setActiveThread: (messageId: string | null) => void;
+  fetchThread: (channelId: string, messageId: string) => Promise<void>;
+  sendThreadReply: (channelId: string, messageId: string, contentMd: string) => Promise<void>;
 }
 
 const API_BASE_URL = 'http://localhost:8080/v1';
@@ -41,6 +49,8 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   activeChannel: null,
   channels: [],
   messages: [],
+  activeThreadId: null,
+  threadMessages: [],
   isLoading: false,
   error: null,
 
@@ -52,11 +62,13 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   fetchMessages: async (channelId) => {
     set({ isLoading: true, error: null });
     try {
-      // Setup minimal mock headers to pass through Bifrost authentication temporarily
+      const userStr = localStorage.getItem('nox_user');
+      const userId = userStr ? JSON.parse(userStr).id : '22222222-2222-2222-2222-222222222222';
+      
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages`, {
         headers: {
-          'X-Org-ID': localStorage.getItem('nox_org_id') || 'test-org',
-          'X-User-ID': localStorage.getItem('nox_token') ? 'test-user-uuid' : '',
+          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
+          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
         }
       });
       if (!response.ok) throw new Error('Failed to fetch messages');
@@ -70,12 +82,15 @@ export const useMessageStore = create<MessageState>((set, get) => ({
 
   sendMessage: async (channelId, contentMd) => {
     try {
+      const userStr = localStorage.getItem('nox_user');
+      const userId = userStr ? JSON.parse(userStr).id : '22222222-2222-2222-2222-222222222222';
+
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Org-ID': localStorage.getItem('nox_org_id') || 'test-org',
-          'X-User-ID': localStorage.getItem('nox_token') ? 'test-user-uuid' : '',
+          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
+          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
         },
         body: JSON.stringify({ content_md: contentMd }),
       });
@@ -85,6 +100,63 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       const newMessage = await response.json();
       // Assume WebSocket will eventually broadcast this, but for now we optimistically UI update.
       get().addMessage(newMessage);
+    } catch (err) {
+      set({ error: (err as Error).message });
+      throw err;
+    }
+  },
+
+  setActiveThread: (messageId) => set({ activeThreadId: messageId }),
+  
+  fetchThread: async (channelId, messageId) => {
+    set({ isLoading: true, error: null });
+    try {
+      const userStr = localStorage.getItem('nox_user');
+      const userId = userStr ? JSON.parse(userStr).id : '22222222-2222-2222-2222-222222222222';
+
+      const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}/replies`, {
+        headers: {
+          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
+          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch thread replies');
+      
+      const data = await response.json();
+      set({ threadMessages: data, isLoading: false });
+    } catch (err) {
+      set({ error: (err as Error).message, isLoading: false });
+    }
+  },
+
+  sendThreadReply: async (channelId, messageId, contentMd) => {
+    try {
+      const userStr = localStorage.getItem('nox_user');
+      const userId = userStr ? JSON.parse(userStr).id : '22222222-2222-2222-2222-222222222222';
+
+      const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
+          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
+        },
+        body: JSON.stringify({ content_md: contentMd, parent_id: messageId }),
+      });
+      
+      if (!response.ok) throw new Error('Failed to send reply');
+      
+      const newReply = await response.json();
+      // Optimistically update threadMessages
+      set((state) => ({ 
+        threadMessages: [...state.threadMessages, newReply],
+        // Optimistically update reply_count of the parent message in the main view
+        messages: state.messages.map(m => 
+          m.id === messageId 
+            ? { ...m, reply_count: (m.reply_count || 0) + 1 } 
+            : m
+        )
+      }));
     } catch (err) {
       set({ error: (err as Error).message });
       throw err;

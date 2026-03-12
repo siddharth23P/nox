@@ -50,33 +50,37 @@ func (s *MessagingService) GetChannels(ctx context.Context, orgID string) ([]Cha
 	return channels, nil
 }
 
-func (s *MessagingService) CreateMessage(ctx context.Context, channelID, userID, contentMD, contentHTML string) (*Message, error) {
+func (s *MessagingService) CreateMessage(ctx context.Context, channelID, userID, contentMD, contentHTML string, parentID *string) (*Message, error) {
 	// Fallback to simple HTML if not provided
 	if contentHTML == "" {
 		contentHTML = "<p>" + contentMD + "</p>"
 	}
 
 	query := `
-		INSERT INTO messages (channel_id, user_id, content_md, content_html)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id, channel_id, user_id, content_md, content_html, created_at, updated_at
+		INSERT INTO messages (channel_id, user_id, parent_id, content_md, content_html)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, channel_id, user_id, parent_id, content_md, content_html, created_at, updated_at
 	`
-	row := s.db.Pool.QueryRow(ctx, query, channelID, userID, contentMD, contentHTML)
+	row := s.db.Pool.QueryRow(ctx, query, channelID, userID, parentID, contentMD, contentHTML)
 
 	var msg Message
-	err := row.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt)
+	err := row.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.ParentID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
+	// Initial reply count is 0
+	msg.ReplyCount = 0
 	return &msg, nil
 }
 
 func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID string) ([]Message, error) {
 	query := `
-		SELECT id, channel_id, user_id, content_md, content_html, created_at, updated_at 
-		FROM messages 
-		WHERE channel_id = $1 
-		ORDER BY created_at ASC
+		SELECT 
+			m.id, m.channel_id, m.user_id, m.parent_id, m.content_md, m.content_html, m.created_at, m.updated_at,
+			(SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id) as reply_count
+		FROM messages m
+		WHERE m.channel_id = $1 AND m.parent_id IS NULL
+		ORDER BY m.created_at ASC
 	`
 	rows, err := s.db.Pool.Query(ctx, query, channelID)
 	if err != nil {
@@ -90,9 +94,37 @@ func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID s
 	var messages []Message
 	for rows.Next() {
 		var msg Message
-		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt); err != nil {
+		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.ParentID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.ReplyCount); err != nil {
 			return nil, err
 		}
+		messages = append(messages, msg)
+	}
+	return messages, nil
+}
+
+func (s *MessagingService) GetThreadReplies(ctx context.Context, messageID string) ([]Message, error) {
+	query := `
+		SELECT id, channel_id, user_id, parent_id, content_md, content_html, created_at, updated_at 
+		FROM messages 
+		WHERE parent_id = $1 
+		ORDER BY created_at ASC
+	`
+	rows, err := s.db.Pool.Query(ctx, query, messageID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return []Message{}, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	var messages []Message
+	for rows.Next() {
+		var msg Message
+		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.ParentID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt); err != nil {
+			return nil, err
+		}
+		msg.ReplyCount = 0 // Replies don't have replies in this simple 1-level thread model
 		messages = append(messages, msg)
 	}
 	return messages, nil

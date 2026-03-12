@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useMessageStore } from '../../stores/messageStore';
+import { MessageCircle } from 'lucide-react';
 import type { Message } from '../../stores/messageStore';
 
 interface MessageListProps {
@@ -8,7 +9,7 @@ interface MessageListProps {
 }
 
 export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
-  const { messages, fetchMessages, isLoading } = useMessageStore();
+  const { messages, fetchMessages, isLoading, setActiveThread } = useMessageStore();
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,7 +44,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                 key={msg.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`group flex items-start gap-4 hover:bg-white/[0.02] -mx-4 px-4 py-2 rounded-2xl transition-colors ${isConsecutive ? 'mt-1' : 'mt-6'}`}
+                className={`group relative flex items-start gap-4 hover:bg-white/[0.02] -mx-4 px-4 py-2 rounded-2xl transition-colors ${isConsecutive ? 'mt-1' : 'mt-6'}`}
               >
                 {/* Avatar area */}
                 <div className="w-10 flex-shrink-0 flex justify-center">
@@ -75,7 +76,30 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                     className="text-[15px] text-gray-300 leading-relaxed font-light whitespace-pre-wrap"
                     dangerouslySetInnerHTML={{ __html: msg.content_html || msg.content_md }}
                   />
+
+                  {/* Reply Count Indicator */}
+                  {msg.reply_count && msg.reply_count > 0 ? (
+                    <div 
+                      className="mt-2 flex items-center gap-2 text-sm text-blue-400/80 cursor-pointer hover:text-blue-400 transition-colors w-max"
+                      onClick={() => setActiveThread(msg.id)}
+                    >
+                      <MessageCircle size={14} className="opacity-80" />
+                      <span className="font-medium">{msg.reply_count} {msg.reply_count === 1 ? 'reply' : 'replies'}</span>
+                    </div>
+                  ) : null}
                 </div>
+
+                {/* Hover Actions */}
+                <div className="absolute right-4 top-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                  <button 
+                    onClick={() => setActiveThread(msg.id)}
+                    className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-white hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                  >
+                    <MessageCircle size={14} />
+                    <span className="text-xs font-medium pr-1">Reply</span>
+                  </button>
+                </div>
+
               </motion.div>
             );
           })}
