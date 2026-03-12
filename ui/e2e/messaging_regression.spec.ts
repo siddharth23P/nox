@@ -28,7 +28,7 @@ test.describe('Core Messaging Flow', () => {
     await messageInput.press('Enter');
 
     // Verify it appears in the MessageList
-    const messageContainer = page.locator('.custom-scrollbar');
-    await expect(messageContainer.getByText(testMessage)).toBeVisible({ timeout: 10000 });
+    const msgElement = page.locator('.flex-1.overflow-y-auto').getByText(testMessage).first();
+    await expect(msgElement).toBeVisible({ timeout: 10000 });
   });
 });

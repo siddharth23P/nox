@@ -31,7 +31,7 @@ func main() {
 		log.Fatalf("Failed to hash password: %v", err)
 	}
 
-	userId := "00000000-0000-0000-0000-000000000001"
+	userId := "22222222-2222-2222-2222-222222222222"
 	orgId := "00000000-0000-0000-0000-000000000002"
 
 	// Create User
@@ -65,6 +65,17 @@ func main() {
 	`, userId, orgId)
 	if err != nil {
 		log.Fatalf("Failed to seed membership: %v", err)
+	}
+
+	// Create Channel
+	channelId := "00000000-0000-0000-0000-000000000001"
+	_, err = conn.Exec(context.Background(), `
+		INSERT INTO channels (id, org_id, name, description)
+		VALUES ($1, $2, 'general', 'General discussion')
+		ON CONFLICT DO NOTHING;
+	`, channelId, orgId)
+	if err != nil {
+		log.Fatalf("Failed to seed channel: %v", err)
 	}
 
 	fmt.Printf("Successfully seeded test user: %s (password: %s)\n", email, password)
