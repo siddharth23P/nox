@@ -26,9 +26,10 @@ test.describe('Threaded Conversations Regression', () => {
   test('E2E Thread Flow: Send Message -> Open Thread -> Reply -> Check Overviews', async ({ page }) => {
     // 1. Send a parent message to guarantee we have something to reply to
     const randomMsg = `Parent message for thread test - ${Date.now()}`;
-    await page.getByPlaceholder('Message #general...').fill(randomMsg);
-    // Explicitly click send button to avoid keyboard issues
-    await page.getByRole('button').filter({ has: page.locator('svg.lucide-send') }).click();
+    const messageInput = page.getByPlaceholder('Message #general...');
+    await messageInput.fill(randomMsg);
+    // Send the message by pressing Enter
+    await messageInput.press('Enter');
 
     // Wait for the new message to appear in the list
     const msgElement = page.locator('.flex-1.overflow-y-auto').getByText(randomMsg).first();
@@ -51,8 +52,8 @@ test.describe('Threaded Conversations Regression', () => {
     const threadInput = threadPanel.locator('textarea[placeholder="Reply..."]');
     await threadInput.fill(replyText);
     
-    // Click the thread send button
-    await threadPanel.locator('button').filter({ has: page.locator('svg.lucide-corner-down-right') }).click();
+    // Submit the reply via Enter key
+    await threadInput.press('Enter');
 
     // 6. Verify the reply appears in the ThreadPanel
     await expect(threadPanel).toContainText(replyText);
