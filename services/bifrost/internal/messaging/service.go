@@ -6,7 +6,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/nox-labs/bifrost/internal/db"
 )
-
 type MessagingService struct {
 	db        *db.Database
 	Reactions *ReactionService
@@ -315,5 +314,42 @@ func (s *MessagingService) ToggleBookmark(ctx context.Context, messageID string,
 		}
 		return true, nil
 	}
+}
+
+func (s *MessagingService) UpdateLastRead(ctx context.Context, channelID string, userID string, messageID string) error {
+	query := `
+		INSERT INTO channel_reads (channel_id, user_id, last_read_message_id, updated_at)
+		VALUES ($1, $2, $3, NOW())
+		ON CONFLICT (channel_id, user_id) 
+		DO UPDATE SET last_read_message_id = EXCLUDED.last_read_message_id, updated_at = NOW()
+	`
+	_, err := s.db.Pool.Exec(ctx, query, channelID, userID, messageID)
+	return err
+}
+
+func (s *MessagingService) GetChannelReadReceipts(ctx context.Context, channelID string) ([]ChannelRead, error) {
+	query := `
+		SELECT channel_id, user_id, last_read_message_id, updated_at
+		FROM channel_reads
+		WHERE channel_id = $1
+	`
+	rows, err := s.db.Pool.Query(ctx, query, channelID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return []ChannelRead{}, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	var reads []ChannelRead
+	for rows.Next() {
+		var r ChannelRead
+		if err := rows.Scan(&r.ChannelID, &r.UserID, &r.LastReadMessageID, &r.UpdatedAt); err != nil {
+			return nil, err
+		}
+		reads = append(reads, r)
+	}
+	return reads, nil
 }
 

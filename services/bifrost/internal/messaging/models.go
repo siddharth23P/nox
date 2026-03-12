@@ -63,3 +63,14 @@ type ReactionRequest struct {
 	Emoji  string `json:"emoji" binding:"required"`
 	Action string `json:"action" binding:"required"` // "add" or "remove"
 }
+
+type ChannelRead struct {
+	ChannelID         string    `json:"channel_id"`
+	UserID            string    `json:"user_id"`
+	LastReadMessageID string    `json:"last_read_message_id"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+type UpdateReadRequest struct {
+	MessageID string `json:"message_id" binding:"required"`
+}

@@ -55,7 +55,7 @@ test.describe('Message Lifecycle (Audit-Trailed Edits)', () => {
     // Type new content and save
     const newContent = `Hey team, updated message ${uniqueId}`;
     await textarea.fill(newContent);
-    await alicePage.getByRole('button', { name: 'Save' }).click();
+    await alicePage.getByRole('button', { name: 'Save', exact: true }).click();
 
     // Wait a brief moment for state and network
     await alicePage.waitForTimeout(1000);
@@ -100,7 +100,7 @@ test.describe('Message Lifecycle (Audit-Trailed Edits)', () => {
       localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
       localStorage.setItem('nox_role', 'member');
       localStorage.setItem('nox_user', JSON.stringify({
-        id: 'a2000000-0000-0000-0000-000000000000',
+        id: 'b2000000-0000-0000-0000-000000000000',
         email: 'bob@nox.inc',
         username: 'bob'
       }));

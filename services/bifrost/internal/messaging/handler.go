@@ -279,3 +279,56 @@ func (h *MessagingHandler) ToggleBookmark(c *gin.Context) {
 	})
 }
 
+func (h *MessagingHandler) UpdateLastRead(c *gin.Context) {
+	_, userID := getAuthInfo(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "X-User-ID required"})
+		return
+	}
+
+	channelID := c.Param("id")
+	if channelID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Channel ID required"})
+		return
+	}
+
+	var req UpdateReadRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := h.service.UpdateLastRead(c.Request.Context(), channelID, userID, req.MessageID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+func (h *MessagingHandler) GetChannelReadReceipts(c *gin.Context) {
+	_, userID := getAuthInfo(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "X-User-ID required"})
+		return
+	}
+
+	channelID := c.Param("id")
+	if channelID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Channel ID required"})
+		return
+	}
+
+	reads, err := h.service.GetChannelReadReceipts(c.Request.Context(), channelID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if reads == nil {
+		reads = []ChannelRead{}
+	}
+	c.JSON(http.StatusOK, reads)
+}
+

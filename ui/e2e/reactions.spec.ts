@@ -4,24 +4,9 @@ test.describe('Reaction Engine (E2E)', () => {
   const aliceEmail = 'alice.reactions@example.com';
   const bobEmail = 'bob.reactions@example.com';
   const password = 'Password123!';
-  const channelName = 'General';
+  const channelName = 'general';
 
-  test.beforeAll(async ({ request }) => {
-    // 1. Setup Auth and Seed Users
-    const orgId = '00000000-0000-0000-0000-000000000001'; // Default
-    try {
-      await request.post('http://localhost:8080/v1/auth/register', {
-        data: { email: aliceEmail, username: 'AliceReacts', password, full_name: 'Alice R' },
-        headers: { 'X-Org-ID': orgId }
-      });
-      await request.post('http://localhost:8080/v1/auth/register', {
-        data: { email: bobEmail, username: 'BobReacts', password, full_name: 'Bob R' },
-        headers: { 'X-Org-ID': orgId }
-      });
-    } catch {
-      // Ignore if they already exist
-    }
-  });
+
 
   test('Alice sets a reaction, Bob sees it and adds his own, Alice removes hers', async ({ browser }) => {
     // Create two contexts
@@ -43,15 +28,15 @@ test.describe('Reaction Engine (E2E)', () => {
     
     // Navigate to the dashboard
     await alicePage.goto('http://localhost:5173');
-    await expect(alicePage.getByText('Bifrost')).toBeVisible({ timeout: 10000 });
+    await expect(alicePage.getByText('Nexus Inc')).toBeVisible({ timeout: 10000 });
 
     // Navigate to General
     await alicePage.click(`text=${channelName}`);
-    await expect(alicePage.getByPlaceholder('Type a message...')).toBeVisible();
+    await expect(alicePage.getByPlaceholder('Message #general...')).toBeVisible();
 
     // Alice sends a unique message
     const uniqueMessage = `Reaction test message ${Date.now()}`;
-    await alicePage.fill('textarea[placeholder="Type a message..."]', uniqueMessage);
+    await alicePage.fill('textarea[placeholder="Message #general..."]', uniqueMessage);
     await alicePage.keyboard.press('Enter');
     
     // Wait for message to appear
@@ -73,7 +58,7 @@ test.describe('Reaction Engine (E2E)', () => {
 
     // --- Switch to Bob ---
     // 2. Bob logs in (Bypassing UI via localStorage)
-    const bobUser = { id: 'a2000000-0000-0000-0000-000000000000', username: 'BobReacts', email: bobEmail };
+    const bobUser = { id: 'b2000000-0000-0000-0000-000000000000', username: 'BobReacts', email: bobEmail };
     await bobPage.goto('http://localhost:5173/login');
     await bobPage.evaluate((user) => {
       localStorage.setItem('nox_token', 'mock_jwt_token_bob');
@@ -84,7 +69,7 @@ test.describe('Reaction Engine (E2E)', () => {
     
     // Navigate to the dashboard
     await bobPage.goto('http://localhost:5173');
-    await expect(bobPage.getByText('Bifrost')).toBeVisible({ timeout: 10000 });
+    await expect(bobPage.getByText('Nexus Inc')).toBeVisible({ timeout: 10000 });
 
     await bobPage.click(`text=${channelName}`);
 

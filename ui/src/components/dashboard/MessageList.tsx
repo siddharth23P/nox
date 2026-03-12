@@ -7,6 +7,7 @@ import { PresenceAvatar } from '../common/PresenceAvatar';
 import { EditHistoryModal } from './EditHistoryModal';
 import { ReactionBubble } from './ReactionBubble';
 import { EmojiPicker } from './EmojiPicker';
+import { ReadReceiptsLine } from './ReadReceiptsLine';
 import type { Message } from '../../stores/messageStore';
 
 interface MessageListProps {
@@ -14,9 +15,9 @@ interface MessageListProps {
 }
 
 export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
-  const { messages, fetchMessages, loadMoreMessages, isLoading, hasMore, setActiveThread, editMessage } = useMessageStore();
+  const { messages, fetchMessages, loadMoreMessages, isLoading, hasMore, setActiveThread, editMessage, readReceipts, fetchReadReceipts, markAsRead } = useMessageStore();
   const { user } = useAuthStore();
-  const currentUserId = user?.id || '22222222-2222-2222-2222-222222222222';
+  const currentUserId = user?.id;
   
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
@@ -31,10 +32,50 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
   useEffect(() => {
     if (channelId) {
       fetchMessages(channelId);
+      fetchReadReceipts(channelId);
     }
-  }, [channelId, fetchMessages]);
+  }, [channelId, fetchMessages, fetchReadReceipts]);
+
+  // Setup intersection observer for read receipts
+  useEffect(() => {
+    if (!channelId || messages.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const msgId = entry.target.getAttribute('data-message-id');
+            const msgUserId = entry.target.getAttribute('data-user-id');
+            // Only mark as read if it's someone else's message
+            if (msgId && msgUserId !== currentUserId) {
+              markAsRead(channelId, msgId);
+            }
+          }
+        });
+      },
+      { threshold: 0.5 } // 50% visibility
+    );
+
+    const messageElements = document.querySelectorAll('.message-item');
+    messageElements.forEach((el) => observer.observe(el));
+
+    return () => observer.disconnect();
+  }, [messages, channelId, markAsRead, currentUserId]);
 
   const messagesCount = messages.length;
+
+  // Group read receipts by message_id
+  const receiptsByMessageId: Record<string, string[]> = {};
+  if (readReceipts) {
+    Object.values(readReceipts).forEach(r => {
+      if (r.user_id !== currentUserId) {
+        if (!receiptsByMessageId[r.last_read_message_id]) {
+          receiptsByMessageId[r.last_read_message_id] = [];
+        }
+        receiptsByMessageId[r.last_read_message_id].push(r.user_id);
+      }
+    });
+  }
 
   useEffect(() => {
     // Scroll to bottom when channel changes and initial fetch completes
@@ -104,9 +145,11 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
             return (
               <motion.div 
                 key={msg.id}
+                data-message-id={msg.id}
+                data-user-id={msg.user_id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`group relative flex items-start gap-4 hover:bg-white/[0.02] -mx-4 px-4 py-2 rounded-2xl transition-colors ${isConsecutive ? 'mt-1' : 'mt-6'} ${isCurrentUser ? 'flex-row-reverse' : ''}`}
+                className={`message-item group relative flex items-start gap-4 hover:bg-white/[0.02] -mx-4 px-4 py-2 rounded-2xl transition-colors ${isConsecutive ? 'mt-1' : 'mt-6'} ${isCurrentUser ? 'flex-row-reverse' : ''}`}
               >
                 {/* Avatar area */}
                 <div className="w-10 flex-shrink-0 flex justify-center">
@@ -220,6 +263,11 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                       <span className="font-medium">{msg.reply_count} {msg.reply_count === 1 ? 'reply' : 'replies'}</span>
                     </div>
                   ) : null}
+
+                  {/* Read Receipts Line */}
+                  {receiptsByMessageId[msg.id] && (
+                    <ReadReceiptsLine userIds={receiptsByMessageId[msg.id]} />
+                  )}
                 </div>
 
                 {/* Hover Actions */}

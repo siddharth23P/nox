@@ -28,6 +28,13 @@ export interface MessageEdit {
   created_at: string;
 }
 
+export interface ReadReceipt {
+  channel_id: string;
+  user_id: string;
+  last_read_message_id: string;
+  updated_at: string;
+}
+
 export interface Channel {
   id: string;
   org_id: string;
@@ -65,9 +72,15 @@ interface MessageState {
   toggleReaction: (channelId: string, messageId: string, emoji: string) => Promise<void>;
   togglePin: (channelId: string, messageId: string) => Promise<void>;
   toggleBookmark: (channelId: string, messageId: string) => Promise<void>;
+  
+  readReceipts: Record<string, ReadReceipt>;
+  fetchReadReceipts: (channelId: string) => Promise<void>;
+  markAsRead: (channelId: string, messageId: string) => void;
 }
 
 const API_BASE_URL = 'http://localhost:8080/v1';
+
+let readTimeout: ReturnType<typeof setTimeout> | null = null;
 
 export const useMessageStore = create<MessageState>((set, get) => ({
   activeChannel: null,
@@ -78,6 +91,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   isLoading: false,
   error: null,
   hasMore: true,
+  readReceipts: {},
 
   setActiveChannel: (channel) => set({ activeChannel: channel }),
   setChannels: (channels) => set({ channels }),
@@ -88,7 +102,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     set({ isLoading: true, error: null, hasMore: true });
     try {
       const userStr = localStorage.getItem('nox_user');
-      const userId = userStr ? JSON.parse(userStr).id : '22222222-2222-2222-2222-222222222222';
+      const userId = userStr ? JSON.parse(userStr).id : '' ;
       
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages`, {
         headers: {
@@ -112,7 +126,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const userStr = localStorage.getItem('nox_user');
-      const userId = userStr ? JSON.parse(userStr).id : '22222222-2222-2222-2222-222222222222';
+      const userId = userStr ? JSON.parse(userStr).id : '' ;
       
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages?before=${encodeURIComponent(before)}`, {
         headers: {
@@ -136,7 +150,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   sendMessage: async (channelId, contentMd) => {
     try {
       const userStr = localStorage.getItem('nox_user');
-      const userId = userStr ? JSON.parse(userStr).id : '22222222-2222-2222-2222-222222222222';
+      const userId = userStr ? JSON.parse(userStr).id : '' ;
 
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages`, {
         method: 'POST',
@@ -165,7 +179,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const userStr = localStorage.getItem('nox_user');
-      const userId = userStr ? JSON.parse(userStr).id : '22222222-2222-2222-2222-222222222222';
+      const userId = userStr ? JSON.parse(userStr).id : '' ;
 
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}/replies`, {
         headers: {
@@ -185,7 +199,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   sendThreadReply: async (channelId, messageId, contentMd) => {
     try {
       const userStr = localStorage.getItem('nox_user');
-      const userId = userStr ? JSON.parse(userStr).id : '22222222-2222-2222-2222-222222222222';
+      const userId = userStr ? JSON.parse(userStr).id : '' ;
 
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages`, {
         method: 'POST',
@@ -219,7 +233,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   editMessage: async (channelId, messageId, contentMd) => {
     try {
       const userStr = localStorage.getItem('nox_user');
-      const userId = userStr ? JSON.parse(userStr).id : '22222222-2222-2222-2222-222222222222';
+      const userId = userStr ? JSON.parse(userStr).id : '' ;
 
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}`, {
         method: 'PATCH',
@@ -252,7 +266,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   getMessageHistory: async (channelId, messageId) => {
     try {
       const userStr = localStorage.getItem('nox_user');
-      const userId = userStr ? JSON.parse(userStr).id : '22222222-2222-2222-2222-222222222222';
+      const userId = userStr ? JSON.parse(userStr).id : '' ;
 
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}/history`, {
         headers: {
@@ -274,7 +288,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     try {
       const state = get();
       const userStr = localStorage.getItem('nox_user');
-      const userId = userStr ? JSON.parse(userStr).id : '22222222-2222-2222-2222-222222222222';
+      const userId = userStr ? JSON.parse(userStr).id : '' ;
       
       // Find the message to determine whether we are adding or removing
       let msg = state.messages.find(m => m.id === messageId);
@@ -344,7 +358,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   togglePin: async (channelId, messageId) => {
     try {
       const userStr = localStorage.getItem('nox_user');
-      const userId = userStr ? JSON.parse(userStr).id : '22222222-2222-2222-2222-222222222222';
+      const userId = userStr ? JSON.parse(userStr).id : '' ;
       
       const updateFn = (m: Message): Message => {
         if (m.id !== messageId) return m;
@@ -374,7 +388,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   toggleBookmark: async (channelId, messageId) => {
     try {
       const userStr = localStorage.getItem('nox_user');
-      const userId = userStr ? JSON.parse(userStr).id : '22222222-2222-2222-2222-222222222222';
+      const userId = userStr ? JSON.parse(userStr).id : '' ;
       
       const updateFn = (m: Message): Message => {
         if (m.id !== messageId) return m;
@@ -399,6 +413,64 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     } catch (err) {
       console.error('Failed to toggle bookmark:', err);
     }
+  },
+
+  fetchReadReceipts: async (channelId) => {
+    try {
+      const userStr = localStorage.getItem('nox_user');
+      const userId = userStr ? JSON.parse(userStr).id : '' ;
+      
+      const response = await fetch(`${API_BASE_URL}/channels/${channelId}/reads`, {
+        headers: {
+          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
+          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
+        }
+      });
+      if (!response.ok) return;
+      
+      const data: ReadReceipt[] = await response.json();
+      const receiptsMap: Record<string, ReadReceipt> = {};
+      data.forEach(r => receiptsMap[r.user_id] = r);
+      set({ readReceipts: receiptsMap });
+    } catch (err) {
+      console.error('Failed to fetch read receipts:', err);
+    }
+  },
+
+  markAsRead: (channelId, messageId) => {
+    const userStr = localStorage.getItem('nox_user');
+    const userId = userStr ? JSON.parse(userStr).id : '' ;
+
+    // Optimistically update
+    set(state => ({
+      readReceipts: {
+        ...state.readReceipts,
+        [userId]: { 
+          channel_id: channelId, 
+          user_id: userId, 
+          last_read_message_id: messageId, 
+          updated_at: new Date().toISOString() 
+        }
+      }
+    }));
+
+    // Debounce API call
+    if (readTimeout) clearTimeout(readTimeout);
+    readTimeout = setTimeout(async () => {
+      try {
+        await fetch(`${API_BASE_URL}/channels/${channelId}/read`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
+            'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
+          },
+          body: JSON.stringify({ message_id: messageId }),
+        });
+      } catch (err) {
+        console.error('Failed to update read receipt:', err);
+      }
+    }, 2000); // 2 second debounce
   }
 }));
 

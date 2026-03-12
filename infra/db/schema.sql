@@ -100,3 +100,12 @@ CREATE TABLE IF NOT EXISTS user_bookmarks (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     PRIMARY KEY (user_id, message_id)
 );
+
+-- 10. Channel Reads (Per-user Receipts)
+CREATE TABLE IF NOT EXISTS channel_reads (
+    channel_id UUID REFERENCES channels(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    last_read_message_id UUID REFERENCES messages(id) ON DELETE CASCADE,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    PRIMARY KEY (channel_id, user_id)
+);
