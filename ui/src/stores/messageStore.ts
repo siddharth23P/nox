@@ -103,7 +103,10 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   setActiveChannel: (channel) => set({ activeChannel: channel }),
   setChannels: (channels) => set({ channels }),
   setMessages: (messages) => set({ messages }),
-  addMessage: (message) => set((state) => ({ messages: [message, ...state.messages] })),
+  addMessage: (message) => set((state) => {
+    if (state.messages.some(m => m.id === message.id)) return state;
+    return { messages: [message, ...state.messages] };
+  }),
   
   // Handlers
   onMessageReceived: (message) => set((state) => {

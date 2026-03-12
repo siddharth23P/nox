@@ -27,7 +27,6 @@ test.describe('Core Messaging Flow', () => {
     
     // Send the message and allow processing time
     await messageInput.press('Enter');
-    await page.waitForTimeout(1500); // give backend time to store message
     await waitForElementStable(page, `text=${testMessage}`);
 
     // Verify it appears in the MessageList

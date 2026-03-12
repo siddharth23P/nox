@@ -4,15 +4,17 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v5"
 )
 
 type MessagingHandler struct {
 	service *MessagingService
+	hub     *Hub
 }
 
-func NewMessagingHandler(service *MessagingService) *MessagingHandler {
-	return &MessagingHandler{service: service}
+func NewMessagingHandler(service *MessagingService, hub *Hub) *MessagingHandler {
+	return &MessagingHandler{service: service, hub: hub}
 }
 
 // Helper to extract org_id and user_id. In a real app this comes from JWT middleware.
@@ -330,5 +332,33 @@ func (h *MessagingHandler) GetChannelReadReceipts(c *gin.Context) {
 		reads = []ChannelRead{}
 	}
 	c.JSON(http.StatusOK, reads)
+}
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		return true // Allow all origins for simplicity in this project
+	},
+}
+
+func (h *MessagingHandler) HandleWS(c *gin.Context) {
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to set websocket upgrade"})
+		return
+	}
+
+	client := &Client{
+		Hub:  h.hub,
+		Conn: conn,
+		Send: make(chan []byte, 256),
+	}
+	client.Hub.register <- client
+
+	// Allow collection of memory referenced by the caller by doing all work in
+	// new goroutines.
+	go client.WritePump()
+	go client.ReadPump()
 }
 

@@ -71,7 +71,6 @@ test.describe('Real-time Presence & Mutual Discovery', () => {
     await waitForElementStable(alicePage, `text=${aliceUniqueText}`);
 
     // Bob sends a unique message
-    await bobPage.waitForTimeout(2000);
     const bobUniqueText = `${bobMsgText} (${Date.now() + 1})`;
     const bobInput = bobPage.getByPlaceholder('Message #general...');
     await bobInput.fill(bobUniqueText);
@@ -81,14 +80,10 @@ test.describe('Real-time Presence & Mutual Discovery', () => {
     ]);
     await waitForElementStable(bobPage, `text=${bobUniqueText}`);
 
-    // Wait for the next polling cycles for presence
-    await alicePage.waitForTimeout(3000); 
+    // Wait for Bob's message to arrive in real-time
+    const aliceViewOfBobMsg = alicePage.locator(`text="${bobUniqueText}"`).first();
+    await expect(aliceViewOfBobMsg).toBeVisible({ timeout: 15000 });
 
-    // Because real-time messaging WebSocket isn't implemented, reload Alice's page 
-    // to fetch Bob's newly sent message. 
-    await alicePage.reload();
-    await alicePage.waitForTimeout(3000);
-    
     // Find Alice's message
     const aliceMsg = alicePage.locator(`text="${aliceUniqueText}"`).first();
     await expect(aliceMsg).toBeVisible();
@@ -118,10 +113,8 @@ test.describe('Real-time Presence & Mutual Discovery', () => {
     await bobPage.getByRole('button', { name: 'Toggle Stealth Mode' }).click();
     
     // Alice's UI should drop Bob's presence. (Polling is 3s in test mode).
-    await alicePage.waitForTimeout(6000);
-    
     // Bob's online indicator should be gone from Alice's screen
-    await expect(bobsIndicator).not.toBeVisible();
+    await expect(bobsIndicator).not.toBeVisible({ timeout: 15000 });
 
     await aliceContext.close();
     await bobContext.close();

@@ -50,9 +50,13 @@ func main() {
 	// 1. Initialize Auth Service
 	authService := auth.NewAuthService(jwtSecret, database)
 	
+	// Initialize WebSocket Hub
+	hub := messaging.NewHub()
+	go hub.Run()
+
 	// Initialize Messaging & Reaction Service
-	reactionService := messaging.NewReactionService()
-	messagingService := messaging.NewMessagingService(database, reactionService)
+	reactionService := messaging.NewReactionService(hub)
+	messagingService := messaging.NewMessagingService(database, reactionService, hub)
 
 	// Initialize Presence Service
 	presenceService := presence.NewPresenceService()
@@ -80,7 +84,7 @@ func main() {
 	r.Use(cors.New(config))
 	
 	authHandler := auth.NewAuthHandler(authService)
-	messagingHandler := messaging.NewMessagingHandler(messagingService)
+	messagingHandler := messaging.NewMessagingHandler(messagingService, hub)
 	presenceHandler := presence.NewPresenceHandler(presenceService)
 
 	v1 := r.Group("/v1")
@@ -111,6 +115,9 @@ func main() {
 		// Presence Routes
 		v1.POST("/presence/heartbeat", presenceHandler.Heartbeat)
 		v1.GET("/presence/active", presenceHandler.GetActiveUsers)
+
+		// WebSocket Route
+		r.GET("/ws", messagingHandler.HandleWS)
 	}
 
 	log.Printf("Bifrost REST Gateway starting on port %s", httpPort)

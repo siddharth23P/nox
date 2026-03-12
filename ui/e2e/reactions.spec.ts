@@ -38,7 +38,7 @@ test.describe('Reaction Engine (E2E)', () => {
     // Alice sends a unique message
     const uniqueMessage = `Reaction test message ${Date.now()}`;
     await Promise.all([
-      alicePage.waitForResponse(resp => resp.url().includes('/messages') && resp.status() === 200),
+      alicePage.waitForResponse(resp => resp.url().includes('/messages') && (resp.status() === 200 || resp.status() === 201)),
       (async () => {
         await alicePage.fill('textarea[placeholder="Message #general..."]', uniqueMessage);
         await alicePage.keyboard.press('Enter');

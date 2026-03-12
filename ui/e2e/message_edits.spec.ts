@@ -27,7 +27,7 @@ test.describe('Message Lifecycle (Audit-Trailed Edits)', () => {
     await alicePage.goto('http://localhost:5173');
 
     // Wait for messages to load
-    await alicePage.waitForTimeout(2000); 
+    await expect(alicePage.getByPlaceholder('Message #general...')).toBeVisible({ timeout: 15000 }); 
 
     // Send a new message so we can edit it reliably
     const uniqueId = Date.now().toString().slice(-4);
@@ -57,8 +57,7 @@ test.describe('Message Lifecycle (Audit-Trailed Edits)', () => {
     await textarea.fill(newContent);
     await alicePage.getByRole('button', { name: 'Save', exact: true }).click();
 
-    // Wait a brief moment for state and network
-    await alicePage.waitForTimeout(1000);
+    // The message should update and have an (edited) badge
 
     // The message should update and have an (edited) badge
     const newMsgLocator = alicePage.locator(`text="${newContent}"`).first();
@@ -106,7 +105,7 @@ test.describe('Message Lifecycle (Audit-Trailed Edits)', () => {
       }));
     });
     await bobPage.goto('http://localhost:5173');
-    await bobPage.waitForTimeout(2000); 
+    await expect(bobPage.getByPlaceholder('Message #general...')).toBeVisible({ timeout: 15000 }); 
 
     // Bob should see the edited message and badge
     const bobsViewOfMsg = bobPage.locator(`text="${newContent}"`).first();

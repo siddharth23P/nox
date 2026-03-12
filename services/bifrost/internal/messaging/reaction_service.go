@@ -10,11 +10,13 @@ type ReactionService struct {
 	// structured as: messageID -> emoji -> userID -> hasReacted
 	state map[string]map[string]map[string]bool
 	mu    sync.RWMutex
+	Hub   *Hub
 }
 
-func NewReactionService() *ReactionService {
+func NewReactionService(hub *Hub) *ReactionService {
 	return &ReactionService{
 		state: make(map[string]map[string]map[string]bool),
+		Hub:   hub,
 	}
 }
 
@@ -44,6 +46,15 @@ func (s *ReactionService) ToggleReaction(messageID, userID, emoji, action string
 			delete(s.state, messageID)
 		}
 	}
+
+	// Calculate new totals for broadcasting
+	counts, _ := s.GetReactionsForMessage(messageID, "")
+
+	// Broadcast the reaction update
+	s.Hub.BroadcastEvent("REACTION_UPDATED", map[string]interface{}{
+		"message_id": messageID,
+		"reactions":  counts,
+	})
 
 	return nil
 }

@@ -36,6 +36,7 @@ export function useWebSocket() {
       try {
         const data = JSON.parse(event.data);
         const { type, payload } = data;
+        console.log('WS RECEIVED:', type, payload);
 
         switch (type) {
           case 'MESSAGE_CREATED':

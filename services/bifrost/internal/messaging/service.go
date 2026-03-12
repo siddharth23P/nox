@@ -9,10 +9,11 @@ import (
 type MessagingService struct {
 	db        *db.Database
 	Reactions *ReactionService
+	Hub       *Hub
 }
 
-func NewMessagingService(database *db.Database, reactions *ReactionService) *MessagingService {
-	return &MessagingService{db: database, Reactions: reactions}
+func NewMessagingService(database *db.Database, reactions *ReactionService, hub *Hub) *MessagingService {
+	return &MessagingService{db: database, Reactions: reactions, Hub: hub}
 }
 
 func (s *MessagingService) CreateChannel(ctx context.Context, orgID, name, description string, isPrivate bool) (*Channel, error) {
@@ -78,6 +79,10 @@ func (s *MessagingService) CreateMessage(ctx context.Context, channelID, userID,
 	msg.IsPinned = false
 	msg.IsBookmarked = false
 	msg.Reactions = make(map[string]int)
+
+	// Broadcast the new message
+	s.Hub.BroadcastEvent("MESSAGE_CREATED", msg)
+
 	return &msg, nil
 }
 
@@ -240,6 +245,10 @@ func (s *MessagingService) EditMessage(ctx context.Context, messageID string, us
 	
 	// Inject reactions for the returned edited message
 	msgs := s.Reactions.InjectReactionsIntoMessages([]Message{msg}, userID)
+	
+	// Broadcast the edited message
+	s.Hub.BroadcastEvent("MESSAGE_EDITED", msgs[0])
+
 	return &msgs[0], nil
 }
 
@@ -283,12 +292,24 @@ func (s *MessagingService) TogglePin(ctx context.Context, messageID string, chan
 		if err != nil {
 			return false, err
 		}
+		// Broadcast pin state change
+		s.Hub.BroadcastEvent("PIN_UPDATED", map[string]interface{}{
+			"message_id": messageID,
+			"channel_id": channelID,
+			"is_pinned":  false,
+		})
 		return false, nil
 	} else {
 		_, err = s.db.Pool.Exec(ctx, `INSERT INTO channel_pins (channel_id, message_id, pinned_by) VALUES ($1, $2, $3)`, channelID, messageID, userID)
 		if err != nil {
 			return false, err
 		}
+		// Broadcast pin state change
+		s.Hub.BroadcastEvent("PIN_UPDATED", map[string]interface{}{
+			"message_id": messageID,
+			"channel_id": channelID,
+			"is_pinned":  true,
+		})
 		return true, nil
 	}
 }
@@ -324,6 +345,14 @@ func (s *MessagingService) UpdateLastRead(ctx context.Context, channelID string,
 		DO UPDATE SET last_read_message_id = EXCLUDED.last_read_message_id, updated_at = NOW()
 	`
 	_, err := s.db.Pool.Exec(ctx, query, channelID, userID, messageID)
+	if err == nil {
+		// Broadcast read receipt update
+		s.Hub.BroadcastEvent("READ_RECEIPT_UPDATED", map[string]interface{}{
+			"channel_id":              channelID,
+			"user_id":                 userID,
+			"last_read_message_id": messageID,
+		})
+	}
 	return err
 }
 

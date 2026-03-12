@@ -64,9 +64,7 @@ test.describe('Read Receipts (E2E) - Issue #19', () => {
     const bobMessageLocator = bobPage.locator('div', { hasText: uniqueMessage }).last();
     await expect(bobMessageLocator).toBeVisible();
 
-    // Wait at least 2.5 seconds to ensure debounce and API call fire
-    await bobPage.waitForTimeout(2500);
-
+    // Wait for Bob's read receipt to be visible via WebSocket
     // --- Switch back to Alice ---
     // With WebSockets, the read receipt should appear in real-time without reloading
     await expect(alicePage.locator('div', { hasText: uniqueMessage }).last()).toBeVisible();

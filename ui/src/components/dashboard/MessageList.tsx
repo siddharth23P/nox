@@ -227,14 +227,22 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                         >
                           <div dangerouslySetInnerHTML={{ __html: msg.content_html || msg.content_md }} />
                         </div>
-                        {msg.is_edited && isConsecutive && (
-                          <button 
-                            onClick={() => setHistoryModalMessageId(msg.id)}
-                            className="text-[10px] text-gray-500 hover:text-blue-400 bg-white/5 px-1.5 py-0.5 rounded transition-colors mb-2"
-                          >
-                            (edited)
-                          </button>
-                        )}
+                        <div className={`flex flex-col gap-1 items-start ${isCurrentUser ? 'mr-2' : 'ml-2'} mb-1`}>
+                          {msg.is_edited && isConsecutive && (
+                            <button 
+                              onClick={() => setHistoryModalMessageId(msg.id)}
+                              className="text-[10px] text-gray-500 hover:text-blue-400 bg-white/5 px-1.5 py-0.5 rounded transition-colors"
+                            >
+                              (edited)
+                            </button>
+                          )}
+                          {isConsecutive && (
+                            <div className={`flex items-center gap-1 opacity-80 ${isCurrentUser ? 'flex-row-reverse' : ''}`}>
+                              {msg.is_pinned && <span title="Pinned to channel"><Pin size={12} className="text-yellow-500 fill-yellow-500" /></span>}
+                              {msg.is_bookmarked && <span title="Bookmarked"><Bookmark size={12} className="text-blue-400 fill-blue-400" /></span>}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                     
