@@ -75,7 +75,6 @@ func (h *MessagingHandler) CreateMessage(c *gin.Context) {
 	}
 
 	channelID := c.Param("id")
-	log.Printf("DEBUG: CreateMessage - ChannelID: %s, UserID: %s", channelID, userID)
 	if channelID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Channel ID required"})
 		return
