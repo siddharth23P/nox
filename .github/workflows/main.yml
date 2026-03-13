@@ -123,7 +123,7 @@ jobs:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/nox?sslmode=disable
         run: |
           psql "$DATABASE_URL" -f infra/db/schema.sql
-          cd services/bifrost && go run cmd/gateway/main.go &
+          cd services/bifrost && go run cmd/seed/main.go && go run cmd/gateway/main.go &
           cd ui && npx wait-on tcp:8080 && npx playwright test e2e/auth_regression.spec.ts e2e/dashboard_layout.spec.ts --workers=1
 
   e2e-messaging:
