@@ -8,8 +8,9 @@ test.describe('Dashboard Layout & Sidebar', () => {
     // Inject auth state into localStorage to bypass login
     await page.evaluate(() => {
       localStorage.setItem('nox_token', 'fake-jwt-token');
-      localStorage.setItem('nox_org_id', 'test-org');
+      localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
       localStorage.setItem('nox_role', 'admin');
+      localStorage.setItem('nox_user', JSON.stringify({ id: '11111111-1111-1111-1111-111111111111', username: 'NexusAdmin' }));
     });
 
     // Reload the page to trigger state re-evaluation
@@ -31,6 +32,8 @@ test.describe('Dashboard Layout & Sidebar', () => {
     // Verify Main Dashboard View
     const mainContent = page.locator('main');
     await expect(mainContent).toContainText('Team discussion');
+    // Select #general channel explicitly
+    await sidebar.getByRole('button', { name: 'general' }).click();
     await expect(page.getByPlaceholder('Message #general...')).toBeVisible();
 
     // Verify Logout functionality

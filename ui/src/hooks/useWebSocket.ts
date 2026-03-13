@@ -69,7 +69,7 @@ export function useWebSocket() {
         connectionPromise = null;
       };
     });
-  }, [user?.id]);
+  }, [user]);
 
   const sendTyping = (channelId: string, isTyping: boolean) => {
     if (globalWs && globalWs.readyState === WebSocket.OPEN && user) {

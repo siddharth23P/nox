@@ -8,7 +8,6 @@ test.describe('Message Forwarding (Chain Attribution)', () => {
   };
   const orgId = '00000000-0000-0000-0000-000000000001';
   const generalChannelId = '00000000-0000-0000-0000-000000000001';
-  const engineeringChannelId = '00000000-0000-0000-0000-000000000002';
 
   test('Alice can forward a message from #general to #engineering', async ({ browser }) => {
     const context = await browser.newContext();
@@ -29,7 +28,7 @@ test.describe('Message Forwarding (Chain Attribution)', () => {
     await page.goto('http://localhost:5173');
 
     // Wait for App to initialize and WS to connect
-    await page.waitForFunction(() => (window as any).WS_CONNECTED === true, { timeout: 20000 });
+    await page.waitForFunction(() => (window as unknown as { WS_CONNECTED: boolean }).WS_CONNECTED === true, { timeout: 20000 });
 
     // 1. Verify dashboard basic elements
     await expect(page.getByText('Nexus Inc')).toBeVisible({ timeout: 15000 });

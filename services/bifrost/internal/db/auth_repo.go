@@ -65,6 +65,18 @@ func (db *Database) CreateUserAndOrg(ctx context.Context, email, username, passw
 		return "", "", fmt.Errorf("failed to link user to org: %w", err)
 	}
 
+	fmt.Printf("[DEBUG] CreateUserAndOrg: Creating org %s (%s) and user %s\n", orgName, orgID, email)
+
+	// 4. Create default #general channel
+	_, err = tx.Exec(ctx,
+		"INSERT INTO channels (org_id, name, description, is_private) VALUES ($1, $2, $3, $4)",
+		orgID, "general", "Default channel for for everyone", false)
+	if err != nil {
+		fmt.Printf("[DEBUG] CreateUserAndOrg: Failed to create channel: %v\n", err)
+		return "", "", fmt.Errorf("failed to create default channel: %w", err)
+	}
+	fmt.Printf("[DEBUG] CreateUserAndOrg: Default channel created for org %s\n", orgID)
+
 	err = tx.Commit(ctx)
 	if err != nil {
 		return "", "", err

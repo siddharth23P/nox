@@ -68,6 +68,7 @@ test.describe('Authentication Regression Suite', () => {
     await page.getByRole('button', { name: 'Enter Nexus' }).click({ force: true });
 
     await expect(page).toHaveURL(/.*\/dashboard/, { timeout: 15000 });
+    await page.waitForSelector('text=general', { timeout: 10000 });
     await expect(page.getByText('general').first()).toBeVisible();
 
     // 4. Logout
