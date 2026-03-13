@@ -310,6 +310,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                   <button 
                     onClick={() => setActiveThread(msg.id)}
                     className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-white hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                    title="Open thread"
                   >
                     <MessageCircle size={14} />
                     <span className="text-xs font-medium pr-1">Reply</span>
