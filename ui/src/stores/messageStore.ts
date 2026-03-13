@@ -316,10 +316,27 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   },
 
   sendThreadReply: async (channelId, messageId, contentMd) => {
-    try {
-      const userStr = localStorage.getItem('nox_user');
-      const userId = userStr ? JSON.parse(userStr).id : '' ;
+    const userStr = localStorage.getItem('nox_user');
+    const user = userStr ? JSON.parse(userStr) : null;
+    const userId = user?.id || '';
+    
+    const tempId = `temp-thread-${Date.now()}`;
+    const tempReply: Message = {
+      id: tempId,
+      channel_id: channelId,
+      user_id: userId,
+      username: user?.username || 'You',
+      parent_id: messageId,
+      content_md: contentMd,
+      content_html: contentMd,
+      status: 'sending',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
 
+    set((state) => ({ threadMessages: [...state.threadMessages, tempReply] }));
+
+    try {
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages`, {
         method: 'POST',
         headers: {
@@ -334,7 +351,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       
       const newReply = await response.json();
       set((state) => ({ 
-        threadMessages: [...state.threadMessages, newReply],
+        threadMessages: state.threadMessages.map(m => m.id === tempId ? { ...newReply, status: 'sent' } : m),
         messages: state.messages.map(m => 
           m.id === messageId 
             ? { ...m, reply_count: (m.reply_count || 0) + 1 } 
@@ -342,7 +359,10 @@ export const useMessageStore = create<MessageState>((set, get) => ({
         )
       }));
     } catch (err) {
-      set({ error: (err as Error).message });
+      set((state) => ({
+        threadMessages: state.threadMessages.map(m => m.id === tempId ? { ...m, status: 'error' } : m),
+        error: (err as Error).message
+      }));
       throw err;
     }
   },

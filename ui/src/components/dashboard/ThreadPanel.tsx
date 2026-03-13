@@ -55,6 +55,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
             <button 
               onClick={() => setActiveThread(null)}
               className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+              title="Close thread"
             >
               <X size={18} />
             </button>
@@ -113,9 +114,15 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
                         </span>
                       </div>
                       <div 
-                        className="text-[14px] text-gray-400 leading-relaxed font-light whitespace-pre-wrap"
+                        className={`text-[14px] text-gray-400 leading-relaxed font-light whitespace-pre-wrap ${reply.status === 'sending' ? 'opacity-50' : ''}`}
                         dangerouslySetInnerHTML={{ __html: reply.content_html || reply.content_md }}
                       />
+                      {reply.status === 'sending' && (
+                        <span className="text-[10px] text-gray-500 animate-pulse">Sending...</span>
+                      )}
+                      {reply.status === 'error' && (
+                        <span className="text-[10px] text-red-500">Failed to send</span>
+                      )}
                     </div>
                   </div>
                 ))
