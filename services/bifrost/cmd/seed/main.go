@@ -31,6 +31,8 @@ func main() {
 	}{
 		{"a1000000-0000-0000-0000-000000000000", "AliceReacts", "alice.reactions@example.com"},
 		{"b2000000-0000-0000-0000-000000000000", "BobReacts", "bob.reactions@example.com"},
+		{"a7000000-0000-0000-0000-000000000000", "AliceQuote", "alice.quote@example.com"},
+		{"b7000000-0000-0000-0000-000000000000", "BobQuote", "bob.quote@example.com"},
 		{"a3000000-0000-0000-0000-000000000000", "Charlie", "charlie@nox.inc"},
 		{"a4000000-0000-0000-0000-000000000000", "Diana", "diana@nox.inc"},
 		{"a5000000-0000-0000-0000-000000000000", "Evan", "evan@nox.inc"},

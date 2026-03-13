@@ -162,7 +162,7 @@ jobs:
         run: |
           psql "$DATABASE_URL" -f infra/db/schema.sql
           cd services/bifrost && go run cmd/seed/main.go && go run cmd/gateway/main.go &
-          cd ui && npx wait-on tcp:8080 && npx playwright test e2e/messaging_regression.spec.ts e2e/message_edits.spec.ts e2e/thread_regression.spec.ts --workers=1
+          cd ui && npx wait-on tcp:8080 && npx playwright test e2e/messaging_regression.spec.ts e2e/message_edits.spec.ts e2e/thread_regression.spec.ts e2e/reply.spec.ts --workers=1
 
   e2e-realtime:
     name: "E2E: Real-time Presence & Reactions"

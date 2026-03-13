@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Contextual Reply (Quoting)', () => {
   test('Alice quotes Bob and Bob jumps to the original message', async ({ browser }) => {
     // 1. Setup Alice Context
-    const aliceUser = { id: 'a1000000-0000-0000-0000-000000000000', username: 'AliceQuote', email: 'alice.quote@example.com' };
+    const aliceUser = { id: 'a7000000-0000-0000-0000-000000000000', username: 'AliceQuote', email: 'alice.quote@example.com' };
     const aliceContext = await browser.newContext();
     await aliceContext.addInitScript((user) => {
       (window as unknown as { IS_PLAYWRIGHT?: boolean }).IS_PLAYWRIGHT = true;
@@ -22,7 +22,7 @@ test.describe('Contextual Reply (Quoting)', () => {
     await alicePage.waitForFunction(() => (window as unknown as { WS_CONNECTED?: boolean }).WS_CONNECTED === true, { timeout: 30000 });
     
     // 2. Setup Bob Context
-    const bobUser = { id: 'b2000000-0000-0000-0000-000000000000', username: 'BobQuote', email: 'bob.quote@example.com' };
+    const bobUser = { id: 'b7000000-0000-0000-0000-000000000000', username: 'BobQuote', email: 'bob.quote@example.com' };
     const bobContext = await browser.newContext();
     await bobContext.addInitScript((user) => {
       (window as unknown as { IS_PLAYWRIGHT?: boolean }).IS_PLAYWRIGHT = true;
