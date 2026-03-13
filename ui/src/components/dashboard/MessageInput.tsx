@@ -36,6 +36,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
 
     try {
       await sendMessage(channelId, content, undefined, replyTo?.id);
+      sendTyping(channelId, false); // Explicitly clear typing when sending
       setContent('');
       setReplyTo(null);
     } catch (err) {

@@ -201,23 +201,27 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     const currentTyping = get().typingUsers[channelId] || [];
     
     if (isTyping) {
-      if (currentTyping.includes(username)) return;
-      
-      set((state) => ({
-        typingUsers: {
-          ...state.typingUsers,
-          [channelId]: [...currentTyping, username]
-        }
-      }));
+      if (!currentTyping.includes(username)) {
+        set((state) => ({
+          typingUsers: {
+            ...state.typingUsers,
+            [channelId]: [...currentTyping, username]
+          }
+        }));
+      }
 
-      // Auto-clear after 5s
-      setTimeout(() => {
-        // Double check if they are still there before removing
+      // Refresh auto-clear timeout on every typing event (even if already in list)
+      const timeoutId = `typing-${channelId}-${username}`;
+      const win = window as any;
+      if (win[timeoutId]) clearTimeout(win[timeoutId]);
+      
+      win[timeoutId] = setTimeout(() => {
         const latest = get().typingUsers[channelId] || [];
         if (latest.includes(username)) {
           get().onTypingIndicator(channelId, username, false);
         }
-      }, 5000);
+        delete win[timeoutId];
+      }, 10000);
     } else {
       if (!currentTyping.includes(username)) return;
       set((state) => ({
@@ -226,6 +230,12 @@ export const useMessageStore = create<MessageState>((set, get) => ({
           [channelId]: currentTyping.filter(u => u !== username)
         }
       }));
+      const timeoutId = `typing-${channelId}-${username}`;
+      const win = window as any;
+      if (win[timeoutId]) {
+        clearTimeout(win[timeoutId]);
+        delete win[timeoutId];
+      }
     }
   },
 
@@ -290,8 +300,6 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       if (!response.ok) throw new Error('Failed to load more messages');
       
       const data = await response.json();
-      // data is DESC (older messages relative to the 'before' timestamp).
-      // We reverse it to prepend in ASC order.
       const reversedData = [...data].reverse();
       set((prev) => ({ 
         messages: [...reversedData, ...prev.messages], 
@@ -348,7 +356,6 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       
       const newMessage = await response.json();
       
-      // Replace temp message with real one
       set((state) => ({
         messages: state.messages.map(m => m.id === tempId ? { ...newMessage, status: 'sent' } : m)
       }));

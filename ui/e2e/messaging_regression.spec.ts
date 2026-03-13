@@ -1,7 +1,11 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Core Messaging Flow', () => {
-  test('Send and receive a basic message', async ({ page }) => {
+  test('Send and receive a basic message', async ({ context, page }) => {
+    await context.addInitScript(() => {
+      (window as unknown as { IS_PLAYWRIGHT: boolean }).IS_PLAYWRIGHT = true;
+    });
+
     await page.goto('/');
     
     await page.evaluate(() => {
@@ -17,6 +21,12 @@ test.describe('Core Messaging Flow', () => {
 
     await page.reload();
     await expect(page).toHaveURL(/.*\/dashboard/);
+    
+    // Explicitly select #general
+    await page.getByRole('button', { name: 'general' }).click();
+
+    // Wait for WS
+    await page.waitForFunction(() => (window as unknown as { WS_CONNECTED: boolean }).WS_CONNECTED === true, { timeout: 10000 });
 
     const messageInput = page.locator('textarea[placeholder="Message #general..."]');
     await expect(messageInput).toBeVisible({ timeout: 15000 });

@@ -25,6 +25,10 @@ test.describe('Message Lifecycle (Audit-Trailed Edits)', () => {
       }));
     });
     await alicePage.goto('http://localhost:5173');
+    
+    // Explicitly select #general and wait for WS
+    await alicePage.getByRole('button', { name: 'general' }).click();
+    await alicePage.waitForFunction(() => (window as unknown as { WS_CONNECTED: boolean }).WS_CONNECTED === true, { timeout: 10000 });
 
     // Wait for messages to load
     await expect(alicePage.getByPlaceholder('Message #general...')).toBeVisible({ timeout: 15000 }); 
@@ -104,6 +108,11 @@ test.describe('Message Lifecycle (Audit-Trailed Edits)', () => {
       }));
     });
     await bobPage.goto('http://localhost:5173');
+    
+    // Explicitly select #general and wait for WS
+    await bobPage.getByRole('button', { name: 'general' }).click();
+    await bobPage.waitForFunction(() => (window as unknown as { WS_CONNECTED: boolean }).WS_CONNECTED === true, { timeout: 10000 });
+    
     await expect(bobPage.getByPlaceholder('Message #general...')).toBeVisible({ timeout: 15000 }); 
 
     // Bob should see the edited message and badge

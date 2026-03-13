@@ -7,8 +7,11 @@ test.describe('Authentication Regression Suite', () => {
   const testPassword = 'Password123!';
   const testUsername = `usr_${Math.floor(Math.random() * 1000000000)}`;
 
-  test('E2E Auth Flow: Register -> Verify -> Login -> Logout', async ({ page }) => {
+  test('E2E Auth Flow: Register -> Verify -> Login -> Logout', async ({ context, page }) => {
     // 1. Navigation & Toggle to Register
+    await context.addInitScript(() => {
+      (window as unknown as { IS_PLAYWRIGHT: boolean }).IS_PLAYWRIGHT = true;
+    });
     await page.goto('/');
     await expect(page.locator('input[placeholder="name@nexus.com"]')).toBeVisible({ timeout: 10000 });
     
@@ -68,7 +71,13 @@ test.describe('Authentication Regression Suite', () => {
     await page.getByRole('button', { name: 'Enter Nexus' }).click({ force: true });
 
     await expect(page).toHaveURL(/.*\/dashboard/, { timeout: 15000 });
-    await page.waitForSelector('text=general', { timeout: 10000 });
+    
+    // Wait for WS
+    await page.waitForFunction(() => (window as unknown as { WS_CONNECTED: boolean }).WS_CONNECTED === true, { timeout: 15000 });
+    
+    // Select channel explicitly to avoid race conditions
+    await page.getByRole('button', { name: 'general' }).click();
+    
     await expect(page.getByText('general').first()).toBeVisible();
 
     // 4. Logout

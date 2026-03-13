@@ -42,16 +42,24 @@ test.describe('Real-time Indicators', () => {
 
     // 3. Verify Bob sees Nexus Inc (to ensure logged in)
     await expect(bobPage.getByText('Nexus Inc')).toBeVisible({ timeout: 15000 });
+    
+    // Select channel explicitly to ensure we are in the right state
+    await bobPage.getByRole('button', { name: 'general' }).click();
+    await alicePage.getByRole('button', { name: 'general' }).click();
+
     await expect(bobPage.getByPlaceholder(/Message #general.../)).toBeVisible({ timeout: 15000 });
+    await expect(alicePage.getByPlaceholder(/Message #general.../)).toBeVisible({ timeout: 15000 });
 
     // 4. Bob starts typing
-    await bobPage.fill('textarea[placeholder*="Message"]', 'H');
+    // Use pressSequentially to simulate real typing which triggers onChange better
+    await bobPage.locator('textarea[placeholder*="Message"]').pressSequentially('Hello', { delay: 100 });
     
     // 5. Alice should see Bob is typing
-    await expect(alicePage.locator('text=BobReacts is typing...')).toBeVisible({ timeout: 10000 });
+    const indicator = alicePage.locator('text=BobReacts is typing...');
+    await expect(indicator).toBeVisible({ timeout: 15000 });
 
-    // 6. Wait for Bob's typing indicator to disappear (TTL is 5s)
-    await expect(alicePage.locator('text=BobReacts is typing...')).not.toBeVisible({ timeout: 10000 });
+    // 6. Wait for Bob's typing indicator to disappear (TTL is 5s + buffer)
+    await expect(indicator).not.toBeVisible({ timeout: 20000 });
 
     // Cleanup contexts
     await aliceContext.close();

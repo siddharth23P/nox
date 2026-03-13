@@ -2,8 +2,13 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Threaded Conversations Regression', () => {
   
-  test.beforeEach(async ({ page }) => {
-    // 1. Bypass authentication by setting mock tokens in localStorage
+  test.beforeEach(async ({ context, page }) => {
+    // 1. Set IS_PLAYWRIGHT via init script so it persists across reloads
+    await context.addInitScript(() => {
+      (window as unknown as { IS_PLAYWRIGHT: boolean }).IS_PLAYWRIGHT = true;
+    });
+
+    // 2. Bypass authentication by setting mock tokens in localStorage
     await page.goto('/');
     
     await page.evaluate(() => {
@@ -17,10 +22,17 @@ test.describe('Threaded Conversations Regression', () => {
       localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
     });
 
-    // 2. Navigate straight to the dashboard
+    // 2. Navigate straight to the dashboard and wait for data load
     await page.goto('/dashboard');
     await expect(page).toHaveURL(/.*\/dashboard/);
+    
+    // Explicitly select #general to ensure we are in the right state
+    await page.getByRole('button', { name: 'general' }).click();
     await expect(page.locator('main')).toContainText('Team discussion');
+    
+    // Wait for WS to be ready if in Playwright
+    await page.waitForFunction(() => (window as unknown as { WS_CONNECTED: boolean }).WS_CONNECTED === true, { timeout: 10000 });
+    await expect(page.getByPlaceholder('Message #general...')).toBeVisible();
   });
 
   test('E2E Thread Flow: Send Message -> Open Thread -> Reply -> Check Overviews', async ({ page }) => {
