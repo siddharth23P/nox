@@ -2,6 +2,7 @@ package messaging
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/nox-labs/bifrost/internal/db"
@@ -51,7 +52,7 @@ func (s *MessagingService) GetChannels(ctx context.Context, orgID string) ([]Cha
 	return channels, nil
 }
 
-func (s *MessagingService) CreateMessage(ctx context.Context, channelID, userID, contentMD, contentHTML string, parentID, replyTo *string) (*Message, error) {
+func (s *MessagingService) CreateMessage(ctx context.Context, channelID, userID, contentMD, contentHTML string, parentID, replyTo, forwardSourceID, forwardSourceUsername *string) (*Message, error) {
 	// Fallback to simple HTML if not provided
 	if contentHTML == "" {
 		contentHTML = "<p>" + contentMD + "</p>"
@@ -59,21 +60,22 @@ func (s *MessagingService) CreateMessage(ctx context.Context, channelID, userID,
 
 	query := `
 		WITH new_message AS (
-			INSERT INTO messages (channel_id, user_id, parent_id, reply_to, content_md, content_html)
-			VALUES ($1, $2, $3, $4, $5, $6)
-			RETURNING id, channel_id, user_id, parent_id, reply_to, content_md, content_html, created_at, updated_at, is_edited
+			INSERT INTO messages (channel_id, user_id, parent_id, reply_to, forward_source_id, content_md, content_html)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)
+			RETURNING id, channel_id, user_id, parent_id, reply_to, forward_source_id, content_md, content_html, created_at, updated_at, is_edited
 		)
-		SELECT m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.reply_to, m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited
+		SELECT m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.reply_to, m.forward_source_id, m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited
 		FROM new_message m
 		JOIN users u ON m.user_id = u.id
 	`
-	row := s.db.Pool.QueryRow(ctx, query, channelID, userID, parentID, replyTo, contentMD, contentHTML)
+	row := s.db.Pool.QueryRow(ctx, query, channelID, userID, parentID, replyTo, forwardSourceID, contentMD, contentHTML)
 
 	var msg Message
-	err := row.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ReplyTo, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.IsEdited)
+	err := row.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ReplyTo, &msg.ForwardSourceID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.IsEdited)
 	if err != nil {
 		return nil, err
 	}
+	msg.ForwardSourceUsername = forwardSourceUsername
 	// Initial state for new message
 	msg.ReplyCount = 0
 	msg.IsPinned = false
@@ -93,12 +95,16 @@ func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID s
 	if before != "" {
 		query = `
 			SELECT 
-				m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.reply_to, m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited,
+				m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.reply_to, m.forward_source_id,
+				fsu.username as forward_source_username,
+				m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited,
 				(SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id) as reply_count,
 				EXISTS(SELECT 1 FROM channel_pins cp WHERE cp.message_id = m.id) as is_pinned,
 				EXISTS(SELECT 1 FROM user_bookmarks ub WHERE ub.message_id = m.id AND ub.user_id = $3) as is_bookmarked
 			FROM messages m
 			JOIN users u ON m.user_id = u.id
+			LEFT JOIN messages fsm ON m.forward_source_id = fsm.id
+			LEFT JOIN users fsu ON fsm.user_id = fsu.id
 			WHERE m.channel_id = $1 AND m.parent_id IS NULL AND m.created_at < $2::timestamp
 			ORDER BY m.created_at DESC
 			LIMIT 50
@@ -107,12 +113,16 @@ func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID s
 	} else {
 		query = `
 			SELECT 
-				m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.reply_to, m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited,
+				m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.reply_to, m.forward_source_id,
+				fsu.username as forward_source_username,
+				m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited,
 				(SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id) as reply_count,
 				EXISTS(SELECT 1 FROM channel_pins cp WHERE cp.message_id = m.id) as is_pinned,
 				EXISTS(SELECT 1 FROM user_bookmarks ub WHERE ub.message_id = m.id AND ub.user_id = $2) as is_bookmarked
 			FROM messages m
 			JOIN users u ON m.user_id = u.id
+			LEFT JOIN messages fsm ON m.forward_source_id = fsm.id
+			LEFT JOIN users fsu ON fsm.user_id = fsu.id
 			WHERE m.channel_id = $1 AND m.parent_id IS NULL
 			ORDER BY m.created_at DESC
 			LIMIT 50
@@ -132,7 +142,7 @@ func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID s
 	var messages []Message
 	for rows.Next() {
 		var msg Message
-		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ReplyTo, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.IsEdited, &msg.ReplyCount, &msg.IsPinned, &msg.IsBookmarked); err != nil {
+		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ReplyTo, &msg.ForwardSourceID, &msg.ForwardSourceUsername, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.IsEdited, &msg.ReplyCount, &msg.IsPinned, &msg.IsBookmarked); err != nil {
 			return nil, err
 		}
 		messages = append(messages, msg)
@@ -150,11 +160,15 @@ func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID s
 
 func (s *MessagingService) GetThreadReplies(ctx context.Context, messageID string, currentUserID string) ([]Message, error) {
 	query := `
-		SELECT m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.reply_to, m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited,
+		SELECT m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.reply_to, m.forward_source_id,
+			fsu.username as forward_source_username,
+			m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited,
 			EXISTS(SELECT 1 FROM channel_pins cp WHERE cp.message_id = m.id) as is_pinned,
 			EXISTS(SELECT 1 FROM user_bookmarks ub WHERE ub.message_id = m.id AND ub.user_id = $2) as is_bookmarked 
 		FROM messages m
 		JOIN users u ON m.user_id = u.id
+		LEFT JOIN messages fsm ON m.forward_source_id = fsm.id
+		LEFT JOIN users fsu ON fsm.user_id = fsu.id
 		WHERE m.parent_id = $1 
 		ORDER BY m.created_at ASC
 	`
@@ -170,7 +184,7 @@ func (s *MessagingService) GetThreadReplies(ctx context.Context, messageID strin
 	var messages []Message
 	for rows.Next() {
 		var msg Message
-		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ReplyTo, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.IsEdited, &msg.IsPinned, &msg.IsBookmarked); err != nil {
+		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ReplyTo, &msg.ForwardSourceID, &msg.ForwardSourceUsername, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.IsEdited, &msg.IsPinned, &msg.IsBookmarked); err != nil {
 			return nil, err
 		}
 		msg.ReplyCount = 0 // Replies don't have replies in this simple 1-level thread model
@@ -180,6 +194,38 @@ func (s *MessagingService) GetThreadReplies(ctx context.Context, messageID strin
 	messages = s.Reactions.InjectReactionsIntoMessages(messages, currentUserID)
 	
 	return messages, nil
+}
+
+func (s *MessagingService) ForwardMessage(ctx context.Context, messageID string, targetChannelID string, userID string) (*Message, error) {
+	// 1. Fetch the original message and source channel privacy status
+	var contentMD, contentHTML, sourceUsername, sourceChannelID string
+	var sourceIsPrivate, targetIsPrivate bool
+
+	query := `
+		SELECT m.content_md, m.content_html, u.username, m.channel_id, c.is_private
+		FROM messages m
+		JOIN users u ON m.user_id = u.id
+		JOIN channels c ON m.channel_id = c.id
+		WHERE m.id = $1
+	`
+	err := s.db.Pool.QueryRow(ctx, query, messageID).Scan(&contentMD, &contentHTML, &sourceUsername, &sourceChannelID, &sourceIsPrivate)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Fetch target channel privacy status
+	err = s.db.Pool.QueryRow(ctx, "SELECT is_private FROM channels WHERE id = $1", targetChannelID).Scan(&targetIsPrivate)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Permission Check: Prevent forwarding from Private to Public
+	if sourceIsPrivate && !targetIsPrivate {
+		return nil, fmt.Errorf("security violation: cannot forward from a private channel to a public one")
+	}
+
+	// 4. Create the forwarded message
+	return s.CreateMessage(ctx, targetChannelID, userID, contentMD, contentHTML, nil, nil, &messageID, &sourceUsername)
 }
 
 func (s *MessagingService) EditMessage(ctx context.Context, messageID string, userID string, contentMD string, contentHTML string) (*Message, error) {
@@ -230,14 +276,14 @@ func (s *MessagingService) EditMessage(ctx context.Context, messageID string, us
 	// Fetch returning object
 	var msg Message
 	err = s.db.Pool.QueryRow(ctx, `
-		SELECT m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.reply_to, m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited,
+		SELECT m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.reply_to, m.forward_source_id, m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited,
 			(SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id) as reply_count,
 			EXISTS(SELECT 1 FROM channel_pins cp WHERE cp.message_id = m.id) as is_pinned,
 			EXISTS(SELECT 1 FROM user_bookmarks ub WHERE ub.message_id = m.id AND ub.user_id = $2) as is_bookmarked
 		FROM messages m
 		JOIN users u ON m.user_id = u.id
 		WHERE m.id = $1
-	`, messageID, userID).Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ReplyTo, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.IsEdited, &msg.ReplyCount, &msg.IsPinned, &msg.IsBookmarked)
+	`, messageID, userID).Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ReplyTo, &msg.ForwardSourceID, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.IsEdited, &msg.ReplyCount, &msg.IsPinned, &msg.IsBookmarked)
 
 	if err != nil {
 		return nil, err

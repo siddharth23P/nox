@@ -16,8 +16,10 @@ export const Login: React.FC<{ onSwitch?: () => void }> = ({ onSwitch }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('HANDLESUBMIT CALLED');
     setLoading(true);
     setError(null);
+    console.log('Sending login request to backend...');
 
     try {
       const response = await fetch('http://localhost:8080/v1/auth/login', {

@@ -9,14 +9,14 @@ import { useAuthStore } from '../../stores/authStore';
 import { usePresenceStore } from '../../stores/presenceStore';
 
 export const DashboardHome: React.FC = () => {
-  const { activeChannel } = useMessageStore();
+  const { activeChannel, setActiveChannel, channels } = useMessageStore();
   const { user, token } = useAuthStore();
   const { startHeartbeat, stopHeartbeat } = usePresenceStore();
   
   const [isPinManagerOpen, setIsPinManagerOpen] = useState(false);
 
-  const activeChannelId = activeChannel?.id || "00000000-0000-0000-0000-000000000001";
-  const activeChannelName = activeChannel?.name || "general";
+  const activeChannelId = activeChannel?.id || "";
+  const activeChannelName = activeChannel?.name || "Loading...";
 
   React.useEffect(() => {
     if (user && token) {
@@ -25,21 +25,12 @@ export const DashboardHome: React.FC = () => {
     return () => stopHeartbeat();
   }, [user, token, startHeartbeat, stopHeartbeat]);
 
-  // Ensure active channel is set in store for real-time sync
-  const { setActiveChannel } = useMessageStore();
+  // Auto-select first channel if none is active
   React.useEffect(() => {
-    if (!activeChannel) {
-      setActiveChannel({
-        id: "00000000-0000-0000-0000-000000000001",
-        name: "general",
-        org_id: '00000000-0000-0000-0000-000000000001',
-        description: 'Team discussion',
-        is_private: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
+    if (!activeChannel && channels.length > 0) {
+      setActiveChannel(channels[0]);
     }
-  }, [activeChannel, setActiveChannel]);
+  }, [activeChannel, channels, setActiveChannel]);
 
   return (
     <div className="w-full h-full flex flex-row border-l border-white/5 relative bg-[#010309] overflow-hidden">

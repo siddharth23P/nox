@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../stores/authStore';
-import { useMessageStore } from '../../stores/messageStore';
+import { useMessageStore, type Channel } from '../../stores/messageStore';
 import { usePresenceStore } from '../../stores/presenceStore';
 import { PresenceAvatar } from '../common/PresenceAvatar';
 import { 
@@ -30,19 +30,15 @@ const NavItem = ({ icon: Icon, text, active, onClick }: { icon: React.ElementTyp
 
 export const Sidebar: React.FC = () => {
   const { user, logout } = useAuthStore();
-  const { activeChannel, setActiveChannel } = useMessageStore();
+  const { activeChannel, setActiveChannel, channels, fetchChannels } = useMessageStore();
   const { isStealth, setStealth } = usePresenceStore();
+  
+  useEffect(() => {
+    fetchChannels();
+  }, [fetchChannels]);
 
-  const handleChannelSelect = (id: string, name: string) => {
-    setActiveChannel({
-      id,
-      name,
-      org_id: '00000000-0000-0000-0000-000000000001',
-      description: '',
-      is_private: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
+  const handleChannelSelect = (channel: Channel) => {
+    setActiveChannel(channel);
   };
 
   const currentChannelId = activeChannel?.id || '00000000-0000-0000-0000-000000000001';
@@ -82,10 +78,15 @@ export const Sidebar: React.FC = () => {
             <span className="cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity hover:text-white">+</span>
           </div>
           <div className="space-y-1">
-            <NavItem icon={Hash} text="general" active={currentChannelId === '00000000-0000-0000-0000-000000000001'} onClick={() => handleChannelSelect('00000000-0000-0000-0000-000000000001', 'general')} />
-            <NavItem icon={Hash} text="engineering" active={currentChannelId === '00000000-0000-0000-0000-000000000002'} onClick={() => handleChannelSelect('00000000-0000-0000-0000-000000000002', 'engineering')} />
-            <NavItem icon={Hash} text="design" active={currentChannelId === '00000000-0000-0000-0000-000000000003'} onClick={() => handleChannelSelect('00000000-0000-0000-0000-000000000003', 'design')} />
-            <NavItem icon={Hash} text="random" active={currentChannelId === '00000000-0000-0000-0000-000000000004'} onClick={() => handleChannelSelect('00000000-0000-0000-0000-000000000004', 'random')} />
+            {channels.map(channel => (
+              <NavItem 
+                key={channel.id}
+                icon={Hash} 
+                text={channel.name} 
+                active={currentChannelId === channel.id} 
+                onClick={() => handleChannelSelect(channel)} 
+              />
+            ))}
           </div>
         </div>
 

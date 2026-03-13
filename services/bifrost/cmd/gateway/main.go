@@ -109,6 +109,7 @@ func main() {
 		v1.POST("/channels/:id/messages/:messageId/react", messagingHandler.ReactToMessage)
 		v1.POST("/channels/:id/messages/:messageId/pin", messagingHandler.TogglePin)
 		v1.POST("/channels/:id/messages/:messageId/bookmark", messagingHandler.ToggleBookmark)
+		v1.POST("/channels/:id/messages/:messageId/forward", messagingHandler.ForwardMessage)
 		v1.PATCH("/channels/:id/read", messagingHandler.UpdateLastRead)
 		v1.GET("/channels/:id/reads", messagingHandler.GetChannelReadReceipts)
 

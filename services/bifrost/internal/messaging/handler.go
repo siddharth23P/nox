@@ -86,7 +86,7 @@ func (h *MessagingHandler) CreateMessage(c *gin.Context) {
 		return
 	}
 
-	msg, err := h.service.CreateMessage(c.Request.Context(), channelID, userID, req.ContentMD, req.ContentHTML, req.ParentID, req.ReplyTo)
+	msg, err := h.service.CreateMessage(c.Request.Context(), channelID, userID, req.ContentMD, req.ContentHTML, req.ParentID, req.ReplyTo, req.ForwardSourceID, nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -361,4 +361,34 @@ func (h *MessagingHandler) HandleWS(c *gin.Context) {
 	// new goroutines.
 	go client.WritePump()
 	go client.ReadPump()
+}
+
+func (h *MessagingHandler) ForwardMessage(c *gin.Context) {
+	_, userID := getAuthInfo(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "X-User-ID required"})
+		return
+	}
+
+	messageID := c.Param("messageId")
+	if messageID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Message ID required"})
+		return
+	}
+
+	var req struct {
+		TargetChannelID string `json:"target_channel_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	msg, err := h.service.ForwardMessage(c.Request.Context(), messageID, req.TargetChannelID, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, msg)
 }

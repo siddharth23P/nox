@@ -16,6 +16,8 @@ export interface Message {
   user_reactions?: string[];
   is_pinned?: boolean;
   is_bookmarked?: boolean;
+  forward_source_id?: string;
+  forward_source_username?: string;
   created_at: string;
   updated_at: string;
 }
@@ -56,6 +58,7 @@ interface MessageState {
   setChannels: (channels: Channel[]) => void;
   setMessages: (messages: Message[]) => void;
   addMessage: (message: Message) => void;
+  fetchChannels: () => Promise<void>;
   fetchMessages: (channelId: string) => Promise<void>;
   loadMoreMessages: (channelId: string, before: string) => Promise<void>;
   sendMessage: (channelId: string, contentMd: string, parentId?: string, replyToId?: string) => Promise<void>;
@@ -70,6 +73,7 @@ interface MessageState {
   toggleReaction: (channelId: string, messageId: string, emoji: string) => Promise<void>;
   togglePin: (channelId: string, messageId: string) => Promise<void>;
   toggleBookmark: (channelId: string, messageId: string) => Promise<void>;
+  forwardMessage: (messageId: string, targetChannelId: string) => Promise<void>;
   
   // Real-time Event Handlers
   onMessageReceived: (message: Message) => void;
@@ -129,6 +133,27 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     
     return { messages: [...state.messages, message] };
   }),
+  
+  fetchChannels: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const orgId = localStorage.getItem('nox_org_id');
+      if (!orgId) throw new Error('No organization selected');
+
+      const response = await fetch(`${API_BASE_URL}/channels`, {
+        headers: {
+          'X-Org-ID': orgId,
+          'X-User-ID': JSON.parse(localStorage.getItem('nox_user') || '{}').id || '',
+        }
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch channels');
+      const data = await response.json();
+      set({ channels: data, isLoading: false });
+    } catch (err) {
+      set({ error: (err as Error).message, isLoading: false });
+    }
+  },
   
   // Handlers
   onMessageReceived: (message) => set((state) => {
@@ -214,7 +239,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     try {
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages`, {
         headers: {
-          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
+          'X-Org-ID': localStorage.getItem('nox_org_id') || '',
           'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
         }
       });
@@ -258,7 +283,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages?before=${encodeURIComponent(before)}`, {
         headers: {
-          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
+          'X-Org-ID': localStorage.getItem('nox_org_id') || '',
           'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
         }
       });
@@ -349,7 +374,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
 
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}/replies`, {
         headers: {
-          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
+          'X-Org-ID': localStorage.getItem('nox_org_id') || '',
           'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
         }
       });
@@ -449,7 +474,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
 
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}/history`, {
         headers: {
-          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
+          'X-Org-ID': localStorage.getItem('nox_org_id') || '',
           'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
         }
       });
@@ -552,6 +577,36 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       });
     } catch (err) {
       console.error('Failed to toggle bookmark:', err);
+    }
+  },
+  
+  forwardMessage: async (messageId, targetChannelId) => {
+    try {
+      const userStr = localStorage.getItem('nox_user');
+      const userId = userStr ? JSON.parse(userStr).id : '';
+
+      const response = await fetch(`${API_BASE_URL}/channels/any/messages/${messageId}/forward`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
+          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
+        },
+        body: JSON.stringify({ target_channel_id: targetChannelId }),
+      });
+
+      if (!response.ok) throw new Error('Failed to forward message');
+      
+      const newMessage = await response.json();
+      
+      // If the target channel is the active one, add it to the list
+      const state = get();
+      if (state.activeChannel?.id === targetChannelId) {
+        set((state) => ({ messages: [...state.messages, newMessage] }));
+      }
+    } catch (err) {
+      set({ error: (err as Error).message });
+      throw err;
     }
   }
 }));

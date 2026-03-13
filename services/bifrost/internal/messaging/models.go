@@ -19,9 +19,11 @@ type Message struct {
 	ChannelID   string    `json:"channel_id"`
 	UserID      string    `json:"user_id"`
 	Username    string    `json:"username,omitempty"`
-	ParentID    *string   `json:"parent_id,omitempty"`
-	ReplyTo     *string   `json:"reply_to,omitempty"`
-	ContentMD   string    `json:"content_md"`
+	ParentID        *string   `json:"parent_id,omitempty"`
+	ReplyTo         *string   `json:"reply_to,omitempty"`
+	ForwardSourceID       *string        `json:"forward_source_id,omitempty"`
+	ForwardSourceUsername *string        `json:"forward_source_username,omitempty"`
+	ContentMD             string         `json:"content_md"`
 	ContentHTML string    `json:"content_html"`
 	ReplyCount    int            `json:"reply_count,omitempty"`
 	IsEdited      bool           `json:"is_edited"`
@@ -52,8 +54,10 @@ type CreateChannelRequest struct {
 type CreateMessageRequest struct {
 	ContentMD   string  `json:"content_md" binding:"required"`
 	ContentHTML string  `json:"content_html"`
-	ParentID    *string `json:"parent_id"`
-	ReplyTo     *string `json:"reply_to"`
+	ParentID        *string `json:"parent_id"`
+	ReplyTo         *string `json:"reply_to"`
+	ForwardSourceID       *string `json:"forward_source_id"`
+	ForwardSourceUsername *string `json:"forward_source_username"`
 }
 
 type EditMessageRequest struct {

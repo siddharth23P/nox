@@ -2,9 +2,10 @@ import React, { useEffect, useRef, useLayoutEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useMessageStore } from '../../stores/messageStore';
 import { useAuthStore } from '../../stores/authStore';
-import { MessageCircle, Edit2, SmilePlus, Pin, Bookmark, Quote } from 'lucide-react';
+import { MessageCircle, Edit2, SmilePlus, Pin, Bookmark, Quote, Send } from 'lucide-react';
 import { PresenceAvatar } from '../common/PresenceAvatar';
 import { EditHistoryModal } from './EditHistoryModal';
+import ForwardModal from './ForwardModal';
 import { ReactionBubble } from './ReactionBubble';
 import { EmojiPicker } from './EmojiPicker';
 
@@ -23,6 +24,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
   const [editContent, setEditContent] = useState('');
   const [historyModalMessageId, setHistoryModalMessageId] = useState<string | null>(null);
   const [activeEmojiPickerMsgId, setActiveEmojiPickerMsgId] = useState<string | null>(null);
+  const [forwardModalMessage, setForwardModalMessage] = useState<Message | null>(null);
   
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -159,6 +161,13 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                           {msg.is_pinned && <span title="Pinned to channel"><Pin size={12} className="text-yellow-500 fill-yellow-500 ml-1" /></span>}
                           {msg.is_bookmarked && <span title="Bookmarked"><Bookmark size={12} className="text-blue-400 fill-blue-400 ml-1" /></span>}
                         </span>
+                      </div>
+                    )}
+                    
+                    {msg.forward_source_id && (
+                      <div className={`flex items-center gap-1.5 mb-1 text-[11px] font-medium text-blue-400 opacity-80 ${isCurrentUser ? 'flex-row-reverse' : ''}`}>
+                        <Send size={10} />
+                        <span>Forwarded {msg.forward_source_username ? `from ${msg.forward_source_username}` : ''}</span>
                       </div>
                     )}
                     
@@ -351,6 +360,14 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                     <MessageCircle size={14} />
                     <span className="text-xs font-medium pr-1">Reply</span>
                   </button>
+
+                  <button 
+                    onClick={() => setForwardModalMessage(msg)}
+                    className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-white hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                    title="Forward message"
+                  >
+                    <Send size={14} />
+                  </button>
                 </div>
 
               </motion.div>
@@ -367,6 +384,14 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
           onClose={() => setHistoryModalMessageId(null)}
           channelId={channelId}
           messageId={historyModalMessageId}
+        />
+      )}
+
+      {forwardModalMessage && (
+        <ForwardModal 
+          isOpen={!!forwardModalMessage}
+          onClose={() => setForwardModalMessage(null)}
+          message={forwardModalMessage}
         />
       )}
     </div>
