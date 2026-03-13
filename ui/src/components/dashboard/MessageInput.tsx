@@ -4,6 +4,7 @@ import { Send, Smile, AtSign, Paperclip } from 'lucide-react';
 import { useMessageStore } from '../../stores/messageStore';
 import { TypingIndicator } from './TypingIndicator';
 import { useWebSocket } from '../../hooks/useWebSocket';
+import { ReplyPreview } from './ReplyPreview';
 
 interface MessageInputProps {
   channelId: string | undefined;
@@ -14,6 +15,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
   const [isFocused, setIsFocused] = useState(false);
   const sendMessage = useMessageStore((state) => state.sendMessage);
   const activeChannel = useMessageStore((state) => state.activeChannel);
+  const replyTo = useMessageStore((state) => state.replyTo);
+  const setReplyTo = useMessageStore((state) => state.setReplyTo);
   const placeholderSuffix = activeChannel?.name || "general";
   const { sendTyping } = useWebSocket();
   const lastTypingSent = React.useRef<number>(0);
@@ -32,8 +35,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
     if (!content.trim() || !channelId) return;
 
     try {
-      await sendMessage(channelId, content);
+      await sendMessage(channelId, content, undefined, replyTo?.id);
       setContent('');
+      setReplyTo(null);
     } catch (err) {
       console.error("Failed to send", err);
     }
@@ -62,6 +66,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
     <div className="p-6 bg-gradient-to-t from-[#030712] via-[#030712] to-transparent shrink-0">
       <div className="max-w-4xl mx-auto relative group">
         <TypingIndicator channelId={channelId} />
+        <ReplyPreview />
         
         {/* Glow effect when focused */}
         <div className={`absolute -inset-1 bg-blue-500/20 rounded-3xl blur transition-opacity duration-300 pointer-events-none ${isFocused ? 'opacity-100' : 'opacity-0'}`} />

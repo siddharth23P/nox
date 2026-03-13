@@ -86,14 +86,11 @@ func (h *MessagingHandler) CreateMessage(c *gin.Context) {
 		return
 	}
 
-	msg, err := h.service.CreateMessage(c.Request.Context(), channelID, userID, req.ContentMD, req.ContentHTML, req.ParentID)
+	msg, err := h.service.CreateMessage(c.Request.Context(), channelID, userID, req.ContentMD, req.ContentHTML, req.ParentID, req.ReplyTo)
 	if err != nil {
-		log.Printf("ERROR in CreateMessage: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
-	// TODO: Broadcast the new message via WebSockets
 
 	c.JSON(http.StatusCreated, msg)
 }
@@ -365,4 +362,3 @@ func (h *MessagingHandler) HandleWS(c *gin.Context) {
 	go client.WritePump()
 	go client.ReadPump()
 }
-

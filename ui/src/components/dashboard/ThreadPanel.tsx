@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CornerDownRight } from 'lucide-react';
+import { X, CornerDownRight, MessageCircle } from 'lucide-react';
 import { useMessageStore } from '../../stores/messageStore';
+import { PresenceAvatar } from '../common/PresenceAvatar';
 
 interface ThreadPanelProps {
   channelId: string;
@@ -11,6 +12,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
   const { 
     activeThreadId, 
     setActiveThread, 
+    activeChannel,
     messages, 
     threadMessages, 
     fetchThread, 
@@ -39,17 +41,18 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
       {activeThreadId && (
         <motion.div
           initial={{ width: 0, opacity: 0 }}
-          animate={{ width: 400, opacity: 1 }}
+          animate={{ width: 450, opacity: 1 }}
           exit={{ width: 0, opacity: 0 }}
           transition={{ type: "spring", bounce: 0, duration: 0.3 }}
           className="h-full border-l border-white/5 bg-[#030712] flex flex-col flex-shrink-0 relative overflow-hidden z-20 shadow-[-10px_0_30px_rgba(0,0,0,0.5)]"
         >
           {/* Header */}
-          <div className="h-14 border-b border-white/5 flex items-center justify-between px-4 shrink-0 bg-white/[0.01] backdrop-blur-md w-[400px]">
+          <div className="h-14 border-b border-white/5 flex items-center justify-between px-4 shrink-0 bg-white/[0.01] backdrop-blur-md w-[450px]">
             <h3 className="text-white font-semibold flex items-center gap-2">
+              <MessageCircle size={18} className="text-blue-400" />
               Thread
-              <span className="text-xs font-normal text-gray-500 bg-white/5 px-2 py-0.5 rounded-full">
-                general
+              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 bg-white/5 px-2 py-1 rounded-md">
+                {activeChannel?.name || 'general'}
               </span>
             </h3>
             <button 
@@ -61,20 +64,22 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto w-[400px] flex flex-col custom-scrollbar">
+          <div className="flex-1 overflow-y-auto w-[450px] flex flex-col custom-scrollbar">
             {/* Parent Message View */}
             {parentMessage && (
-              <div className="p-4 border-b border-white/5 bg-white/[0.02]">
+              <div className="p-4 border-b border-white/5 bg-white/[0.02] glass-effect">
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center shrink-0">
-                    <span className="text-white/70 font-medium text-sm">
-                      {parentMessage.user_id.substring(0, 2).toUpperCase()}
-                    </span>
-                  </div>
-                  <div>
+                  <PresenceAvatar 
+                    userId={parentMessage.user_id} 
+                    username={parentMessage.username || 'U'} 
+                    size="md" 
+                  />
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-2 mb-1">
-                      <span className="text-[15px] font-semibold text-gray-100">User {parentMessage.user_id.substring(0, 4)}</span>
-                      <span className="text-xs text-gray-500 font-medium">
+                      <span className="text-[15px] font-semibold text-gray-100">
+                        {parentMessage.username || `User ${parentMessage.user_id.substring(0, 4)}`}
+                      </span>
+                      <span className="text-xs text-gray-500 font-medium whitespace-nowrap">
                         {new Date(parentMessage.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
@@ -97,19 +102,24 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
               </div>
 
               {isLoading && threadMessages.length === 0 ? (
-                <div className="text-center text-sm text-gray-500 py-4">Loading replies...</div>
+                <div className="flex flex-col items-center justify-center py-12 gap-3 text-gray-500">
+                  <div className="w-6 h-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+                  <span className="text-sm">Loading replies...</span>
+                </div>
               ) : (
                 threadMessages.map((reply) => (
-                  <div key={reply.id} className="group flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-green-500/20 to-emerald-500/20 border border-white/10 flex items-center justify-center shrink-0">
-                      <span className="text-white/70 font-medium text-xs">
-                        {reply.user_id.substring(0, 2).toUpperCase()}
-                      </span>
-                    </div>
+                  <div key={reply.id} className="group flex items-start gap-3 hover:bg-white/[0.01] -mx-2 px-2 py-1 rounded-xl transition-colors">
+                    <PresenceAvatar 
+                      userId={reply.user_id} 
+                      username={reply.username || 'U'} 
+                      size="sm" 
+                    />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-baseline gap-2 mb-1">
-                        <span className="text-[14px] font-semibold text-gray-200">User {reply.user_id.substring(0, 4)}</span>
-                        <span className="text-[11px] text-gray-500 font-medium">
+                        <span className="text-[14px] font-semibold text-gray-200">
+                          {reply.username || `User ${reply.user_id.substring(0, 4)}`}
+                        </span>
+                        <span className="text-[11px] text-gray-500 font-medium whitespace-nowrap">
                           {new Date(reply.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
@@ -118,10 +128,10 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
                         dangerouslySetInnerHTML={{ __html: reply.content_html || reply.content_md }}
                       />
                       {reply.status === 'sending' && (
-                        <span className="text-[10px] text-gray-500 animate-pulse">Sending...</span>
+                        <span className="text-[10px] text-gray-500 animate-pulse block mt-1">Sending...</span>
                       )}
                       {reply.status === 'error' && (
-                        <span className="text-[10px] text-red-500">Failed to send</span>
+                        <span className="text-[10px] text-red-500 block mt-1">Failed to send</span>
                       )}
                     </div>
                   </div>
@@ -131,9 +141,10 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
           </div>
 
           {/* Simple Reply Input below the list */}
-          <div className="p-4 w-[400px] border-t border-white/5 shrink-0 bg-white/[0.01]">
-             <div className="bg-[#1a1a1a]/80 backdrop-blur border border-white/10 rounded-xl focus-within:border-white/20 transition-all p-3 flex flex-col gap-2 shadow-inner group">
-               <textarea
+          <div className="p-4 w-[450px] border-t border-white/5 shrink-0 bg-[#030712]">
+             <div className="bg-[#1a1a1a]/80 backdrop-blur border border-white/10 rounded-xl focus-within:border-blue-500/30 transition-all p-3 flex flex-col gap-2 shadow-2xl group relative">
+                <div className={`absolute -inset-0.5 bg-blue-500/10 rounded-xl blur transition-opacity opacity-0 group-focus-within:opacity-100 pointer-events-none`} />
+                <textarea
                   value={replyInput}
                   onChange={(e) => setReplyInput(e.target.value)}
                   onKeyDown={(e) => {
@@ -142,22 +153,21 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
                       handleSend();
                     }
                   }}
-                  placeholder="Reply..."
-                  className="w-full bg-transparent text-gray-200 placeholder-gray-500 text-sm focus:outline-none resize-none"
-                  rows={3}
-               />
-               <div className="flex justify-between items-center mt-1">
-                 <span className="text-[10px] text-gray-500 font-medium tracking-wide uppercase">
-                   Return to send
-                 </span>
-                 <button
-                   onClick={handleSend}
-                   disabled={!replyInput.trim()}
-                   className="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-500 hover:bg-blue-400 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_15px_rgba(59,130,246,0.5)]"
-                 >
-                   <CornerDownRight size={14} />
-                 </button>
-               </div>
+                  placeholder="Reply to thread..."
+                  className="w-full bg-transparent text-gray-200 placeholder-gray-500 text-sm focus:outline-none resize-none min-h-[80px] relative z-10 custom-scrollbar"
+                />
+                <div className="flex justify-between items-center mt-1 relative z-10">
+                  <span className="text-[10px] text-gray-500 font-medium tracking-wide uppercase">
+                    Return to send
+                  </span>
+                  <button
+                    onClick={handleSend}
+                    disabled={!replyInput.trim()}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-500 hover:bg-blue-400 text-white disabled:opacity-20 disabled:grayscale disabled:cursor-not-allowed transition-all shadow-[0_0_15px_rgba(59,130,246,0.5)]"
+                  >
+                    <CornerDownRight size={16} />
+                  </button>
+                </div>
              </div>
           </div>
         </motion.div>

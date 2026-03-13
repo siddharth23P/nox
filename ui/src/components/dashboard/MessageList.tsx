@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useLayoutEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useMessageStore } from '../../stores/messageStore';
 import { useAuthStore } from '../../stores/authStore';
-import { MessageCircle, Edit2, SmilePlus, Pin, Bookmark } from 'lucide-react';
+import { MessageCircle, Edit2, SmilePlus, Pin, Bookmark, Quote } from 'lucide-react';
 import { PresenceAvatar } from '../common/PresenceAvatar';
 import { EditHistoryModal } from './EditHistoryModal';
 import { ReactionBubble } from './ReactionBubble';
@@ -15,7 +15,7 @@ interface MessageListProps {
 }
 
 export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
-  const { messages, fetchMessages, loadMoreMessages, isLoading, hasMore, setActiveThread, editMessage } = useMessageStore();
+  const { messages, fetchMessages, loadMoreMessages, isLoading, hasMore, setActiveThread, editMessage, setReplyTo } = useMessageStore();
   const { user } = useAuthStore();
   const currentUserId = user?.id;
   
@@ -162,6 +162,30 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                       </div>
                     )}
                     
+                    {msg.reply_to && (
+                      <div 
+                        className={`mb-2 p-2 rounded-lg bg-white/5 border-l-2 border-blue-500/50 cursor-pointer hover:bg-white/10 transition-colors max-w-sm ${isCurrentUser ? 'self-end' : 'self-start'}`}
+                        onClick={() => {
+                          const parent = document.querySelector(`[data-message-id="${msg.reply_to}"]`);
+                          if (parent) {
+                            parent.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            parent.classList.add('highlight-message');
+                            setTimeout(() => parent.classList.remove('highlight-message'), 2000);
+                          }
+                        }}
+                      >
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <Quote size={10} className="text-blue-400" />
+                          <span className="text-[11px] font-semibold text-blue-400/80 uppercase tracking-wider">
+                            {messages.find(m => m.id === msg.reply_to)?.username || 'Original Message'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-400 truncate line-clamp-1">
+                          {messages.find(m => m.id === msg.reply_to)?.content_md || 'Unsaved or older message'}
+                        </p>
+                      </div>
+                    )}
+                    
                     {editingMessageId === msg.id ? (
                       <div className="w-full max-w-lg mt-1 relative z-10 flex flex-col gap-2">
                         <textarea
@@ -297,6 +321,18 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                     title={msg.is_bookmarked ? "Remove bookmark" : "Bookmark"}
                   >
                     <Bookmark size={14} className={msg.is_bookmarked ? "fill-blue-400 text-blue-400" : ""} />
+                  </button>
+
+                  <button 
+                    onClick={() => {
+                      setReplyTo(msg);
+                      const input = document.querySelector('textarea');
+                      input?.focus();
+                    }}
+                    className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-blue-400 hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                    title="Quote"
+                  >
+                    <Quote size={14} />
                   </button>
 
                   <button 

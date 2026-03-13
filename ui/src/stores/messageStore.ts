@@ -6,6 +6,7 @@ export interface Message {
   user_id: string;
   username?: string;
   parent_id?: string;
+  reply_to?: string;
   content_md: string;
   content_html: string;
   reply_count?: number;
@@ -49,6 +50,7 @@ interface MessageState {
   error: string | null;
   hasMore: boolean;
   typingUsers: Record<string, string[]>; // channelId -> usernames
+  replyTo: Message | null;
   
   setActiveChannel: (channel: Channel) => void;
   setChannels: (channels: Channel[]) => void;
@@ -56,7 +58,8 @@ interface MessageState {
   addMessage: (message: Message) => void;
   fetchMessages: (channelId: string) => Promise<void>;
   loadMoreMessages: (channelId: string, before: string) => Promise<void>;
-  sendMessage: (channelId: string, contentMd: string) => Promise<void>;
+  sendMessage: (channelId: string, contentMd: string, parentId?: string, replyToId?: string) => Promise<void>;
+  setReplyTo: (message: Message | null) => void;
   
   setActiveThread: (messageId: string | null) => void;
   fetchThread: (channelId: string, messageId: string) => Promise<void>;
@@ -100,6 +103,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   error: null,
   hasMore: true,
   typingUsers: {},
+  replyTo: null,
 
   setActiveChannel: (channel) => set((state) => {
     if (state.activeChannel?.id === channel.id) return state;
@@ -274,7 +278,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     }
   },
 
-  sendMessage: async (channelId, contentMd) => {
+  sendMessage: async (channelId, contentMd, parentId, replyToId) => {
     const userStr = localStorage.getItem('nox_user');
     const user = userStr ? JSON.parse(userStr) : null;
     const userId = user?.id || '';
@@ -285,6 +289,8 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       channel_id: channelId,
       user_id: userId,
       username: user?.username || 'You',
+      parent_id: parentId,
+      reply_to: replyToId,
       content_md: contentMd,
       content_html: contentMd,
       status: 'sending',
@@ -302,7 +308,11 @@ export const useMessageStore = create<MessageState>((set, get) => ({
           'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
           'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
         },
-        body: JSON.stringify({ content_md: contentMd }),
+        body: JSON.stringify({ 
+          content_md: contentMd,
+          parent_id: parentId,
+          reply_to: replyToId
+        }),
       });
       
       if (!response.ok) {
@@ -328,6 +338,8 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   },
 
   setActiveThread: (messageId) => set({ activeThreadId: messageId }),
+  
+  setReplyTo: (message) => set({ replyTo: message }),
   
   fetchThread: async (channelId, messageId) => {
     set({ isLoading: true, error: null });

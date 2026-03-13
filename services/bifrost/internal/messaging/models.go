@@ -20,6 +20,7 @@ type Message struct {
 	UserID      string    `json:"user_id"`
 	Username    string    `json:"username,omitempty"`
 	ParentID    *string   `json:"parent_id,omitempty"`
+	ReplyTo     *string   `json:"reply_to,omitempty"`
 	ContentMD   string    `json:"content_md"`
 	ContentHTML string    `json:"content_html"`
 	ReplyCount    int            `json:"reply_count,omitempty"`
@@ -52,6 +53,7 @@ type CreateMessageRequest struct {
 	ContentMD   string  `json:"content_md" binding:"required"`
 	ContentHTML string  `json:"content_html"`
 	ParentID    *string `json:"parent_id"`
+	ReplyTo     *string `json:"reply_to"`
 }
 
 type EditMessageRequest struct {

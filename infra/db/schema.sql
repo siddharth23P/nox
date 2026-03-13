@@ -73,6 +73,9 @@ ALTER TABLE messages ADD COLUMN IF NOT EXISTS parent_id UUID REFERENCES messages
 -- Add is_edited flag for Issue #16
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_edited BOOLEAN DEFAULT FALSE;
 
+-- Add reply_to for Contextual Reply (Issue #21)
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to UUID REFERENCES messages(id) ON DELETE SET NULL;
+
 -- 7. Message Edit History (Audit Trail)
 CREATE TABLE IF NOT EXISTS message_edits (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
