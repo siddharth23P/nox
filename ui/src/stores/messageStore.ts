@@ -48,6 +48,7 @@ interface MessageState {
   isLoading: boolean;
   error: string | null;
   hasMore: boolean;
+  typingUsers: Record<string, string[]>; // channelId -> usernames
   
   setActiveChannel: (channel: Channel) => void;
   setChannels: (channels: Channel[]) => void;
@@ -72,6 +73,7 @@ interface MessageState {
   onMessageEdited: (message: Message) => void;
   onReactionUpdated: (messageId: string, reactions: Record<string, number>) => void;
   onPinUpdated: (messageId: string, isPinned: boolean) => void;
+  onTypingIndicator: (channelId: string, username: string, isTyping: boolean) => void;
 }
 
 const API_BASE_URL = 'http://localhost:8080/v1';
@@ -97,6 +99,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   isLoading: false,
   error: null,
   hasMore: true,
+  typingUsers: {},
 
   setActiveChannel: (channel) => set((state) => {
     if (state.activeChannel?.id === channel.id) return state;
@@ -164,6 +167,38 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     messages: state.messages.map(m => m.id === messageId ? { ...m, is_pinned: isPinned } : m),
     threadMessages: state.threadMessages.map(m => m.id === messageId ? { ...m, is_pinned: isPinned } : m)
   })),
+
+  onTypingIndicator: (channelId, username, isTyping) => {
+    const currentTyping = get().typingUsers[channelId] || [];
+    
+    if (isTyping) {
+      if (currentTyping.includes(username)) return;
+      
+      set((state) => ({
+        typingUsers: {
+          ...state.typingUsers,
+          [channelId]: [...currentTyping, username]
+        }
+      }));
+
+      // Auto-clear after 5s
+      setTimeout(() => {
+        // Double check if they are still there before removing
+        const latest = get().typingUsers[channelId] || [];
+        if (latest.includes(username)) {
+          get().onTypingIndicator(channelId, username, false);
+        }
+      }, 5000);
+    } else {
+      if (!currentTyping.includes(username)) return;
+      set((state) => ({
+        typingUsers: {
+          ...state.typingUsers,
+          [channelId]: currentTyping.filter(u => u !== username)
+        }
+      }));
+    }
+  },
 
   fetchMessages: async (channelId) => {
     const userStr = localStorage.getItem('nox_user');

@@ -21,6 +21,19 @@ type Event struct {
 	Payload json.RawMessage `json:"payload"`
 }
 
+// ClientMessage represents an incoming message from the client
+type ClientMessage struct {
+	Type    string          `json:"type"`
+	Payload json.RawMessage `json:"payload"`
+}
+
+type TypingPayload struct {
+	ChannelID string `json:"channel_id"`
+	UserID    string `json:"user_id"`
+	Username  string `json:"username"`
+	IsTyping  bool   `json:"is_typing"`
+}
+
 // Hub manages all active WebSocket connections
 type Hub struct {
 	clients    map[*Client]bool
@@ -97,15 +110,29 @@ func (c *Client) ReadPump() {
 	}()
 
 	for {
-		_, _, err := c.Conn.ReadMessage()
+		_, message, err := c.Conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("error: %v", err)
 			}
 			break
 		}
-		// Currently we don't handle incoming messages from clients, 
-		// but we need to keep the read loop open to detect closures.
+		
+		var msg ClientMessage
+		if err := json.Unmarshal(message, &msg); err != nil {
+			log.Printf("Error unmarshaling client message: %v", err)
+			continue
+		}
+
+		if msg.Type == "TYPING" {
+			var payload TypingPayload
+			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
+				log.Printf("Error unmarshaling typing payload: %v", err)
+				continue
+			}
+			// Broadcast the typing indicator to all clients
+			c.Hub.BroadcastEvent("TYPING_INDICATOR", payload)
+		}
 	}
 }
 

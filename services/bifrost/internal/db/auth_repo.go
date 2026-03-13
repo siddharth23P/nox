@@ -76,7 +76,7 @@ func (db *Database) CreateUserAndOrg(ctx context.Context, email, username, passw
 func (db *Database) GetUserByEmail(ctx context.Context, email string) (*User, error) {
 	var user User
 	err := db.Pool.QueryRow(ctx, 
-		"SELECT id, email, username, password_hash, full_name, is_email_verified FROM users WHERE email = $1", 
+		"SELECT id, email, username, password_hash, COALESCE(full_name, ''), is_email_verified FROM users WHERE email = $1", 
 		email).Scan(&user.ID, &user.Email, &user.Username, &user.PasswordHash, &user.FullName, &user.IsEmailVerified)
 	
 	if err != nil {

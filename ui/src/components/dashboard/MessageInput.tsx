@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Send, Smile, AtSign, Paperclip } from 'lucide-react';
 import { useMessageStore } from '../../stores/messageStore';
+import { TypingIndicator } from './TypingIndicator';
+import { useWebSocket } from '../../hooks/useWebSocket';
 
 interface MessageInputProps {
   channelId: string | undefined;
@@ -13,6 +15,17 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
   const sendMessage = useMessageStore((state) => state.sendMessage);
   const activeChannel = useMessageStore((state) => state.activeChannel);
   const placeholderSuffix = activeChannel?.name || "general";
+  const { sendTyping } = useWebSocket();
+  const lastTypingSent = React.useRef<number>(0);
+
+  const handleTyping = () => {
+    if (!channelId) return;
+    const now = Date.now();
+    if (now - lastTypingSent.current > 3000) {
+      sendTyping(channelId, true);
+      lastTypingSent.current = now;
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,6 +61,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
   return (
     <div className="p-6 bg-gradient-to-t from-[#030712] via-[#030712] to-transparent shrink-0">
       <div className="max-w-4xl mx-auto relative group">
+        <TypingIndicator channelId={channelId} />
         
         {/* Glow effect when focused */}
         <div className={`absolute -inset-1 bg-blue-500/20 rounded-3xl blur transition-opacity duration-300 pointer-events-none ${isFocused ? 'opacity-100' : 'opacity-0'}`} />
@@ -58,7 +72,10 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
         >
           <textarea
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(e) => {
+              setContent(e.target.value);
+              handleTyping();
+            }}
             onKeyDown={handleKeyDown}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
