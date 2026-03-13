@@ -1,76 +1,96 @@
 # Nox: The Distributed Cognitive Nexus 🌌
 
-Nox is a next-generation distributed collaboration platform designed for high-fidelity reasoning and secure knowledge sharing. It leverages a multi-service architecture with a focus on zero-trust identity and premium aesthetics.
+[![Build & Test](https://github.com/siddharth23P/nox/actions/workflows/main.yml/badge.svg)](https://github.com/siddharth23P/nox/actions/workflows/main.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://go.dev/)
+[![Rust Version](https://img.shields.io/badge/Rust-2021+-000000?style=flat&logo=rust)](https://www.rust-lang.org/)
 
-![Nox Dashboard](ui/public/screenshots/dashboard.png)
+Nox is a next-generation distributed collaboration platform designed for **high-fidelity reasoning** and **secure knowledge sharing**. It leverages a multi-service architecture with a focus on zero-trust identity and premium aesthetics.
 
-## 🏗️ Architecture Overview
+---
 
-The system is composed of several specialized services communicating over gRPC:
+## 🏗️ Architecture
 
-- **Bifrost Gateway (`/services/bifrost`)**: A Go/Gin-based REST API that acts as the primary ingress point for the UI. It handles authentication, organization management, and sessions.
-- **Orchestrator (`/services/orchestrator`)**: A Rust/Tokio-based cognitive core that performs high-level session validation and implements Zero-Knowledge identity logic.
-- **Nexus UI (`/ui`)**: A premium React application utilizing Tailwind v4, Framer Motion, and a glassmorphic design system.
+Nox is built on a modular "Nexus" architecture, separating concerns between identity, orchestration, and interface.
 
-## 🛠️ Tech Stack
+```mermaid
+graph TD
+    UI[Nexus UI - React 19] -- Nexus-WS --> Bifrost[Bifrost Gateway - Go]
+    Bifrost -- gRPC/TLS 1.3 --> Orch[Orchestrator - Rust]
+    Bifrost -- SQL --> DB[(PostgreSQL 15)]
+    Orch -- Cognitive Tasks --> AI[AI Models / RAG]
+```
 
-### Backend
-- **Languages**: Go (1.20+), Rust (Edition 2021)
-- **Frameworks**: Gin (Go), Tonic/Tower (Rust gRPC)
-- **Database**: PostgreSQL (Multi-tenant schema)
-- **Security**: JWT, Bcrypt, RSA-based ZK-Proofs (Candidate)
+### Core Components
+- **Bifrost Gateway (`/services/bifrost`)**: High-performance Go/Gin REST & WebSocket API. Handles session management and multi-tenant isolation.
+- **Orchestrator (`/services/orchestrator`)**: The "brain" of the nexus. Built with Rust/Tokio for low-latency session validation and cryptographic identity proofs.
+- **Nexus UI (`/ui`)**: A state-of-the-art React application with glassmorphic design, dynamic animations (Framer Motion), and real-time state sync.
 
-### Frontend
-- **Framework**: React 19
-- **Aesthetics**: Tailwind CSS v4, Framer Motion
-- **State Management**: Zustand
-- **Real-time**: WebSockets (Coming soon)
+---
+
+## ✨ Features
+
+- **🚀 Real-time Collaboration**: WebSocket-driven messaging with persistent thread support.
+- **🛡️ Zero-Trust Identity**: Granular RBAC and cryptographic session validation.
+- **🎨 Premium HMI**: Sleek dark-mode interface with Tailwind CSS v4.
+- **🤖 Cognitive Integration**: Deep AI orchestration for automated reasoning and summaries.
+- **🔒 Secure Storage**: WORM-compliant persistence for sensitive audit trails.
+
+---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- [Go](https://go.dev/) (1.20+)
-- [Rust](https://www.rust-lang.org/)
-- [PostgreSQL](https://www.postgresql.org/)
-- [Node.js](https://nodejs.org/) (v18+)
+- **Backend**: [Go 1.21+](https://go.dev/), [Rust 1.70+](https://www.rust-lang.org/)
+- **Frontend**: [Node.js v24+](https://nodejs.org/)
+- **Database**: [PostgreSQL 15+](https://www.postgresql.org/)
 
-### Local Development Setup
+### Fast-Track Setup
 
-1. **Database Setup**:
-   ```sql
+1. **Clone & Install**:
+   ```bash
+   git clone https://github.com/siddharth23P/nox.git
+   cd nox
+   npm install
+   ```
+
+2. **Database Initialization**:
+   ```bash
    psql -U postgres -f infra/db/schema.sql
    ```
 
-2. **Run Orchestrator**:
+3. **Start All Services**:
+   We provide a convenience script to boot the entire ecosystem:
    ```bash
-   cd services/orchestrator
-   cargo run
+   ./restart_servers.sh
    ```
 
-3. **Run Bifrost Gateway**:
-   ```bash
-   cd services/bifrost
-   export DATABASE_URL=postgres://user@localhost:5432/nox?sslmode=disable
-   go run cmd/gateway/main.go
-   ```
+### Individual Service Launch
 
-4. **Run Frontend**:
-   ```bash
-   cd ui
-   npm install
-   npm run dev
-   ```
-
-## 📈 Roadmap Progress
-
-| Block | Status | Focus |
+| Service | Directory | Command |
 | :--- | :--- | :--- |
-| **0. Workspace Init** | ✅ Done | Infrastructure & Dev Tools |
-| **1. Auth & Identity** | ✅ Done | RBAC, OAuth, Advanced Enrollment |
-| **2. Core Messaging** | 🏗️ Next | WebSockets & GFM Editor |
-
-## 🛡️ Security
-Nox follows the **Zero Trust** principle. All internal service communication is authenticated via mutual gRPC verification.
+| **Bifrost** | `services/bifrost` | `go run cmd/gateway/main.go` |
+| **Orchestrator** | `services/orchestrator` | `cargo run` |
+| **Nexus UI** | `ui` | `npm run dev` |
 
 ---
+
+## 📖 Usage Examples
+
+### Authenticating via Bifrost
+
+```bash
+curl -X POST http://localhost:8080/v1/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"email": "admin@nox.nexus", "password": "secure-password"}'
+```
+
+---
+
+## 🛡️ Security & Contributing
+
+Please read our [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests to us.
+
+---
+
 © 2026 Siddartha P. | Built for the future of distributed collaboration.

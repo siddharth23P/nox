@@ -45,6 +45,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
           exit={{ width: 0, opacity: 0 }}
           transition={{ type: "spring", bounce: 0, duration: 0.3 }}
           className="h-full border-l border-white/5 bg-[#030712] flex flex-col flex-shrink-0 relative overflow-hidden z-20 shadow-[-10px_0_30px_rgba(0,0,0,0.5)]"
+          data-testid="thread-panel"
         >
           {/* Header */}
           <div className="h-14 border-b border-white/5 flex items-center justify-between px-4 shrink-0 bg-white/[0.01] backdrop-blur-md w-[450px]">
@@ -154,6 +155,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
                     }
                   }}
                   placeholder="Reply to thread..."
+                  data-testid="thread-reply-input"
                   className="w-full bg-transparent text-gray-200 placeholder-gray-500 text-sm focus:outline-none resize-none min-h-[80px] relative z-10 custom-scrollbar"
                 />
                 <div className="flex justify-between items-center mt-1 relative z-10">

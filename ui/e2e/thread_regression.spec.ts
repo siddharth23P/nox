@@ -43,13 +43,13 @@ test.describe('Threaded Conversations Regression', () => {
     await messageContainer.locator('button:has-text("Reply")').click({ force: true });
 
     // 4. Verify the ThreadPanel slides in
-    const threadPanel = page.locator('h3:has-text("Thread")').locator('..').locator('..');
+    const threadPanel = page.getByTestId('thread-panel');
     await expect(threadPanel).toBeVisible();
     await expect(threadPanel).toContainText(randomMsg); // Verify parent message is in the thread header
 
     // 5. Send a reply inside the ThreadPanel
     const replyText = `This is a child reply - ${Date.now()}`;
-    const threadInput = threadPanel.locator('textarea[placeholder="Reply..."]');
+    const threadInput = page.getByTestId('thread-reply-input');
     await threadInput.fill(replyText);
     
     // Submit the reply via Enter key
