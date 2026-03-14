@@ -86,12 +86,17 @@ func main() {
 	authHandler := auth.NewAuthHandler(authService)
 	recoveryService := auth.NewRecoveryService(database)
 	recoveryHandler := auth.NewRecoveryHandler(recoveryService)
+	profileService := auth.NewProfileService(database)
+	profileHandler := auth.NewProfileHandler(profileService)
 	invitationService := auth.NewInvitationService(database)
 	invitationHandler := auth.NewInvitationHandler(invitationService)
 	rbacService := auth.NewRBACService(database)
 	rbacHandler := auth.NewRBACHandler(rbacService)
 	messagingHandler := messaging.NewMessagingHandler(messagingService, hub)
 	presenceHandler := presence.NewPresenceHandler(presenceService)
+
+	// Serve uploaded avatars as static files
+	r.Static("/uploads", "./uploads")
 
 	v1 := r.Group("/v1")
 	{
@@ -118,6 +123,14 @@ func main() {
 			// Organization Routes
 			authenticated.GET("/orgs", authHandler.ListOrganizations)
 			authenticated.POST("/orgs/:orgId/switch", authHandler.SwitchOrganization)
+
+			// Profile Routes (Issue #26)
+			authenticated.GET("/users/me", profileHandler.GetMyProfile)
+			authenticated.PATCH("/users/me", profileHandler.UpdateMyProfile)
+			authenticated.POST("/users/me/avatar", profileHandler.UploadAvatar)
+			authenticated.GET("/users/:userId", profileHandler.GetUserProfile)
+			authenticated.GET("/users/me/preferences", profileHandler.GetMyPreferences)
+			authenticated.PATCH("/users/me/preferences", profileHandler.UpdateMyPreferences)
 
 			// Invitation Routes (admin+)
 			authenticated.POST("/orgs/:orgId/invitations", invitationHandler.CreateInvitation)

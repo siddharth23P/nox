@@ -10,6 +10,8 @@ import { AccountRecovery } from './components/auth/AccountRecovery';
 import { JoinOrg } from './components/auth/JoinOrg';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { DashboardHome } from './components/dashboard/DashboardHome';
+import { ProfileSettings } from './components/settings/ProfileSettings';
+import { PreferencesSettings } from './components/settings/PreferencesSettings';
 import { useAuthStore } from './stores/authStore';
 
 function App() {
@@ -47,7 +49,17 @@ function App() {
             )
           }>
             <Route index element={<DashboardHome />} />
+            <Route path="settings/profile" element={<ProfileSettings />} />
+            <Route path="settings/preferences" element={<PreferencesSettings />} />
           </Route>
+
+          {/* Redirect /settings/profile to dashboard sub-route */}
+          <Route path="/settings/profile" element={
+            isAuthenticated ? <Navigate to="/dashboard/settings/profile" replace /> : <Navigate to="/" replace />
+          } />
+          <Route path="/settings/preferences" element={
+            isAuthenticated ? <Navigate to="/dashboard/settings/preferences" replace /> : <Navigate to="/" replace />
+          } />
         </Routes>
       </div>
     </BrowserRouter>
