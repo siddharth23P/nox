@@ -71,6 +71,14 @@ CREATE TABLE IF NOT EXISTS channels (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 5b. Channel CRUD enhancements (Issue #28)
+ALTER TABLE channels ADD COLUMN IF NOT EXISTS topic VARCHAR(256);
+ALTER TABLE channels ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
+ALTER TABLE channels ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES users(id);
+
+-- Unique channel name per org
+CREATE UNIQUE INDEX IF NOT EXISTS idx_channels_org_name ON channels (org_id, name);
+
 -- 6. Messages
 CREATE TABLE IF NOT EXISTS messages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

@@ -7,14 +7,18 @@ import { usePresenceStore } from '../../stores/presenceStore';
 import { PresenceAvatar } from '../common/PresenceAvatar';
 import {
   Hash,
+  Lock,
   MessageSquare,
   Bell,
   Search,
   Settings,
   LogOut,
   ChevronDown,
-  Check
+  Check,
+  Plus,
+  Archive
 } from 'lucide-react';
+import CreateChannelModal from '../dashboard/CreateChannelModal';
 
 const NavItem = ({ icon: Icon, text, active, onClick }: { icon: React.ElementType, text: string, active?: boolean, onClick?: () => void }) => (
   <motion.button
@@ -35,6 +39,7 @@ export const Sidebar: React.FC = () => {
   const { activeChannel, setActiveChannel, channels, fetchChannels } = useMessageStore();
   const { isStealth, setStealth } = usePresenceStore();
   const [showOrgSwitcher, setShowOrgSwitcher] = useState(false);
+  const [showCreateChannel, setShowCreateChannel] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -130,18 +135,30 @@ export const Sidebar: React.FC = () => {
         <div>
           <div className="px-3 mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-500 flex items-center justify-between group">
             <span>Channels</span>
-            <span className="cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity hover:text-white">+</span>
+            <button
+              onClick={() => setShowCreateChannel(true)}
+              className="cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity hover:text-white"
+              title="Create Channel"
+              data-testid="create-channel-btn"
+            >
+              <Plus size={14} />
+            </button>
           </div>
           <div className="space-y-1">
-            {channels.map(channel => (
-              <NavItem
-                key={channel.id}
-                icon={Hash}
-                text={channel.name}
-                active={currentChannelId === channel.id}
-                onClick={() => handleChannelSelect(channel)}
-              />
-            ))}
+            {channels.map(channel => {
+              const isArchived = !!(channel as Channel & { archived_at?: string }).archived_at;
+              const channelIcon = channel.is_private ? Lock : isArchived ? Archive : Hash;
+              return (
+                <div key={channel.id} className={isArchived ? 'opacity-50' : ''}>
+                  <NavItem
+                    icon={channelIcon}
+                    text={channel.name}
+                    active={currentChannelId === channel.id}
+                    onClick={() => handleChannelSelect(channel)}
+                  />
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -199,6 +216,7 @@ export const Sidebar: React.FC = () => {
         </motion.button>
       </div>
 
+      <CreateChannelModal isOpen={showCreateChannel} onClose={() => setShowCreateChannel(false)} />
     </div>
   );
 };
