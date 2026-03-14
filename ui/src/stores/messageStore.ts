@@ -272,19 +272,18 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
       
       const data = await response.json();
-      const reversedData = [...data].reverse();
-
+      // Backend already returns messages in chronological order (oldest first)
       set((state) => {
         const currentChannelId = state.activeChannel?.id;
-        
+
         if (currentChannelId === channelId) {
-          const fetchedIds = new Set(reversedData.map((m: Message) => m.id));
+          const fetchedIds = new Set(data.map((m: Message) => m.id));
           const localMessages = state.messages.filter(m => !fetchedIds.has(m.id));
-          
-          return { 
-            messages: [...reversedData, ...localMessages], 
-            isLoading: false, 
-            hasMore: data.length === 50 
+
+          return {
+            messages: [...data, ...localMessages],
+            isLoading: false,
+            hasMore: data.length === 50
           };
         }
         
@@ -315,11 +314,11 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       if (!response.ok) throw new Error('Failed to load more messages');
       
       const data = await response.json();
-      const reversedData = [...data].reverse();
-      set((prev) => ({ 
-        messages: [...reversedData, ...prev.messages], 
+      // Backend already returns in chronological order (oldest first)
+      set((prev) => ({
+        messages: [...data, ...prev.messages],
         isLoading: false,
-        hasMore: data.length === 50 
+        hasMore: data.length === 50
       }));
     } catch (err) {
       set({ error: (err as Error).message, isLoading: false });

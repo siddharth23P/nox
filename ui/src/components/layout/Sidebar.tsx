@@ -24,11 +24,12 @@ import CreateChannelModal from '../dashboard/CreateChannelModal';
 
 const NavItem = ({ icon: Icon, text, active, onClick }: { icon: React.ElementType, text: string, active?: boolean, onClick?: () => void }) => (
   <motion.button
-    whileHover={{ x: 4, backgroundColor: 'rgba(255,255,255,0.05)' }}
+    whileHover={{ x: 4 }}
     whileTap={{ scale: 0.98 }}
+    animate={{ backgroundColor: active ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0)' }}
     onClick={onClick}
-    className={`w-full h-10 px-3 rounded-xl flex items-center gap-3 transition-colors ${
-      active ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'
+    className={`w-full h-10 px-3 rounded-xl flex items-center gap-3 transition-colors hover:bg-white/5 ${
+      active ? 'text-white' : 'text-gray-400 hover:text-white'
     }`}
   >
     <Icon size={18} className={active ? 'text-blue-400' : ''} />
@@ -52,6 +53,7 @@ export const Sidebar: React.FC = () => {
 
   const handleChannelSelect = (channel: Channel) => {
     setActiveChannel(channel);
+    navigate('/dashboard');
   };
 
   const handleOrgSwitch = (newOrgId: string) => {

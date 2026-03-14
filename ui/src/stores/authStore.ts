@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { usePresenceStore } from './presenceStore';
+import { closeWebSocket } from '../hooks/useWebSocket';
 
 const API_BASE = 'http://localhost:8080/v1';
 
@@ -60,6 +62,11 @@ export const useAuthStore = create<AuthState>((set, get) => {
       set({ user, token, orgId, role, isAuthenticated: true });
     },
     logout: () => {
+      // Stop presence heartbeat and close WebSocket BEFORE clearing auth
+      // state so the server is notified immediately (fixes #119).
+      usePresenceStore.getState().stopHeartbeat();
+      closeWebSocket();
+
       localStorage.removeItem('nox_token');
       localStorage.removeItem('nox_org_id');
       localStorage.removeItem('nox_org_name');

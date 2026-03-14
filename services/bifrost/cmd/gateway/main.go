@@ -50,16 +50,20 @@ func main() {
 	// 1. Initialize Auth Service
 	authService := auth.NewAuthService(jwtSecret, database)
 	
+	// Initialize Presence Service (must be created before the hub so we can
+	// wire the disconnect callback)
+	presenceService := presence.NewPresenceService()
+
 	// Initialize WebSocket Hub
 	hub := messaging.NewHub()
+	hub.OnDisconnect = func(userID string) {
+		presenceService.RemoveUser(userID)
+	}
 	go hub.Run()
 
 	// Initialize Messaging & Reaction Service
 	reactionService := messaging.NewReactionService(hub)
 	messagingService := messaging.NewMessagingService(database, reactionService, hub)
-
-	// Initialize Presence Service
-	presenceService := presence.NewPresenceService()
 
 	// 2. Start gRPC Server
 	go func() {
