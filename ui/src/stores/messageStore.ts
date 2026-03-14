@@ -1,4 +1,8 @@
 import { create } from 'zustand';
+import { marked } from 'marked';
+
+// Configure marked for GFM
+marked.setOptions({ gfm: true, breaks: true });
 
 export interface Message {
   id: string;
@@ -69,6 +73,7 @@ interface MessageState {
   sendThreadReply: (channelId: string, messageId: string, contentMd: string) => Promise<void>;
   
   editMessage: (channelId: string, messageId: string, contentMd: string) => Promise<void>;
+  deleteMessage: (channelId: string, messageId: string) => Promise<void>;
   getMessageHistory: (channelId: string, messageId: string) => Promise<MessageEdit[]>;
   toggleReaction: (channelId: string, messageId: string, emoji: string) => Promise<void>;
   togglePin: (channelId: string, messageId: string) => Promise<void>;
@@ -78,6 +83,7 @@ interface MessageState {
   // Real-time Event Handlers
   onMessageReceived: (message: Message) => void;
   onMessageEdited: (message: Message) => void;
+  onMessageDeleted: (messageId: string) => void;
   onReactionUpdated: (messageId: string, reactions: Record<string, number>) => void;
   onPinUpdated: (messageId: string, isPinned: boolean) => void;
   onTypingIndicator: (channelId: string, username: string, isTyping: boolean) => void;
@@ -186,7 +192,12 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     messages: state.messages.map(m => m.id === message.id ? message : m),
     threadMessages: state.threadMessages.map(m => m.id === message.id ? message : m)
   })),
-  
+
+  onMessageDeleted: (messageId) => set((state) => ({
+    messages: state.messages.filter(m => m.id !== messageId),
+    threadMessages: state.threadMessages.filter(m => m.id !== messageId)
+  })),
+
   onReactionUpdated: (messageId, reactions) => set((state) => ({
     messages: state.messages.map(m => m.id === messageId ? { ...m, reactions } : m),
     threadMessages: state.threadMessages.map(m => m.id === messageId ? { ...m, reactions } : m)
@@ -341,8 +352,9 @@ export const useMessageStore = create<MessageState>((set, get) => ({
           'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
           'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           content_md: contentMd,
+          content_html: marked.parse(contentMd, { async: false }) as string,
           parent_id: parentId,
           reply_to: replyToId
         }),
@@ -423,7 +435,11 @@ export const useMessageStore = create<MessageState>((set, get) => ({
           'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
           'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
         },
-        body: JSON.stringify({ content_md: contentMd, parent_id: messageId }),
+        body: JSON.stringify({
+          content_md: contentMd,
+          content_html: marked.parse(contentMd, { async: false }) as string,
+          parent_id: messageId,
+        }),
       });
       
       if (!response.ok) throw new Error('Failed to send reply');
@@ -458,15 +474,43 @@ export const useMessageStore = create<MessageState>((set, get) => ({
           'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
           'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
         },
-        body: JSON.stringify({ content_md: contentMd }),
+        body: JSON.stringify({
+          content_md: contentMd,
+          content_html: marked.parse(contentMd, { async: false }) as string,
+        }),
       });
-      
+
       if (!response.ok) throw new Error('Failed to edit message');
       
       const updatedMessage = await response.json();
       set((state) => ({
         messages: state.messages.map(m => m.id === messageId ? updatedMessage : m),
         threadMessages: state.threadMessages.map(m => m.id === messageId ? updatedMessage : m)
+      }));
+    } catch (err) {
+      set({ error: (err as Error).message });
+      throw err;
+    }
+  },
+
+  deleteMessage: async (channelId, messageId) => {
+    try {
+      const userStr = localStorage.getItem('nox_user');
+      const userId = userStr ? JSON.parse(userStr).id : '';
+
+      const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}`, {
+        method: 'DELETE',
+        headers: {
+          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
+          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
+        },
+      });
+
+      if (!response.ok) throw new Error('Failed to delete message');
+
+      set((state) => ({
+        messages: state.messages.filter(m => m.id !== messageId),
+        threadMessages: state.threadMessages.filter(m => m.id !== messageId)
       }));
     } catch (err) {
       set({ error: (err as Error).message });

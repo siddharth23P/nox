@@ -3,10 +3,15 @@ package messaging
 import (
 	"context"
 	"fmt"
+	"html"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/microcosm-cc/bluemonday"
 	"github.com/nox-labs/bifrost/internal/db"
 )
+
+// sanitizer is a shared UGC policy that strips dangerous HTML but allows safe formatting.
+var sanitizer = bluemonday.UGCPolicy()
 type MessagingService struct {
 	db        *db.Database
 	Reactions *ReactionService
@@ -53,10 +58,12 @@ func (s *MessagingService) GetChannels(ctx context.Context, orgID string) ([]Cha
 }
 
 func (s *MessagingService) CreateMessage(ctx context.Context, channelID, userID, contentMD, contentHTML string, parentID, replyTo, forwardSourceID, forwardSourceUsername *string) (*Message, error) {
-	// Fallback to simple HTML if not provided
+	// Fallback to escaped HTML if not provided
 	if contentHTML == "" {
-		contentHTML = "<p>" + contentMD + "</p>"
+		contentHTML = "<p>" + html.EscapeString(contentMD) + "</p>"
 	}
+	// Sanitize all HTML to prevent XSS
+	contentHTML = sanitizer.Sanitize(contentHTML)
 
 	query := `
 		WITH new_message AS (
@@ -230,8 +237,10 @@ func (s *MessagingService) ForwardMessage(ctx context.Context, messageID string,
 
 func (s *MessagingService) EditMessage(ctx context.Context, messageID string, userID string, contentMD string, contentHTML string) (*Message, error) {
 	if contentHTML == "" {
-		contentHTML = "<p>" + contentMD + "</p>"
+		contentHTML = "<p>" + html.EscapeString(contentMD) + "</p>"
 	}
+	// Sanitize all HTML to prevent XSS
+	contentHTML = sanitizer.Sanitize(contentHTML)
 
 	tx, err := s.db.Pool.Begin(ctx)
 	if err != nil {
@@ -296,6 +305,32 @@ func (s *MessagingService) EditMessage(ctx context.Context, messageID string, us
 	s.Hub.BroadcastEvent("MESSAGE_EDITED", msgs[0])
 
 	return &msgs[0], nil
+}
+
+func (s *MessagingService) DeleteMessage(ctx context.Context, messageID string, userID string) error {
+	// Verify author
+	var authorID, channelID string
+	err := s.db.Pool.QueryRow(ctx, "SELECT user_id, channel_id FROM messages WHERE id = $1", messageID).Scan(&authorID, &channelID)
+	if err != nil {
+		return err
+	}
+	if authorID != userID {
+		return pgx.ErrNoRows
+	}
+
+	// Delete the message (cascade will handle edits, pins, bookmarks)
+	_, err = s.db.Pool.Exec(ctx, "DELETE FROM messages WHERE id = $1", messageID)
+	if err != nil {
+		return err
+	}
+
+	// Broadcast deletion
+	s.Hub.BroadcastEvent("MESSAGE_DELETED", map[string]interface{}{
+		"message_id": messageID,
+		"channel_id": channelID,
+	})
+
+	return nil
 }
 
 func (s *MessagingService) GetMessageEditHistory(ctx context.Context, messageID string) ([]MessageEdit, error) {

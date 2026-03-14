@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useLayoutEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import DOMPurify from 'dompurify';
 import { useMessageStore } from '../../stores/messageStore';
 import { useAuthStore } from '../../stores/authStore';
-import { MessageCircle, Edit2, SmilePlus, Pin, Bookmark, Quote, Send } from 'lucide-react';
+import { MessageCircle, Edit2, SmilePlus, Pin, Bookmark, Quote, Send, Trash2 } from 'lucide-react';
 import { PresenceAvatar } from '../common/PresenceAvatar';
 import { EditHistoryModal } from './EditHistoryModal';
 import ForwardModal from './ForwardModal';
@@ -16,7 +17,7 @@ interface MessageListProps {
 }
 
 export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
-  const { messages, fetchMessages, loadMoreMessages, isLoading, hasMore, setActiveThread, editMessage, setReplyTo } = useMessageStore();
+  const { messages, fetchMessages, loadMoreMessages, isLoading, hasMore, setActiveThread, editMessage, deleteMessage, setReplyTo } = useMessageStore();
   const { user } = useAuthStore();
   const currentUserId = user?.id;
   
@@ -237,7 +238,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                               : 'text-gray-300'
                           } ${msg.status === 'sending' ? 'opacity-50' : ''}`}
                         >
-                          <div dangerouslySetInnerHTML={{ __html: msg.content_html || msg.content_md }} />
+                          <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(msg.content_html || msg.content_md) }} />
                         </div>
                         <div className={`flex flex-col gap-1 items-start ${isCurrentUser ? 'mr-2' : 'ml-2'} mb-1`}>
                           {msg.status === 'sending' && (
@@ -296,16 +297,27 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                 {/* Hover Actions */}
                 <div className={`absolute top-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 ${isCurrentUser ? 'left-4' : 'right-4'}`}>
                   {isCurrentUser && (
-                    <button 
-                      onClick={() => {
-                        setEditingMessageId(msg.id);
-                        setEditContent(msg.content_md);
-                      }}
-                      className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-white hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
-                      title="Edit message"
-                    >
-                      <Edit2 size={14} />
-                    </button>
+                    <>
+                      <button
+                        onClick={() => {
+                          setEditingMessageId(msg.id);
+                          setEditContent(msg.content_md);
+                        }}
+                        className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-white hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                        title="Edit message"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (channelId) deleteMessage(channelId, msg.id);
+                        }}
+                        className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-red-400 hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                        title="Delete message"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </>
                   )}
                   
                   <div className="relative">
