@@ -10,7 +10,7 @@ interface PinManagerProps {
 }
 
 export const PinManager: React.FC<PinManagerProps> = ({ isOpen, onClose }) => {
-  const { messages, threadMessages } = useMessageStore();
+  const { messages, threadMessages, scrollToMessage } = useMessageStore();
   const [activeTab, setActiveTab] = useState<'pins' | 'bookmarks'>('pins');
 
   // Gather all loaded messages
@@ -72,7 +72,14 @@ export const PinManager: React.FC<PinManagerProps> = ({ isOpen, onClose }) => {
             ) : (
               <div className="space-y-4">
                 {displayList.map(msg => (
-                  <div key={msg.id} className="bg-white/5 p-3 rounded-lg border border-white/10 hover:border-white/20 transition-colors cursor-pointer text-sm">
+                  <div
+                    key={msg.id}
+                    className="bg-white/5 p-3 rounded-lg border border-white/10 hover:border-white/20 transition-colors cursor-pointer text-sm"
+                    onClick={() => {
+                      scrollToMessage(msg.id);
+                      onClose();
+                    }}
+                  >
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-semibold text-gray-200">{msg.username || 'User'}</span>
                       <span className="text-[10px] text-gray-500">

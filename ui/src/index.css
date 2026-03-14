@@ -53,7 +53,17 @@ body {
   }
 
   @keyframes highlight-pulse {
-    0% { background-color: rgba(59, 130, 246, 0.3); }
-    100% { background-color: transparent; }
+    0% {
+      background-color: rgba(245, 158, 11, 0.15);
+      box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.4), 0 0 12px rgba(245, 158, 11, 0.2);
+    }
+    70% {
+      background-color: rgba(245, 158, 11, 0.06);
+      box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.15), 0 0 6px rgba(245, 158, 11, 0.08);
+    }
+    100% {
+      background-color: transparent;
+      box-shadow: none;
+    }
   }
 }
