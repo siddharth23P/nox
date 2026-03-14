@@ -86,6 +86,8 @@ func main() {
 	authHandler := auth.NewAuthHandler(authService)
 	recoveryService := auth.NewRecoveryService(database)
 	recoveryHandler := auth.NewRecoveryHandler(recoveryService)
+	rbacService := auth.NewRBACService(database)
+	rbacHandler := auth.NewRBACHandler(rbacService)
 	messagingHandler := messaging.NewMessagingHandler(messagingService, hub)
 	presenceHandler := presence.NewPresenceHandler(presenceService)
 
@@ -111,6 +113,16 @@ func main() {
 			// Organization Routes
 			authenticated.GET("/orgs", authHandler.ListOrganizations)
 			authenticated.POST("/orgs/:orgId/switch", authHandler.SwitchOrganization)
+
+			// RBAC Routes (Issue #64)
+			authenticated.GET("/orgs/:orgId/roles", rbacHandler.ListRoles)
+			authenticated.POST("/orgs/:orgId/roles", rbacHandler.CreateRole)
+			authenticated.PATCH("/orgs/:orgId/roles/:roleId", rbacHandler.UpdateRole)
+			authenticated.DELETE("/orgs/:orgId/roles/:roleId", rbacHandler.DeleteRole)
+			authenticated.POST("/orgs/:orgId/members/:userId/roles", rbacHandler.AssignRole)
+			authenticated.DELETE("/orgs/:orgId/members/:userId/roles/:roleId", rbacHandler.RemoveRole)
+			authenticated.GET("/orgs/:orgId/members/:userId/permissions", rbacHandler.GetEffectivePermissions)
+			authenticated.GET("/permissions/schema", rbacHandler.GetPermissionSchema)
 		}
 
 		// Messaging Routes
