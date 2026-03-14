@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Search, UserMinus, ChevronDown, Loader2, Users } from 'lucide-react';
+import { Search, UserMinus, ChevronDown, Loader2, Users, UserPlus } from 'lucide-react';
 import { useOrgStore, type OrgMember } from '../../stores/orgStore';
 import { useAuthStore } from '../../stores/authStore';
+import { InviteModal } from './InviteModal';
 
 const ROLE_COLORS: Record<string, string> = {
   owner: 'bg-red-500/20 text-red-400 border-red-500/30',
@@ -121,6 +122,7 @@ export const MemberDirectory: React.FC = () => {
   const { orgId, role, user } = useAuthStore();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const pageSize = 50;
 
   const isAdmin = role === 'owner' || role === 'admin';
@@ -163,11 +165,28 @@ export const MemberDirectory: React.FC = () => {
     >
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-white">Members</h2>
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <Users size={16} />
-          <span>{totalMembers} member{totalMembers !== 1 ? 's' : ''}</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <Users size={16} />
+            <span>{totalMembers} member{totalMembers !== 1 ? 's' : ''}</span>
+          </div>
+          {isAdmin && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowInviteModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-xl transition-colors"
+              data-testid="invite-people-button"
+            >
+              <UserPlus size={16} />
+              Invite People
+            </motion.button>
+          )}
         </div>
       </div>
+
+      {/* Invite Modal */}
+      <InviteModal open={showInviteModal} onClose={() => setShowInviteModal(false)} />
 
       {/* Search Bar */}
       <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-4 mb-4">
@@ -206,7 +225,6 @@ export const MemberDirectory: React.FC = () => {
                 member={member}
                 isAdmin={isAdmin}
                 currentUserId={user?.id || ''}
-
                 onRoleChange={handleRoleChange}
                 onRemove={handleRemove}
               />
