@@ -13,6 +13,8 @@ import { DashboardHome } from './components/dashboard/DashboardHome';
 import { ProfileSettings } from './components/settings/ProfileSettings';
 import { PreferencesSettings } from './components/settings/PreferencesSettings';
 import { FriendsPage } from './components/friends/FriendsPage';
+import { OrgSettings } from './components/settings/OrgSettings';
+import { MemberDirectory } from './components/settings/MemberDirectory';
 import { useAuthStore } from './stores/authStore';
 
 function App() {
@@ -53,6 +55,8 @@ function App() {
             <Route path="friends" element={<FriendsPage />} />
             <Route path="settings/profile" element={<ProfileSettings />} />
             <Route path="settings/preferences" element={<PreferencesSettings />} />
+            <Route path="settings/organization" element={<OrgSettings />} />
+            <Route path="settings/members" element={<MemberDirectory />} />
           </Route>
 
           {/* Redirect /settings/profile to dashboard sub-route */}

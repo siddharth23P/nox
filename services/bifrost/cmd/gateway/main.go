@@ -94,6 +94,8 @@ func main() {
 	rbacHandler := auth.NewRBACHandler(rbacService)
 	friendService := auth.NewFriendService(database)
 	friendHandler := auth.NewFriendHandler(friendService)
+	orgService := auth.NewOrgService(database)
+	orgHandler := auth.NewOrgHandler(orgService)
 	messagingHandler := messaging.NewMessagingHandler(messagingService, hub)
 	presenceHandler := presence.NewPresenceHandler(presenceService)
 
@@ -165,6 +167,14 @@ func main() {
 			authenticated.GET("/friends", friendHandler.ListFriends)
 			authenticated.GET("/friends/mutual/:userId", friendHandler.MutualOrgs)
 			authenticated.GET("/users/search", friendHandler.SearchUsers)
+
+			// Organization Settings & Member Management (Issue #30)
+			authenticated.GET("/orgs/:orgId/settings", orgHandler.GetOrgSettings)
+			authenticated.PATCH("/orgs/:orgId", orgHandler.UpdateOrgSettings)
+			authenticated.POST("/orgs/:orgId/logo", orgHandler.UploadOrgLogo)
+			authenticated.GET("/orgs/:orgId/members", orgHandler.ListOrgMembers)
+			authenticated.PATCH("/orgs/:orgId/members/:userId/role", orgHandler.ChangeMemberRole)
+			authenticated.DELETE("/orgs/:orgId/members/:userId", orgHandler.RemoveMember)
 		}
 
 		// Channel CRUD Routes

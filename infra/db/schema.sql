@@ -308,3 +308,7 @@ CREATE TABLE IF NOT EXISTS friendships (
 
 CREATE INDEX IF NOT EXISTS idx_friendships_requester ON friendships(requester_id);
 CREATE INDEX IF NOT EXISTS idx_friendships_addressee ON friendships(addressee_id);
+
+-- 20. Organization Settings columns (Issue #30)
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '';
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS logo_url TEXT DEFAULT '';
