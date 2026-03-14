@@ -17,6 +17,20 @@ const BrowseChannelsModal: React.FC<BrowseChannelsModalProps> = ({ isOpen, onClo
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const loadChannels = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await browseChannels();
+      setChannels(data);
+      setFilteredChannels(data);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [browseChannels]);
+
   useEffect(() => {
     if (isOpen) {
       loadChannels();
@@ -41,20 +55,6 @@ const BrowseChannelsModal: React.FC<BrowseChannelsModalProps> = ({ isOpen, onClo
       );
     }
   }, [searchQuery, channels]);
-
-  const loadChannels = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const data = await browseChannels();
-      setChannels(data);
-      setFilteredChannels(data);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [browseChannels]);
 
   const handleJoin = async (channel: BrowsableChannel) => {
     setJoiningId(channel.id);
