@@ -61,7 +61,8 @@ interface MessageState {
   hasMore: boolean;
   typingUsers: Record<string, string[]>; // channelId -> usernames
   replyTo: Message | null;
-  
+  highlightedMessageId: string | null;
+
   setActiveChannel: (channel: Channel) => void;
   setChannels: (channels: Channel[]) => void;
   setMessages: (messages: Message[]) => void;
@@ -83,7 +84,8 @@ interface MessageState {
   togglePin: (channelId: string, messageId: string) => Promise<void>;
   toggleBookmark: (channelId: string, messageId: string) => Promise<void>;
   forwardMessage: (messageId: string, targetChannelId: string) => Promise<void>;
-  
+  scrollToMessage: (messageId: string) => void;
+
   // Real-time Event Handlers
   onMessageReceived: (message: Message) => void;
   onMessageEdited: (message: Message) => void;
@@ -118,6 +120,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   hasMore: true,
   typingUsers: {},
   replyTo: null,
+  highlightedMessageId: null,
 
   setActiveChannel: (channel) => set((state) => {
     if (state.activeChannel?.id === channel.id) return state;
@@ -662,5 +665,22 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       set({ error: (err as Error).message });
       throw err;
     }
+  },
+
+  scrollToMessage: (messageId) => {
+    set({ highlightedMessageId: messageId });
+
+    // Allow a tick for React to apply the highlighted state, then scroll
+    requestAnimationFrame(() => {
+      const el = document.querySelector(`[data-message-id="${messageId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+
+    // Clear highlight after 2 seconds
+    setTimeout(() => {
+      set((state) => state.highlightedMessageId === messageId ? { highlightedMessageId: null } : state);
+    }, 2000);
   }
 }));

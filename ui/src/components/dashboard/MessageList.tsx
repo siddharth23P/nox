@@ -17,7 +17,7 @@ interface MessageListProps {
 }
 
 export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
-  const { messages, fetchMessages, loadMoreMessages, isLoading, hasMore, setActiveThread, editMessage, deleteMessage, setReplyTo } = useMessageStore();
+  const { messages, fetchMessages, loadMoreMessages, isLoading, hasMore, setActiveThread, editMessage, deleteMessage, setReplyTo, highlightedMessageId } = useMessageStore();
   const { user } = useAuthStore();
   const currentUserId = user?.id;
   
@@ -133,7 +133,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                 data-user-id={msg.user_id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`message-item group relative flex items-start gap-4 hover:bg-white/[0.02] -mx-4 px-4 py-2 rounded-2xl transition-colors ${isConsecutive ? 'mt-1' : 'mt-6'} ${isCurrentUser ? 'flex-row-reverse' : ''}`}
+                className={`message-item group relative flex items-start gap-4 hover:bg-white/[0.02] -mx-4 px-4 py-2 rounded-2xl transition-colors ${isConsecutive ? 'mt-1' : 'mt-6'} ${isCurrentUser ? 'flex-row-reverse' : ''} ${highlightedMessageId === msg.id ? 'highlight-message' : ''}`}
               >
                 {/* Avatar area */}
                 <div className="w-10 flex-shrink-0 flex justify-center">
