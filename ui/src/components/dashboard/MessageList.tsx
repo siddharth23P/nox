@@ -17,7 +17,7 @@ interface MessageListProps {
 }
 
 export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
-  const { messages, fetchMessages, loadMoreMessages, isLoading, hasMore, setActiveThread, editMessage, deleteMessage, setReplyTo, highlightedMessageId } = useMessageStore();
+  const { messages, fetchMessages, loadMoreMessages, isLoading, hasMore, setActiveThread, editMessage, deleteMessage, highlightedMessageId } = useMessageStore();
   const { user } = useAuthStore();
   const currentUserId = user?.id;
   
