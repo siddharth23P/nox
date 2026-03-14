@@ -204,6 +204,10 @@ func main() {
 		v1.PATCH("/channels/:id/read", messagingHandler.UpdateLastRead)
 		v1.GET("/channels/:id/reads", messagingHandler.GetChannelReadReceipts)
 
+		// Direct Message Routes (Issue #113)
+		v1.GET("/dm", messagingHandler.ListDMs)
+		v1.POST("/dm", messagingHandler.CreateOrGetDM)
+
 		// Presence Routes
 		v1.POST("/presence/heartbeat", presenceHandler.Heartbeat)
 		v1.GET("/presence/active", presenceHandler.GetActiveUsers)

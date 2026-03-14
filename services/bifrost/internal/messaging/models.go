@@ -90,3 +90,17 @@ type ChannelRead struct {
 type UpdateReadRequest struct {
 	MessageID string `json:"message_id" binding:"required"`
 }
+
+// DM models (Issue #113)
+
+type DMChannel struct {
+	ID        string `json:"id"`
+	ChannelID string `json:"channel_id"`
+	UserID    string `json:"user_id"`
+	Username  string `json:"username"`
+	CreatedAt string `json:"created_at"`
+}
+
+type CreateDMRequest struct {
+	UserID string `json:"user_id" binding:"required"`
+}

@@ -312,3 +312,21 @@ CREATE INDEX IF NOT EXISTS idx_friendships_addressee ON friendships(addressee_id
 -- 20. Organization Settings columns (Issue #30)
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '';
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS logo_url TEXT DEFAULT '';
+
+-- 21. Direct Messages (Issue #113)
+-- DM channels reuse the channels table (with is_dm=true) so messages can
+-- leverage the existing foreign key.  A separate dm_channels join table maps
+-- exactly two users to a backing channel.
+ALTER TABLE channels ADD COLUMN IF NOT EXISTS is_dm BOOLEAN DEFAULT FALSE;
+
+CREATE TABLE IF NOT EXISTS dm_channels (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    channel_id UUID NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+    user1_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user2_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user1_id, user2_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_dm_channels_user1 ON dm_channels(user1_id);
+CREATE INDEX IF NOT EXISTS idx_dm_channels_user2 ON dm_channels(user2_id);

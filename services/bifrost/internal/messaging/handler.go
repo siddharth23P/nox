@@ -527,3 +527,59 @@ func (h *MessagingHandler) ForwardMessage(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, msg)
 }
+
+// ---------- Direct Messages (Issue #113) ----------
+
+func (h *MessagingHandler) ListDMs(c *gin.Context) {
+	_, userID := getAuthInfo(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "X-User-ID required"})
+		return
+	}
+
+	dms, err := h.service.ListDMs(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if dms == nil {
+		dms = []DMChannel{}
+	}
+	c.JSON(http.StatusOK, dms)
+}
+
+func (h *MessagingHandler) CreateOrGetDM(c *gin.Context) {
+	orgID, userID := getAuthInfo(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "X-User-ID required"})
+		return
+	}
+	if orgID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "X-Org-ID required"})
+		return
+	}
+
+	var req CreateDMRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if req.UserID == userID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot create a DM with yourself"})
+		return
+	}
+
+	dm, err := h.service.CreateOrGetDM(c.Request.Context(), orgID, userID, req.UserID)
+	if err != nil {
+		if strings.Contains(err.Error(), "user not found") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, dm)
+}
