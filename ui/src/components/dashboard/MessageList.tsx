@@ -5,6 +5,7 @@ import { useMessageStore } from '../../stores/messageStore';
 import { useAuthStore } from '../../stores/authStore';
 import { MessageCircle, Edit2, SmilePlus, Pin, Bookmark, Quote, Send, Trash2 } from 'lucide-react';
 import { PresenceAvatar } from '../common/PresenceAvatar';
+import { FormattedMessage } from '../common/FormattedMessage';
 import { EditHistoryModal } from './EditHistoryModal';
 import ForwardModal from './ForwardModal';
 import { ReactionBubble } from './ReactionBubble';
@@ -349,19 +350,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                     <Bookmark size={14} className={msg.is_bookmarked ? "fill-blue-400 text-blue-400" : ""} />
                   </button>
 
-                  <button 
-                    onClick={() => {
-                      setReplyTo(msg);
-                      const input = document.querySelector('textarea');
-                      input?.focus();
-                    }}
-                    className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-blue-400 hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
-                    title="Quote"
-                  >
-                    <Quote size={14} />
-                  </button>
-
-                  <button 
+                  <button
                     onClick={() => useMessageStore.getState().togglePin(channelId!, msg.id)}
                     className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-yellow-500 hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
                     title={msg.is_pinned ? "Unpin message" : "Pin to channel"}

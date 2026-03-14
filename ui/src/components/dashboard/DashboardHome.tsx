@@ -69,10 +69,10 @@ export const DashboardHome: React.FC = () => {
         <MessageInput channelId={activeChannelId} />
       </div>
 
-      <PinManager isOpen={isPinManagerOpen} onClose={() => setIsPinManagerOpen(false)} />
-      
-      {/* Slide-out Thread Panel */}
+      {/* Slide-out Thread Panel (inline with main chat) */}
       <ThreadPanel channelId={activeChannelId} />
+
+      <PinManager isOpen={isPinManagerOpen} onClose={() => setIsPinManagerOpen(false)} />
       
     </div>
   );
