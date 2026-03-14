@@ -137,3 +137,20 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_token VARCHAR(64);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires_at TIMESTAMPTZ;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_request_count INT DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_request_window TIMESTAMPTZ;
+
+-- 12. User Profile columns (Issue #26)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name VARCHAR(100) DEFAULT '';
+
+-- 13. User Preferences (Issue #26)
+CREATE TABLE IF NOT EXISTS user_preferences (
+    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    theme VARCHAR(10) DEFAULT 'dark',
+    notification_sound BOOLEAN DEFAULT true,
+    notification_desktop BOOLEAN DEFAULT true,
+    notification_email BOOLEAN DEFAULT false,
+    dnd_enabled BOOLEAN DEFAULT false,
+    dnd_start TIME,
+    dnd_end TIME,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
