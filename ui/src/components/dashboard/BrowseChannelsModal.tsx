@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Hash, Users, Search } from 'lucide-react';
 import { useMessageStore, type BrowsableChannel } from '../../stores/messageStore';
@@ -9,7 +9,7 @@ interface BrowseChannelsModalProps {
 }
 
 const BrowseChannelsModal: React.FC<BrowseChannelsModalProps> = ({ isOpen, onClose }) => {
-  const { browseChannels, joinChannel, leaveChannel, setActiveChannel, fetchJoinedChannels } = useMessageStore();
+  const { browseChannels, joinChannel, leaveChannel, setActiveChannel } = useMessageStore();
   const [channels, setChannels] = useState<BrowsableChannel[]>([]);
   const [filteredChannels, setFilteredChannels] = useState<BrowsableChannel[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -25,7 +25,7 @@ const BrowseChannelsModal: React.FC<BrowseChannelsModalProps> = ({ isOpen, onClo
       setSearchQuery('');
       setError(null);
     };
-  }, [isOpen]);
+  }, [isOpen, loadChannels]);
 
   useEffect(() => {
     if (searchQuery.trim() === '') {
@@ -42,7 +42,7 @@ const BrowseChannelsModal: React.FC<BrowseChannelsModalProps> = ({ isOpen, onClo
     }
   }, [searchQuery, channels]);
 
-  const loadChannels = async () => {
+  const loadChannels = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -54,7 +54,7 @@ const BrowseChannelsModal: React.FC<BrowseChannelsModalProps> = ({ isOpen, onClo
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [browseChannels]);
 
   const handleJoin = async (channel: BrowsableChannel) => {
     setJoiningId(channel.id);
