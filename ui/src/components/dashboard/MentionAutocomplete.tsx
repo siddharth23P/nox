@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { AtSign, Users, Hash } from 'lucide-react';
 import type { MentionUser } from '../../utils/mentions';
 import { SPECIAL_MENTIONS } from '../../utils/mentions';
@@ -70,10 +70,12 @@ export const MentionAutocomplete: React.FC<MentionAutocompleteProps> = ({
   }, [members, query]);
 
   // Build filtered list: special mentions first (if they match), then org members
-  const filteredSpecial = SPECIAL_MENTIONS.filter(
-    (s) => s.username.toLowerCase().startsWith(query.toLowerCase())
-  );
-  const allItems: MentionUser[] = [...filteredSpecial, ...members];
+  const allItems: MentionUser[] = useMemo(() => {
+    const filteredSpecial = SPECIAL_MENTIONS.filter(
+      (s) => s.username.toLowerCase().startsWith(query.toLowerCase())
+    );
+    return [...filteredSpecial, ...members];
+  }, [query, members]);
 
   // Keyboard navigation via window-level capture listener
   const handleKeyDown = useCallback(

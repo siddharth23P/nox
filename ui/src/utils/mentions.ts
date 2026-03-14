@@ -42,7 +42,7 @@ export const MENTION_REGEX = /@\[([^\]]+)\]\(([^)]*)\)/g;
  * Call on the final HTML string so that mention markup is rendered as badges.
  */
 export function renderMentionsInHTML(html: string): string {
-  return html.replace(MENTION_REGEX, (_match, username: string, _userId: string) => {
+  return html.replace(MENTION_REGEX, (_match, username: string) => {
     const isSpecial = username === 'here' || username === 'channel';
     const cls = isSpecial
       ? 'mention-badge mention-special'
