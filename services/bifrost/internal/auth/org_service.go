@@ -24,6 +24,51 @@ func NewOrgService(repo *db.Database) *OrgService {
 	return &OrgService{repo: repo}
 }
 
+// CreateOrganization creates a new organization with the given name/slug/description,
+// adds the creator as owner, and provisions a default #general channel.
+func (s *OrgService) CreateOrganization(ctx context.Context, creatorID, name, slug, description string) (*db.OrgSettings, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, errors.New("organization name is required")
+	}
+	if len(name) > 100 {
+		return nil, errors.New("organization name must be 100 characters or less")
+	}
+
+	slug = strings.TrimSpace(slug)
+	if slug == "" {
+		return nil, errors.New("organization slug is required")
+	}
+	if len(slug) > 100 {
+		return nil, errors.New("slug must be 100 characters or less")
+	}
+
+	if len(description) > 500 {
+		return nil, errors.New("description must be 500 characters or less")
+	}
+
+	taken, err := s.repo.OrgSlugExists(ctx, slug)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check slug: %w", err)
+	}
+	if taken {
+		return nil, errors.New("slug is already taken")
+	}
+
+	orgID, err := s.repo.CreateOrganization(ctx, name, slug, creatorID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create organization: %w", err)
+	}
+
+	if description != "" {
+		if err := s.repo.UpdateOrgSettings(ctx, orgID, name, description); err != nil {
+			return nil, fmt.Errorf("failed to set description: %w", err)
+		}
+	}
+
+	return s.repo.GetOrgSettings(ctx, orgID)
+}
+
 // GetSettings returns the full org settings.
 func (s *OrgService) GetSettings(ctx context.Context, orgID string) (*db.OrgSettings, error) {
 	return s.repo.GetOrgSettings(ctx, orgID)
