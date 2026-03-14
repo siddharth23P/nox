@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Sun, Moon, Monitor, Bell, BellOff, Mail, Volume2 } from 'lucide-react';
-import { useProfileStore } from '../../stores/profileStore';
+import { useProfileStore, type UserPreferences } from '../../stores/profileStore';
 
 const ThemeOption = ({
   icon: Icon,
@@ -71,7 +71,7 @@ export const PreferencesSettings: React.FC = () => {
   };
 
   const handleToggle = (key: string, currentValue: boolean) => {
-    updatePreferences({ [key]: !currentValue } as Partial<typeof preferences>);
+    updatePreferences({ [key]: !currentValue } as Partial<UserPreferences>);
   };
 
   return (
