@@ -181,7 +181,8 @@ export const Sidebar: React.FC = () => {
     navigate('/dashboard');
   };
 
-  const handleNewDM = async (userId: string, _username: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+const handleNewDM = async (userId: string, _username: string) => {
     try {
       const dm = await createOrGetDM(userId);
       handleDMSelect(dm);
