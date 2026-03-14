@@ -32,7 +32,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
   const placeholderSuffix = activeChannel?.name || "general";
   const { sendTyping } = useWebSocket();
   const lastTypingSent = React.useRef<number>(0);
-  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   // Mention autocomplete state
   const [mentionActive, setMentionActive] = useState(false);
