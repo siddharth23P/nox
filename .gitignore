@@ -1,5 +1,8 @@
 .env
 .DS_Store
+# Claude Code
+.claude/
+
 # Local development and OS files
 .vscode/
 .idea/
