@@ -1,8 +1,15 @@
 import { create } from 'zustand';
 import { marked } from 'marked';
+import { renderMentionsInHTML } from '../utils/mentions';
 
 // Configure marked for GFM
 marked.setOptions({ gfm: true, breaks: true });
+
+/** Convert markdown to HTML, then render mention markup as styled spans. */
+function mdToHtml(md: string): string {
+  const html = marked.parse(md, { async: false }) as string;
+  return renderMentionsInHTML(html);
+}
 
 export interface Message {
   id: string;
@@ -360,7 +367,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
         },
         body: JSON.stringify({
           content_md: contentMd,
-          content_html: marked.parse(contentMd, { async: false }) as string,
+          content_html: mdToHtml(contentMd),
           parent_id: parentId,
           reply_to: replyToId
         }),
@@ -443,7 +450,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
         },
         body: JSON.stringify({
           content_md: contentMd,
-          content_html: marked.parse(contentMd, { async: false }) as string,
+          content_html: mdToHtml(contentMd),
           parent_id: messageId,
         }),
       });
@@ -482,7 +489,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
         },
         body: JSON.stringify({
           content_md: contentMd,
-          content_html: marked.parse(contentMd, { async: false }) as string,
+          content_html: mdToHtml(contentMd),
         }),
       });
 

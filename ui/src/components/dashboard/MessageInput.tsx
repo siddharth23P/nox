@@ -1,10 +1,13 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Send, Smile, AtSign, Paperclip, Code } from 'lucide-react';
 import { useMessageStore } from '../../stores/messageStore';
 import { TypingIndicator } from './TypingIndicator';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { ReplyPreview } from './ReplyPreview';
+import { MentionAutocomplete } from './MentionAutocomplete';
+import { encodeMention } from '../../utils/mentions';
+import type { MentionUser } from '../../utils/mentions';
 
 const CODE_LANGUAGES = [
   'javascript', 'typescript', 'python', 'rust', 'go', 'java',
@@ -29,6 +32,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
   const placeholderSuffix = activeChannel?.name || "general";
   const { sendTyping } = useWebSocket();
   const lastTypingSent = React.useRef<number>(0);
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+
+  // Mention autocomplete state
+  const [mentionActive, setMentionActive] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionStartPos, setMentionStartPos] = useState<number>(0);
 
   // Close language picker on outside click
   useEffect(() => {
@@ -76,9 +85,95 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
     }
   };
 
+  /**
+   * Detect @ trigger in textarea input and activate mention autocomplete.
+   */
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    const cursorPos = e.target.selectionStart ?? value.length;
+    setContent(value);
+    handleTyping();
+
+    // Look backwards from cursor to find an @ trigger
+    const textBeforeCursor = value.slice(0, cursorPos);
+    const atIdx = textBeforeCursor.lastIndexOf('@');
+
+    if (atIdx >= 0) {
+      const charBefore = atIdx > 0 ? textBeforeCursor[atIdx - 1] : ' ';
+      const queryText = textBeforeCursor.slice(atIdx + 1);
+      if ((/\s/.test(charBefore) || atIdx === 0) && !queryText.includes(' ') && queryText.length <= 30) {
+        setMentionActive(true);
+        setMentionQuery(queryText);
+        setMentionStartPos(atIdx);
+        return;
+      }
+    }
+    if (mentionActive) {
+      setMentionActive(false);
+      setMentionQuery('');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mentionActive]);
+
+  /**
+   * When a mention is selected, replace the @query with the encoded mention.
+   */
+  const handleMentionSelect = useCallback((user: MentionUser) => {
+    const encoded = encodeMention(user);
+    const before = content.slice(0, mentionStartPos);
+    const after = content.slice(mentionStartPos + 1 + mentionQuery.length);
+    const newContent = before + encoded + ' ' + after;
+    setContent(newContent);
+    setMentionActive(false);
+    setMentionQuery('');
+
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        const newPos = before.length + encoded.length + 1;
+        textareaRef.current.setSelectionRange(newPos, newPos);
+      }
+    });
+  }, [content, mentionStartPos, mentionQuery]);
+
+  const handleMentionClose = useCallback(() => {
+    setMentionActive(false);
+    setMentionQuery('');
+  }, []);
+
+  /**
+   * Insert @ character at cursor and activate mention mode (toolbar button).
+   */
+  const handleAtButtonClick = useCallback(() => {
+    if (!textareaRef.current) return;
+    const ta = textareaRef.current;
+    const pos = ta.selectionStart ?? content.length;
+    const before = content.slice(0, pos);
+    const after = content.slice(pos);
+    const needsSpace = before.length > 0 && !/\s$/.test(before);
+    const insert = (needsSpace ? ' ' : '') + '@';
+    const newContent = before + insert + after;
+    setContent(newContent);
+
+    const newPos = pos + insert.length;
+    setMentionActive(true);
+    setMentionQuery('');
+    setMentionStartPos(newPos - 1);
+
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.setSelectionRange(newPos, newPos);
+    });
+  }, [content]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!content.trim() || !channelId) return;
+
+    if (mentionActive) {
+      setMentionActive(false);
+      setMentionQuery('');
+    }
 
     try {
       await sendMessage(channelId, content, undefined, replyTo?.id);
@@ -91,6 +186,10 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Let the mention autocomplete handle navigation keys via its window listener
+    if (mentionActive && ['ArrowDown', 'ArrowUp', 'Enter', 'Tab', 'Escape'].includes(e.key)) {
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e as unknown as React.FormEvent);
@@ -122,13 +221,18 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
           onSubmit={handleSubmit}
           className={`relative rounded-2xl bg-[#0d0d0d] border transition-colors duration-200 flex flex-col ${isFocused ? 'border-blue-500/30' : 'border-white/5 group-hover:border-white/10'}`}
         >
+          {/* Mention Autocomplete Dropdown */}
+          <MentionAutocomplete
+            query={mentionQuery}
+            onSelect={handleMentionSelect}
+            onClose={handleMentionClose}
+            visible={mentionActive}
+          />
+
           <textarea
             ref={textareaRef}
             value={content}
-            onChange={(e) => {
-              setContent(e.target.value);
-              handleTyping();
-            }}
+            onChange={handleChange}
             onKeyDown={handleKeyDown}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
@@ -143,7 +247,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
               <button type="button" title="Attach file" className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
                 <Paperclip size={18} />
               </button>
-              <button type="button" title="Mention user" className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+              <button
+                type="button"
+                title="Mention user"
+                onClick={handleAtButtonClick}
+                className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+              >
                 <AtSign size={18} />
               </button>
               <button type="button" title="Add emoji" className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-colors">

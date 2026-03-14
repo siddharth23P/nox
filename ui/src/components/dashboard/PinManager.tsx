@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import DOMPurify from 'dompurify';
 import { X, Pin, Bookmark } from 'lucide-react';
 import { useMessageStore } from '../../stores/messageStore';
+import { renderMentionsInHTML } from '../../utils/mentions';
 
 interface PinManagerProps {
   isOpen: boolean;
@@ -86,7 +87,7 @@ export const PinManager: React.FC<PinManagerProps> = ({ isOpen, onClose }) => {
                         {new Date(msg.created_at).toLocaleDateString()}
                       </span>
                     </div>
-                    <div className="text-gray-300 line-clamp-3 leading-relaxed" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(msg.content_html || msg.content_md) }} />
+                    <div className="text-gray-300 line-clamp-3 leading-relaxed" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMentionsInHTML(msg.content_html || msg.content_md), { ADD_ATTR: ['data-mention'] }) }} />
                   </div>
                 ))}
               </div>

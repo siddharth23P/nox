@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import CodeBlock from './CodeBlock';
+import { renderMentionsInHTML } from '../../utils/mentions';
 
 interface FormattedMessageProps {
   content: string;
@@ -36,7 +37,8 @@ export const FormattedMessage: React.FC<FormattedMessageProps> = ({ content, cla
         if (!part.trim()) return null;
 
         const rawHtml = marked.parse(part, { async: false, gfm: true, breaks: true }) as string;
-        const safeHtml = DOMPurify.sanitize(rawHtml);
+        const withMentions = renderMentionsInHTML(rawHtml);
+        const safeHtml = DOMPurify.sanitize(withMentions, { ADD_ATTR: ['data-mention'] });
 
         return (
           <MarkdownSpan key={index} html={safeHtml} />
