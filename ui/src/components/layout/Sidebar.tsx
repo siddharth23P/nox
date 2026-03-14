@@ -25,7 +25,6 @@ import {
 } from 'lucide-react';
 import CreateChannelModal from '../dashboard/CreateChannelModal';
 import BrowseChannelsModal from '../dashboard/BrowseChannelsModal';
-import CreateOrgModal from '../dashboard/CreateOrgModal';
 
 const NavItem = ({ icon: Icon, text, active, onClick }: { icon: React.ElementType, text: string, active?: boolean, onClick?: () => void }) => (
   <motion.button
@@ -157,7 +156,6 @@ export const Sidebar: React.FC = () => {
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [showNewDM, setShowNewDM] = useState(false);
   const [showBrowseChannels, setShowBrowseChannels] = useState(false);
-  const [showCreateOrg, setShowCreateOrg] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -271,17 +269,6 @@ const handleNewDM = async (userId: string, _username: string) => {
                   )}
                 </motion.button>
               ))}
-              <div className="border-t border-white/5">
-                <motion.button
-                  whileHover={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
-                  onClick={() => { setShowOrgSwitcher(false); setShowCreateOrg(true); }}
-                  className="w-full px-3 py-2 flex items-center gap-2 text-left text-sm text-blue-400 hover:text-blue-300 transition-colors"
-                  data-testid="create-org-btn"
-                >
-                  <Plus size={16} />
-                  <span className="font-medium">Create Organization</span>
-                </motion.button>
-              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -448,7 +435,6 @@ const handleNewDM = async (userId: string, _username: string) => {
       <CreateChannelModal isOpen={showCreateChannel} onClose={() => setShowCreateChannel(false)} />
       <NewDMModal isOpen={showNewDM} onClose={() => setShowNewDM(false)} onSelect={handleNewDM} />
       <BrowseChannelsModal isOpen={showBrowseChannels} onClose={() => setShowBrowseChannels(false)} />
-      <CreateOrgModal isOpen={showCreateOrg} onClose={() => setShowCreateOrg(false)} />
     </div>
   );
 };
