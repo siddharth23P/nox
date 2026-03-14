@@ -138,7 +138,52 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires_at TIMESTAMPTZ;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_request_count INT DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_request_window TIMESTAMPTZ;
 
--- 12. Roles (Granular RBAC - Issue #64)
+-- 12. User Profile columns (Issue #26)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name VARCHAR(100) DEFAULT '';
+
+-- 13. User Preferences (Issue #26)
+CREATE TABLE IF NOT EXISTS user_preferences (
+    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    theme VARCHAR(10) DEFAULT 'dark',
+    notification_sound BOOLEAN DEFAULT true,
+    notification_desktop BOOLEAN DEFAULT true,
+    notification_email BOOLEAN DEFAULT false,
+    dnd_enabled BOOLEAN DEFAULT false,
+    dnd_start TIME,
+    dnd_end TIME,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 14. Organization Invitations (Issue #62)
+CREATE TABLE IF NOT EXISTS org_invitations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    inviter_id UUID NOT NULL REFERENCES users(id),
+    email VARCHAR(255),
+    role VARCHAR(20) DEFAULT 'member',
+    token VARCHAR(64) NOT NULL UNIQUE,
+    max_uses INT,
+    use_count INT DEFAULT 0,
+    expires_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 15. Organization Invite Links (Issue #62)
+CREATE TABLE IF NOT EXISTS org_invite_links (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    creator_id UUID NOT NULL REFERENCES users(id),
+    code VARCHAR(20) NOT NULL UNIQUE,
+    role VARCHAR(20) DEFAULT 'member',
+    max_uses INT,
+    use_count INT DEFAULT 0,
+    expires_at TIMESTAMPTZ,
+    active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 16. Roles (Granular RBAC - Issue #64)
 CREATE TABLE IF NOT EXISTS roles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -152,7 +197,7 @@ CREATE TABLE IF NOT EXISTS roles (
     UNIQUE(org_id, name)
 );
 
--- 13. User Roles (many-to-many)
+-- 17. User Roles (many-to-many)
 CREATE TABLE IF NOT EXISTS user_roles (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role_id UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
@@ -161,7 +206,7 @@ CREATE TABLE IF NOT EXISTS user_roles (
     PRIMARY KEY (user_id, role_id, org_id)
 );
 
--- 14. Channel Role Overrides (per-channel permission tweaks)
+-- 18. Channel Role Overrides (per-channel permission tweaks)
 CREATE TABLE IF NOT EXISTS channel_role_overrides (
     channel_id UUID NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
     role_id UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,

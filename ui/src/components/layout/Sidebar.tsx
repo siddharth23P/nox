@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../stores/authStore';
 import { useMessageStore, type Channel } from '../../stores/messageStore';
@@ -34,6 +35,8 @@ export const Sidebar: React.FC = () => {
   const { activeChannel, setActiveChannel, channels, fetchChannels } = useMessageStore();
   const { isStealth, setStealth } = usePresenceStore();
   const [showOrgSwitcher, setShowOrgSwitcher] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     fetchChannels();
@@ -179,7 +182,12 @@ export const Sidebar: React.FC = () => {
           </button>
         </div>
 
-        <NavItem icon={Settings} text="Settings" />
+        <NavItem
+          icon={Settings}
+          text="Settings"
+          active={location.pathname.includes('/settings')}
+          onClick={() => navigate('/dashboard/settings/profile')}
+        />
         <motion.button
           whileHover={{ x: 4, backgroundColor: 'rgba(239, 68, 68, 0.1)' }}
           whileTap={{ scale: 0.98 }}
