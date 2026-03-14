@@ -169,7 +169,7 @@ CREATE TABLE IF NOT EXISTS org_invitations (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 13. Organization Invite Links (Issue #62)
+-- 15. Organization Invite Links (Issue #62)
 CREATE TABLE IF NOT EXISTS org_invite_links (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -183,7 +183,7 @@ CREATE TABLE IF NOT EXISTS org_invite_links (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 14. Roles (Granular RBAC - Issue #64)
+-- 16. Roles (Granular RBAC - Issue #64)
 CREATE TABLE IF NOT EXISTS roles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -197,7 +197,7 @@ CREATE TABLE IF NOT EXISTS roles (
     UNIQUE(org_id, name)
 );
 
--- 15. User Roles (many-to-many)
+-- 17. User Roles (many-to-many)
 CREATE TABLE IF NOT EXISTS user_roles (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role_id UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
@@ -206,7 +206,7 @@ CREATE TABLE IF NOT EXISTS user_roles (
     PRIMARY KEY (user_id, role_id, org_id)
 );
 
--- 16. Channel Role Overrides (per-channel permission tweaks)
+-- 18. Channel Role Overrides (per-channel permission tweaks)
 CREATE TABLE IF NOT EXISTS channel_role_overrides (
     channel_id UUID NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
     role_id UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
