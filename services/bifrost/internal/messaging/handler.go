@@ -3,6 +3,7 @@ package messaging
 import (
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -27,7 +28,7 @@ func getAuthInfo(c *gin.Context) (string, string) {
 }
 
 func (h *MessagingHandler) CreateChannel(c *gin.Context) {
-	orgID, _ := getAuthInfo(c)
+	orgID, userID := getAuthInfo(c)
 	if orgID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "X-Org-ID required"})
 		return
@@ -39,8 +40,12 @@ func (h *MessagingHandler) CreateChannel(c *gin.Context) {
 		return
 	}
 
-	ch, err := h.service.CreateChannel(c.Request.Context(), orgID, req.Name, req.Description, req.IsPrivate)
+	ch, err := h.service.CreateChannel(c.Request.Context(), orgID, req.Name, req.Description, req.Topic, req.IsPrivate, userID)
 	if err != nil {
+		if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "idx_channels_org_name") {
+			c.JSON(http.StatusConflict, gin.H{"error": "A channel with this name already exists in this organization"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -55,7 +60,8 @@ func (h *MessagingHandler) GetChannels(c *gin.Context) {
 		return
 	}
 
-	channels, err := h.service.GetChannels(c.Request.Context(), orgID)
+	includeArchived := c.Query("include_archived") == "true"
+	channels, err := h.service.GetChannels(c.Request.Context(), orgID, includeArchived)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -65,6 +71,104 @@ func (h *MessagingHandler) GetChannels(c *gin.Context) {
 		channels = []Channel{}
 	}
 	c.JSON(http.StatusOK, channels)
+}
+
+func (h *MessagingHandler) GetChannel(c *gin.Context) {
+	channelID := c.Param("id")
+	if channelID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Channel ID required"})
+		return
+	}
+
+	ch, err := h.service.GetChannel(c.Request.Context(), channelID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Channel not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, ch)
+}
+
+func (h *MessagingHandler) UpdateChannel(c *gin.Context) {
+	channelID := c.Param("id")
+	if channelID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Channel ID required"})
+		return
+	}
+
+	var req UpdateChannelRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ch, err := h.service.UpdateChannel(c.Request.Context(), channelID, req.Name, req.Description, req.Topic)
+	if err != nil {
+		if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "idx_channels_org_name") {
+			c.JSON(http.StatusConflict, gin.H{"error": "A channel with this name already exists in this organization"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, ch)
+}
+
+func (h *MessagingHandler) ArchiveChannel(c *gin.Context) {
+	channelID := c.Param("id")
+	if channelID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Channel ID required"})
+		return
+	}
+
+	ch, err := h.service.ArchiveChannel(c.Request.Context(), channelID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, ch)
+}
+
+func (h *MessagingHandler) UnarchiveChannel(c *gin.Context) {
+	channelID := c.Param("id")
+	if channelID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Channel ID required"})
+		return
+	}
+
+	ch, err := h.service.UnarchiveChannel(c.Request.Context(), channelID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, ch)
+}
+
+func (h *MessagingHandler) DeleteChannel(c *gin.Context) {
+	channelID := c.Param("id")
+	if channelID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Channel ID required"})
+		return
+	}
+
+	// Check role — only admin/owner can hard-delete
+	role, _ := c.Get("role")
+	roleStr, _ := role.(string)
+	if roleStr != "admin" && roleStr != "owner" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Only org admins can delete channels"})
+		return
+	}
+
+	err := h.service.DeleteChannel(c.Request.Context(), channelID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "deleted", "channel_id": channelID})
 }
 
 func (h *MessagingHandler) CreateMessage(c *gin.Context) {

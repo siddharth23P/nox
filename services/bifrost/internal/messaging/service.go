@@ -22,24 +22,29 @@ func NewMessagingService(database *db.Database, reactions *ReactionService, hub 
 	return &MessagingService{db: database, Reactions: reactions, Hub: hub}
 }
 
-func (s *MessagingService) CreateChannel(ctx context.Context, orgID, name, description string, isPrivate bool) (*Channel, error) {
+func (s *MessagingService) CreateChannel(ctx context.Context, orgID, name, description, topic string, isPrivate bool, createdBy string) (*Channel, error) {
 	query := `
-		INSERT INTO channels (org_id, name, description, is_private)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id, org_id, name, description, is_private, created_at, updated_at
+		INSERT INTO channels (org_id, name, description, topic, is_private, created_by)
+		VALUES ($1, $2, $3, NULLIF($4, ''), $5, NULLIF($6, '')::UUID)
+		RETURNING id, org_id, name, description, topic, is_private, created_by, archived_at, created_at, updated_at
 	`
-	row := s.db.Pool.QueryRow(ctx, query, orgID, name, description, isPrivate)
+	row := s.db.Pool.QueryRow(ctx, query, orgID, name, description, topic, isPrivate, createdBy)
 
 	var ch Channel
-	err := row.Scan(&ch.ID, &ch.OrgID, &ch.Name, &ch.Description, &ch.IsPrivate, &ch.CreatedAt, &ch.UpdatedAt)
+	err := row.Scan(&ch.ID, &ch.OrgID, &ch.Name, &ch.Description, &ch.Topic, &ch.IsPrivate, &ch.CreatedBy, &ch.ArchivedAt, &ch.CreatedAt, &ch.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
 	return &ch, nil
 }
 
-func (s *MessagingService) GetChannels(ctx context.Context, orgID string) ([]Channel, error) {
-	query := `SELECT id, org_id, name, description, is_private, created_at, updated_at FROM channels WHERE org_id = $1 ORDER BY name ASC`
+func (s *MessagingService) GetChannels(ctx context.Context, orgID string, includeArchived bool) ([]Channel, error) {
+	var query string
+	if includeArchived {
+		query = `SELECT id, org_id, name, description, topic, is_private, created_by, archived_at, created_at, updated_at FROM channels WHERE org_id = $1 ORDER BY name ASC`
+	} else {
+		query = `SELECT id, org_id, name, description, topic, is_private, created_by, archived_at, created_at, updated_at FROM channels WHERE org_id = $1 AND archived_at IS NULL ORDER BY name ASC`
+	}
 	rows, err := s.db.Pool.Query(ctx, query, orgID)
 	if err != nil {
 		return nil, err
@@ -49,12 +54,107 @@ func (s *MessagingService) GetChannels(ctx context.Context, orgID string) ([]Cha
 	var channels []Channel
 	for rows.Next() {
 		var ch Channel
-		if err := rows.Scan(&ch.ID, &ch.OrgID, &ch.Name, &ch.Description, &ch.IsPrivate, &ch.CreatedAt, &ch.UpdatedAt); err != nil {
+		if err := rows.Scan(&ch.ID, &ch.OrgID, &ch.Name, &ch.Description, &ch.Topic, &ch.IsPrivate, &ch.CreatedBy, &ch.ArchivedAt, &ch.CreatedAt, &ch.UpdatedAt); err != nil {
 			return nil, err
 		}
 		channels = append(channels, ch)
 	}
 	return channels, nil
+}
+
+func (s *MessagingService) GetChannel(ctx context.Context, channelID string) (*Channel, error) {
+	query := `SELECT id, org_id, name, description, topic, is_private, created_by, archived_at, created_at, updated_at FROM channels WHERE id = $1`
+	row := s.db.Pool.QueryRow(ctx, query, channelID)
+
+	var ch Channel
+	err := row.Scan(&ch.ID, &ch.OrgID, &ch.Name, &ch.Description, &ch.Topic, &ch.IsPrivate, &ch.CreatedBy, &ch.ArchivedAt, &ch.CreatedAt, &ch.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &ch, nil
+}
+
+func (s *MessagingService) UpdateChannel(ctx context.Context, channelID string, name, description, topic *string) (*Channel, error) {
+	// Build dynamic update
+	setClauses := []string{"updated_at = NOW()"}
+	args := []interface{}{}
+	argIdx := 1
+
+	if name != nil {
+		setClauses = append(setClauses, fmt.Sprintf("name = $%d", argIdx))
+		args = append(args, *name)
+		argIdx++
+	}
+	if description != nil {
+		setClauses = append(setClauses, fmt.Sprintf("description = $%d", argIdx))
+		args = append(args, *description)
+		argIdx++
+	}
+	if topic != nil {
+		setClauses = append(setClauses, fmt.Sprintf("topic = $%d", argIdx))
+		args = append(args, *topic)
+		argIdx++
+	}
+
+	if len(args) == 0 {
+		return s.GetChannel(ctx, channelID)
+	}
+
+	query := fmt.Sprintf(`UPDATE channels SET %s WHERE id = $%d RETURNING id, org_id, name, description, topic, is_private, created_by, archived_at, created_at, updated_at`,
+		joinStrings(setClauses, ", "), argIdx)
+	args = append(args, channelID)
+
+	row := s.db.Pool.QueryRow(ctx, query, args...)
+
+	var ch Channel
+	err := row.Scan(&ch.ID, &ch.OrgID, &ch.Name, &ch.Description, &ch.Topic, &ch.IsPrivate, &ch.CreatedBy, &ch.ArchivedAt, &ch.CreatedAt, &ch.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &ch, nil
+}
+
+func (s *MessagingService) ArchiveChannel(ctx context.Context, channelID string) (*Channel, error) {
+	query := `UPDATE channels SET archived_at = NOW(), updated_at = NOW() WHERE id = $1 AND archived_at IS NULL
+		RETURNING id, org_id, name, description, topic, is_private, created_by, archived_at, created_at, updated_at`
+	row := s.db.Pool.QueryRow(ctx, query, channelID)
+
+	var ch Channel
+	err := row.Scan(&ch.ID, &ch.OrgID, &ch.Name, &ch.Description, &ch.Topic, &ch.IsPrivate, &ch.CreatedBy, &ch.ArchivedAt, &ch.CreatedAt, &ch.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &ch, nil
+}
+
+func (s *MessagingService) UnarchiveChannel(ctx context.Context, channelID string) (*Channel, error) {
+	query := `UPDATE channels SET archived_at = NULL, updated_at = NOW() WHERE id = $1 AND archived_at IS NOT NULL
+		RETURNING id, org_id, name, description, topic, is_private, created_by, archived_at, created_at, updated_at`
+	row := s.db.Pool.QueryRow(ctx, query, channelID)
+
+	var ch Channel
+	err := row.Scan(&ch.ID, &ch.OrgID, &ch.Name, &ch.Description, &ch.Topic, &ch.IsPrivate, &ch.CreatedBy, &ch.ArchivedAt, &ch.CreatedAt, &ch.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &ch, nil
+}
+
+func (s *MessagingService) DeleteChannel(ctx context.Context, channelID string) error {
+	_, err := s.db.Pool.Exec(ctx, `DELETE FROM channels WHERE id = $1`, channelID)
+	return err
+}
+
+// joinStrings joins string slices with a separator (avoids importing strings package).
+func joinStrings(ss []string, sep string) string {
+	result := ""
+	for i, s := range ss {
+		if i > 0 {
+			result += sep
+		}
+		result += s
+	}
+	return result
 }
 
 func (s *MessagingService) CreateMessage(ctx context.Context, channelID, userID, contentMD, contentHTML string, parentID, replyTo, forwardSourceID, forwardSourceUsername *string) (*Message, error) {
