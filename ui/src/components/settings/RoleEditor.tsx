@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, Shield } from 'lucide-react';
-import { useRBACStore, Role, PermissionCategory } from '../../stores/rbacStore';
+import { useRBACStore } from '../../stores/rbacStore';
+import type { Role, PermissionCategory } from '../../stores/rbacStore';
 import { useAuthStore } from '../../stores/authStore';
 
 interface RoleEditorProps {

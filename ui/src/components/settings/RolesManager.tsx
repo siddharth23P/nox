@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Plus, Trash2, Edit3, ChevronRight } from 'lucide-react';
-import { useRBACStore, Role } from '../../stores/rbacStore';
+import { useRBACStore } from '../../stores/rbacStore';
+import type { Role } from '../../stores/rbacStore';
 import { useAuthStore } from '../../stores/authStore';
 import { RoleEditor } from './RoleEditor';
 
