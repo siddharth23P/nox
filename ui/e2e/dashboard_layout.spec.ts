@@ -29,7 +29,7 @@ test.describe('Dashboard Layout & Sidebar', () => {
     // Verify Sidebar contents
     const sidebar = page.locator('.w-64');
     await expect(sidebar).toBeVisible();
-    await expect(sidebar).toContainText('Nexus Inc');
+    await expect(sidebar).toContainText('Nox Workspace');
     await expect(sidebar).toContainText('Channels');
     await expect(sidebar).toContainText('Direct Messages');
     await expect(sidebar).toContainText('general');

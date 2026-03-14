@@ -21,16 +21,29 @@ import (
 
 type AuthService struct {
 	pb.UnimplementedAuthServiceServer
-	jwtSecret    []byte
-	repo         *db.Database
-	googleConfig *oauth2.Config
-	githubConfig *oauth2.Config
+	jwtSecret          []byte
+	repo               *db.Database
+	googleConfig       *oauth2.Config
+	githubConfig       *oauth2.Config
+	orchestratorClient *OrchestratorClient
 }
 
 func NewAuthService(secret string, repo *db.Database) *AuthService {
+	// Try to connect to Orchestrator (optional — degrades gracefully)
+	orchestratorAddr := os.Getenv("ORCHESTRATOR_ADDR")
+	if orchestratorAddr == "" {
+		orchestratorAddr = "localhost:50052"
+	}
+	orchClient, err := NewOrchestratorClient(orchestratorAddr)
+	if err != nil {
+		fmt.Printf("[WARN] Could not connect to Orchestrator at %s: %v\n", orchestratorAddr, err)
+		orchClient = nil
+	}
+
 	return &AuthService{
-		jwtSecret: []byte(secret),
-		repo:      repo,
+		jwtSecret:          []byte(secret),
+		repo:               repo,
+		orchestratorClient: orchClient,
 		googleConfig: &oauth2.Config{
 			ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
 			ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
@@ -275,6 +288,62 @@ func (s *AuthService) provisionOAuthUser(ctx context.Context, email, name string
 		Email:    email,
 		FullName: name,
 		Role:     role,
+	}, nil
+}
+
+func (s *AuthService) VerifyZKProof(ctx context.Context, userID, orgID, proof string) (bool, error) {
+	if s.orchestratorClient == nil {
+		return false, errors.New("orchestrator not available")
+	}
+	return s.orchestratorClient.VerifyZKIdentity(ctx, userID, orgID, proof)
+}
+
+type OrgResponse struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Slug string `json:"slug"`
+	Role string `json:"role"`
+}
+
+func (s *AuthService) ListOrganizations(ctx context.Context, userID string) ([]OrgResponse, error) {
+	memberships, err := s.repo.ListUserOrganizations(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	orgs := make([]OrgResponse, len(memberships))
+	for i, m := range memberships {
+		orgs[i] = OrgResponse{
+			ID:   m.OrgID,
+			Name: m.OrgName,
+			Slug: m.OrgSlug,
+			Role: m.Role,
+		}
+	}
+	return orgs, nil
+}
+
+type SwitchOrgResponse struct {
+	Token  string `json:"token"`
+	OrgID  string `json:"org_id"`
+	Role   string `json:"role"`
+}
+
+func (s *AuthService) SwitchOrganization(ctx context.Context, userID, orgID string) (*SwitchOrgResponse, error) {
+	role, err := s.repo.GetUserOrgRole(ctx, userID, orgID)
+	if err != nil {
+		return nil, errors.New("you are not a member of this organization")
+	}
+
+	token, err := s.generateToken(userID, orgID, role)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SwitchOrgResponse{
+		Token: token,
+		OrgID: orgID,
+		Role:  role,
 	}, nil
 }
 

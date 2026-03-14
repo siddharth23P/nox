@@ -96,6 +96,64 @@ func (h *AuthHandler) GithubCallback(c *gin.Context) {
 	c.Redirect(http.StatusTemporaryRedirect, target)
 }
 
+func (h *AuthHandler) ListOrganizations(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	orgs, err := h.service.ListOrganizations(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"organizations": orgs})
+}
+
+func (h *AuthHandler) SwitchOrganization(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	orgID := c.Param("orgId")
+	if orgID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "org_id required"})
+		return
+	}
+
+	resp, err := h.service.SwitchOrganization(c.Request.Context(), userID, orgID)
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+func (h *AuthHandler) VerifyZKProof(c *gin.Context) {
+	var req struct {
+		UserID  string `json:"user_id" binding:"required"`
+		OrgID   string `json:"org_id" binding:"required"`
+		Proof   string `json:"proof" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	valid, err := h.service.VerifyZKProof(c.Request.Context(), req.UserID, req.OrgID, req.Proof)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"valid": valid, "user_id": req.UserID, "org_id": req.OrgID})
+}
+
 func (h *AuthHandler) VerifyEmail(c *gin.Context) {
 	token := c.Query("token")
 	if token == "" {

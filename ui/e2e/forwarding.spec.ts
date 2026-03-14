@@ -31,7 +31,7 @@ test.describe('Message Forwarding (Chain Attribution)', () => {
     await page.waitForFunction(() => (window as unknown as { WS_CONNECTED: boolean }).WS_CONNECTED === true, { timeout: 20000 });
 
     // 1. Verify dashboard basic elements
-    await expect(page.getByText('Nexus Inc')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Nox Workspace')).toBeVisible({ timeout: 15000 });
     // Use first() to avoid ambiguity if multiple "general" texts exist
     await expect(page.getByText('general').first()).toBeVisible({ timeout: 15000 });
 

@@ -85,6 +85,56 @@ func (db *Database) CreateUserAndOrg(ctx context.Context, email, username, passw
 	return userID, orgID, nil
 }
 
+type OrgMembership struct {
+	OrgID   string
+	OrgName string
+	OrgSlug string
+	Role    string
+}
+
+func (db *Database) ListUserOrganizations(ctx context.Context, userID string) ([]OrgMembership, error) {
+	rows, err := db.Pool.Query(ctx,
+		`SELECT o.id, o.name, o.slug, om.role
+		 FROM organization_memberships om
+		 JOIN organizations o ON o.id = om.org_id
+		 WHERE om.user_id = $1
+		 ORDER BY o.name`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orgs []OrgMembership
+	for rows.Next() {
+		var m OrgMembership
+		if err := rows.Scan(&m.OrgID, &m.OrgName, &m.OrgSlug, &m.Role); err != nil {
+			return nil, err
+		}
+		orgs = append(orgs, m)
+	}
+	return orgs, nil
+}
+
+func (db *Database) GetUserOrgRole(ctx context.Context, userID, orgID string) (string, error) {
+	var role string
+	err := db.Pool.QueryRow(ctx,
+		"SELECT role FROM organization_memberships WHERE user_id = $1 AND org_id = $2",
+		userID, orgID).Scan(&role)
+	if err != nil {
+		return "", err
+	}
+	return role, nil
+}
+
+func (db *Database) SetRLSContext(ctx context.Context, orgID, userID string) error {
+	_, err := db.Pool.Exec(ctx, "SELECT set_config('app.current_org_id', $1, true)", orgID)
+	if err != nil {
+		return err
+	}
+	_, err = db.Pool.Exec(ctx, "SELECT set_config('app.current_user_id', $1, true)", userID)
+	return err
+}
+
 func (db *Database) GetUserByEmail(ctx context.Context, email string) (*User, error) {
 	var user User
 	err := db.Pool.QueryRow(ctx, 
