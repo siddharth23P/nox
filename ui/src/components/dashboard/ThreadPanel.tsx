@@ -47,10 +47,11 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
           exit={{ width: 0, opacity: 0 }}
           transition={{ type: "spring", bounce: 0, duration: 0.3 }}
           className="h-full border-l border-white/5 bg-[#030712] flex flex-col flex-shrink-0 relative overflow-hidden z-20 shadow-[-10px_0_30px_rgba(0,0,0,0.5)]"
+          style={{ minWidth: 0 }}
           data-testid="thread-panel"
         >
           {/* Header */}
-          <div className="h-14 border-b border-white/5 flex items-center justify-between px-4 shrink-0 bg-white/[0.01] backdrop-blur-md w-[450px]">
+          <div className="h-14 border-b border-white/5 flex items-center justify-between px-4 shrink-0 bg-white/[0.01] backdrop-blur-md w-full">
             <h3 className="text-white font-semibold flex items-center gap-2">
               <MessageCircle size={18} className="text-blue-400" />
               Thread
@@ -67,7 +68,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto w-[450px] flex flex-col custom-scrollbar">
+          <div className="flex-1 overflow-y-auto w-full flex flex-col custom-scrollbar">
             {/* Parent Message View */}
             {parentMessage && (
               <div className="p-4 border-b border-white/5 bg-white/[0.02] glass-effect">
@@ -144,7 +145,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
           </div>
 
           {/* Simple Reply Input below the list */}
-          <div className="p-4 w-[450px] border-t border-white/5 shrink-0 bg-[#030712]">
+          <div className="p-4 w-full border-t border-white/5 shrink-0 bg-[#030712]">
              <div className="bg-[#1a1a1a]/80 backdrop-blur border border-white/10 rounded-xl focus-within:border-blue-500/30 transition-all p-3 flex flex-col gap-2 shadow-2xl group relative">
                 <div className={`absolute -inset-0.5 bg-blue-500/10 rounded-xl blur transition-opacity opacity-0 group-focus-within:opacity-100 pointer-events-none`} />
                 <textarea

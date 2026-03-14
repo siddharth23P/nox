@@ -16,7 +16,7 @@ interface MessageListProps {
 }
 
 export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
-  const { messages, fetchMessages, loadMoreMessages, isLoading, hasMore, setActiveThread, editMessage, deleteMessage, setReplyTo, highlightedMessageId } = useMessageStore();
+  const { messages, fetchMessages, loadMoreMessages, isLoading, hasMore, setActiveThread, editMessage, deleteMessage, highlightedMessageId } = useMessageStore();
   const { user } = useAuthStore();
   const currentUserId = user?.id;
   
@@ -348,19 +348,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                     <Bookmark size={14} className={msg.is_bookmarked ? "fill-blue-400 text-blue-400" : ""} />
                   </button>
 
-                  <button 
-                    onClick={() => {
-                      setReplyTo(msg);
-                      const input = document.querySelector('textarea');
-                      input?.focus();
-                    }}
-                    className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-blue-400 hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
-                    title="Quote"
-                  >
-                    <Quote size={14} />
-                  </button>
-
-                  <button 
+                  <button
                     onClick={() => useMessageStore.getState().togglePin(channelId!, msg.id)}
                     className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-yellow-500 hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
                     title={msg.is_pinned ? "Unpin message" : "Pin to channel"}
