@@ -286,3 +286,7 @@ CREATE TRIGGER trg_seed_default_roles
     AFTER INSERT ON organizations
     FOR EACH ROW
     EXECUTE FUNCTION seed_default_roles();
+
+-- 19. Organization Settings columns (Issue #30)
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '';
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS logo_url TEXT DEFAULT '';

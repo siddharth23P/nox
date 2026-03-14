@@ -13,7 +13,9 @@ import {
   Settings,
   LogOut,
   ChevronDown,
-  Check
+  Check,
+  Building2,
+  Users
 } from 'lucide-react';
 
 const NavItem = ({ icon: Icon, text, active, onClick }: { icon: React.ElementType, text: string, active?: boolean, onClick?: () => void }) => (
@@ -183,9 +185,21 @@ export const Sidebar: React.FC = () => {
         </div>
 
         <NavItem
+          icon={Building2}
+          text="Org Settings"
+          active={location.pathname.includes('/settings/organization')}
+          onClick={() => navigate('/dashboard/settings/organization')}
+        />
+        <NavItem
+          icon={Users}
+          text="Members"
+          active={location.pathname.includes('/settings/members')}
+          onClick={() => navigate('/dashboard/settings/members')}
+        />
+        <NavItem
           icon={Settings}
           text="Settings"
-          active={location.pathname.includes('/settings')}
+          active={location.pathname.includes('/settings/profile') || location.pathname.includes('/settings/preferences')}
           onClick={() => navigate('/dashboard/settings/profile')}
         />
         <motion.button
