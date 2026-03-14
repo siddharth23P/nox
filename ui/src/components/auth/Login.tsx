@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AuthLayout } from './AuthLayout';
 import { useAuthStore } from '../../stores/authStore';
 import { motion } from 'framer-motion';
 
 export const Login: React.FC<{ onSwitch?: () => void }> = ({ onSwitch }) => {
+  const navigate = useNavigate();
   const setAuth = useAuthStore((state) => state.setAuth);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -77,7 +79,16 @@ export const Login: React.FC<{ onSwitch?: () => void }> = ({ onSwitch }) => {
         </div>
         
         <div className="space-y-2">
-          <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500 ml-1">Password</label>
+          <div className="flex items-center justify-between">
+            <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500 ml-1">Password</label>
+            <button
+              type="button"
+              onClick={() => navigate('/forgot-password')}
+              className="text-[11px] font-semibold text-blue-500 hover:text-blue-400 transition-colors"
+            >
+              Forgot password?
+            </button>
+          </div>
           <input
             type="password"
             placeholder="••••••••"

@@ -131,3 +131,9 @@ CREATE TABLE IF NOT EXISTS channel_reads (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     PRIMARY KEY (channel_id, user_id)
 );
+
+-- 11. Password Reset columns on users table (Issue #40)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_token VARCHAR(64);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_request_count INT DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_request_window TIMESTAMPTZ;
