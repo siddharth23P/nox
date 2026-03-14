@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { Client } from 'pg';
+import crypto from 'crypto';
 
 test.describe('Password Reset & Account Recovery (Issue #40)', () => {
   const uniqueId = `${Date.now()}-${Math.floor(Math.random() * 10000000)}`;
@@ -88,7 +89,6 @@ test.describe('Password Reset & Account Recovery (Issue #40)', () => {
     );
 
     // Generate and store a known token hash (sha256 of 'test-reset-token')
-    const crypto = require('crypto');
     const rawToken = 'test-reset-token-' + uniqueId;
     const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
 
