@@ -97,6 +97,16 @@ func main() {
 		v1.GET("/auth/github", authHandler.GithubLogin)
 		v1.GET("/auth/github/callback", authHandler.GithubCallback)
 		v1.GET("/auth/verify", authHandler.VerifyEmail)
+		v1.POST("/zk/verify", authHandler.VerifyZKProof)
+
+		// Authenticated routes (require JWT)
+		authenticated := v1.Group("")
+		authenticated.Use(auth.AuthMiddleware(authService, ""))
+		{
+			// Organization Routes
+			authenticated.GET("/orgs", authHandler.ListOrganizations)
+			authenticated.POST("/orgs/:orgId/switch", authHandler.SwitchOrganization)
+		}
 
 		// Messaging Routes
 		v1.POST("/channels", messagingHandler.CreateChannel)

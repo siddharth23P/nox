@@ -41,8 +41,24 @@ CREATE TABLE IF NOT EXISTS organization_memberships (
 ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE organization_memberships ENABLE ROW LEVEL SECURITY;
 
--- Note: RLS Policies will be injected by the Bifrost service user role
--- example: CREATE POLICY tenant_isolation_policy ON organizations USING (id = current_setting('app.current_org_id')::UUID);
+-- RLS Policies for multi-tenant isolation
+-- The Bifrost service sets app.current_org_id and app.current_user_id per-request
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'org_isolation_policy') THEN
+    CREATE POLICY org_isolation_policy ON organizations
+      FOR ALL USING (id = current_setting('app.current_org_id', true)::UUID);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'membership_isolation_policy') THEN
+    CREATE POLICY membership_isolation_policy ON organization_memberships
+      FOR ALL USING (
+        user_id = current_setting('app.current_user_id', true)::UUID
+        OR org_id = current_setting('app.current_org_id', true)::UUID
+      );
+  END IF;
+END $$;
 
 -- 5. Channels
 CREATE TABLE IF NOT EXISTS channels (

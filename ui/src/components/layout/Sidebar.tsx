@@ -1,21 +1,22 @@
-import React, { useEffect } from 'react';
-import { motion } from 'framer-motion';
+import React, { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../stores/authStore';
 import { useMessageStore, type Channel } from '../../stores/messageStore';
 import { usePresenceStore } from '../../stores/presenceStore';
 import { PresenceAvatar } from '../common/PresenceAvatar';
-import { 
-  Hash, 
-  MessageSquare, 
-  Bell, 
-  Search, 
-  Settings, 
+import {
+  Hash,
+  MessageSquare,
+  Bell,
+  Search,
+  Settings,
   LogOut,
-  ChevronDown
+  ChevronDown,
+  Check
 } from 'lucide-react';
 
 const NavItem = ({ icon: Icon, text, active, onClick }: { icon: React.ElementType, text: string, active?: boolean, onClick?: () => void }) => (
-  <motion.button 
+  <motion.button
     whileHover={{ x: 4, backgroundColor: 'rgba(255,255,255,0.05)' }}
     whileTap={{ scale: 0.98 }}
     onClick={onClick}
@@ -29,44 +30,95 @@ const NavItem = ({ icon: Icon, text, active, onClick }: { icon: React.ElementTyp
 );
 
 export const Sidebar: React.FC = () => {
-  const { user, logout } = useAuthStore();
+  const { user, orgId, orgName, organizations, logout, fetchOrganizations, switchOrganization } = useAuthStore();
   const { activeChannel, setActiveChannel, channels, fetchChannels } = useMessageStore();
   const { isStealth, setStealth } = usePresenceStore();
-  
+  const [showOrgSwitcher, setShowOrgSwitcher] = useState(false);
+
   useEffect(() => {
     fetchChannels();
-  }, [fetchChannels]);
+    fetchOrganizations();
+  }, [fetchChannels, fetchOrganizations]);
 
   const handleChannelSelect = (channel: Channel) => {
     setActiveChannel(channel);
   };
 
+  const handleOrgSwitch = (newOrgId: string) => {
+    if (newOrgId !== orgId) {
+      switchOrganization(newOrgId);
+    }
+    setShowOrgSwitcher(false);
+  };
+
   const currentChannelId = activeChannel?.id || '00000000-0000-0000-0000-000000000001';
+  const displayOrgName = orgName || 'Nox Workspace';
 
   return (
     <div className="w-64 h-full bg-[#0d0d0d] border-r border-white/5 flex flex-col pt-4 pb-4">
-      
-      {/* Org Header */}
-      <motion.div 
-        whileHover={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
-        className="px-4 py-2 mx-2 mb-6 rounded-xl flex items-center justify-between cursor-pointer group"
-      >
-        <div className="flex items-center gap-3">
-          {user ? (
-            <PresenceAvatar userId={user.id} username={user.username || 'U'} size="sm" />
-          ) : (
-            <div className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-sm border border-blue-500/20 group-hover:border-blue-500/40 transition-colors">
-              N
-            </div>
+
+      {/* Org Header with Switcher */}
+      <div className="relative px-2 mb-6">
+        <motion.button
+          whileHover={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
+          onClick={() => setShowOrgSwitcher(!showOrgSwitcher)}
+          className="w-full px-3 py-2 rounded-xl flex items-center justify-between cursor-pointer group"
+          data-testid="org-switcher-button"
+        >
+          <div className="flex items-center gap-3">
+            {user ? (
+              <PresenceAvatar userId={user.id} username={user.username || 'U'} size="sm" />
+            ) : (
+              <div className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-sm border border-blue-500/20 group-hover:border-blue-500/40 transition-colors">
+                {displayOrgName.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <span className="text-white font-semibold text-sm truncate max-w-[140px]">{displayOrgName}</span>
+          </div>
+          <motion.div animate={{ rotate: showOrgSwitcher ? 180 : 0 }} transition={{ duration: 0.2 }}>
+            <ChevronDown size={14} className="text-gray-500 group-hover:text-white transition-colors" />
+          </motion.div>
+        </motion.button>
+
+        {/* Org Switcher Dropdown */}
+        <AnimatePresence>
+          {showOrgSwitcher && organizations.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.95 }}
+              transition={{ duration: 0.15 }}
+              className="absolute top-full left-2 right-2 mt-1 z-50 bg-[#1a1a1a] border border-white/10 rounded-xl overflow-hidden shadow-2xl"
+              data-testid="org-switcher-dropdown"
+            >
+              <div className="p-2 text-[11px] font-bold uppercase tracking-wider text-gray-500 px-3">
+                Your Organizations
+              </div>
+              {organizations.map(org => (
+                <motion.button
+                  key={org.id}
+                  whileHover={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                  onClick={() => handleOrgSwitch(org.id)}
+                  className="w-full px-3 py-2 flex items-center justify-between text-left"
+                  data-testid={`org-option-${org.id}`}
+                >
+                  <div>
+                    <div className="text-sm text-white font-medium">{org.name}</div>
+                    <div className="text-[11px] text-gray-500 capitalize">{org.role}</div>
+                  </div>
+                  {org.id === orgId && (
+                    <Check size={16} className="text-emerald-400" />
+                  )}
+                </motion.button>
+              ))}
+            </motion.div>
           )}
-          <span className="text-white font-semibold text-sm">Nexus Inc</span>
-        </div>
-        <ChevronDown size={14} className="text-gray-500 group-hover:text-white transition-colors" />
-      </motion.div>
+        </AnimatePresence>
+      </div>
 
       {/* Main Navigation */}
       <div className="flex-1 overflow-y-auto px-3 space-y-6">
-        
+
         <div className="space-y-1">
           <NavItem icon={Search} text="Search" />
           <NavItem icon={Bell} text="Activity" />
@@ -79,12 +131,12 @@ export const Sidebar: React.FC = () => {
           </div>
           <div className="space-y-1">
             {channels.map(channel => (
-              <NavItem 
+              <NavItem
                 key={channel.id}
-                icon={Hash} 
-                text={channel.name} 
-                active={currentChannelId === channel.id} 
-                onClick={() => handleChannelSelect(channel)} 
+                icon={Hash}
+                text={channel.name}
+                active={currentChannelId === channel.id}
+                onClick={() => handleChannelSelect(channel)}
               />
             ))}
           </div>
@@ -108,7 +160,7 @@ export const Sidebar: React.FC = () => {
         {/* Stealth Toggle */}
         <div className="px-3 py-2 flex items-center justify-between">
           <span className="text-sm font-medium text-gray-400">Stealth Mode</span>
-          <button 
+          <button
             title="Toggle Stealth Mode"
             aria-label="Toggle Stealth Mode"
             onClick={() => setStealth(!isStealth)}
@@ -116,19 +168,19 @@ export const Sidebar: React.FC = () => {
               isStealth ? 'bg-emerald-500/80' : 'bg-gray-700'
             }`}
           >
-            <motion.div 
+            <motion.div
               layout
               className="w-3.5 h-3.5 bg-white rounded-full absolute top-[3px]"
-              animate={{ 
-                left: isStealth ? '22px' : '4px' 
+              animate={{
+                left: isStealth ? '22px' : '4px'
               }}
               transition={{ type: "spring", stiffness: 500, damping: 30 }}
             />
           </button>
         </div>
-        
+
         <NavItem icon={Settings} text="Settings" />
-        <motion.button 
+        <motion.button
           whileHover={{ x: 4, backgroundColor: 'rgba(239, 68, 68, 0.1)' }}
           whileTap={{ scale: 0.98 }}
           onClick={() => logout()}
