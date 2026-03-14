@@ -7,6 +7,7 @@ import { AuthCallback } from './components/auth/AuthCallback';
 import { ForgotPassword } from './components/auth/ForgotPassword';
 import { ResetPassword } from './components/auth/ResetPassword';
 import { AccountRecovery } from './components/auth/AccountRecovery';
+import { JoinOrg } from './components/auth/JoinOrg';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { DashboardHome } from './components/dashboard/DashboardHome';
 import { ProfileSettings } from './components/settings/ProfileSettings';
@@ -38,7 +39,8 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/account-recovery" element={<AccountRecovery />} />
-          
+          <Route path="/join/:code" element={<JoinOrg />} />
+
           <Route path="/dashboard" element={
             isAuthenticated ? (
               <DashboardLayout />

@@ -88,6 +88,10 @@ func main() {
 	recoveryHandler := auth.NewRecoveryHandler(recoveryService)
 	profileService := auth.NewProfileService(database)
 	profileHandler := auth.NewProfileHandler(profileService)
+	invitationService := auth.NewInvitationService(database)
+	invitationHandler := auth.NewInvitationHandler(invitationService)
+	rbacService := auth.NewRBACService(database)
+	rbacHandler := auth.NewRBACHandler(rbacService)
 	messagingHandler := messaging.NewMessagingHandler(messagingService, hub)
 	presenceHandler := presence.NewPresenceHandler(presenceService)
 
@@ -109,6 +113,9 @@ func main() {
 		v1.POST("/auth/recover", recoveryHandler.Recover)
 		v1.POST("/zk/verify", authHandler.VerifyZKProof)
 
+		// Public invitation routes (no auth for viewing link info)
+		v1.GET("/join/:code", invitationHandler.GetInviteLinkInfo)
+
 		// Authenticated routes (require JWT)
 		authenticated := v1.Group("")
 		authenticated.Use(auth.AuthMiddleware(authService, ""))
@@ -124,6 +131,27 @@ func main() {
 			authenticated.GET("/users/:userId", profileHandler.GetUserProfile)
 			authenticated.GET("/users/me/preferences", profileHandler.GetMyPreferences)
 			authenticated.PATCH("/users/me/preferences", profileHandler.UpdateMyPreferences)
+
+			// Invitation Routes (admin+)
+			authenticated.POST("/orgs/:orgId/invitations", invitationHandler.CreateInvitation)
+			authenticated.POST("/orgs/:orgId/invite-links", invitationHandler.CreateInviteLink)
+			authenticated.GET("/orgs/:orgId/invitations", invitationHandler.ListInvitations)
+			authenticated.DELETE("/orgs/:orgId/invitations/:inviteId", invitationHandler.RevokeInvitation)
+			authenticated.DELETE("/orgs/:orgId/invite-links/:linkId", invitationHandler.RevokeInviteLink)
+
+			// Accept invitations (auth required — user must be logged in)
+			authenticated.POST("/invitations/:token/accept", invitationHandler.AcceptInvitation)
+			authenticated.POST("/join/:code", invitationHandler.JoinViaLink)
+
+			// RBAC Routes (Issue #64)
+			authenticated.GET("/orgs/:orgId/roles", rbacHandler.ListRoles)
+			authenticated.POST("/orgs/:orgId/roles", rbacHandler.CreateRole)
+			authenticated.PATCH("/orgs/:orgId/roles/:roleId", rbacHandler.UpdateRole)
+			authenticated.DELETE("/orgs/:orgId/roles/:roleId", rbacHandler.DeleteRole)
+			authenticated.POST("/orgs/:orgId/members/:userId/roles", rbacHandler.AssignRole)
+			authenticated.DELETE("/orgs/:orgId/members/:userId/roles/:roleId", rbacHandler.RemoveRole)
+			authenticated.GET("/orgs/:orgId/members/:userId/permissions", rbacHandler.GetEffectivePermissions)
+			authenticated.GET("/permissions/schema", rbacHandler.GetPermissionSchema)
 		}
 
 		// Messaging Routes
