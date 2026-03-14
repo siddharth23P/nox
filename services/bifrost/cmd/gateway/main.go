@@ -130,6 +130,7 @@ func main() {
 		{
 			// Organization Routes
 			authenticated.GET("/orgs", authHandler.ListOrganizations)
+			authenticated.POST("/orgs", orgHandler.CreateOrganization)
 			authenticated.POST("/orgs/:orgId/switch", authHandler.SwitchOrganization)
 
 			// Profile Routes (Issue #26)

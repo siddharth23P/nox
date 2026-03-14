@@ -17,6 +17,34 @@ func NewOrgHandler(service *OrgService) *OrgHandler {
 	return &OrgHandler{service: service}
 }
 
+// CreateOrganization creates a new organization.
+// POST /v1/orgs
+func (h *OrgHandler) CreateOrganization(c *gin.Context) {
+	callerID := c.GetString("user_id")
+	if callerID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
+	var req struct {
+		Name        string `json:"name" binding:"required"`
+		Slug        string `json:"slug" binding:"required"`
+		Description string `json:"description"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	settings, err := h.service.CreateOrganization(c.Request.Context(), callerID, req.Name, req.Slug, req.Description)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, settings)
+}
+
 // GetOrgSettings returns the full settings for an organization.
 // GET /v1/orgs/:orgId/settings
 func (h *OrgHandler) GetOrgSettings(c *gin.Context) {

@@ -31,6 +31,7 @@ interface AuthState {
   logout: () => void;
   fetchOrganizations: () => Promise<void>;
   switchOrganization: (orgId: string) => Promise<void>;
+  createOrganization: (name: string, slug: string, description: string) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => {
@@ -97,6 +98,30 @@ export const useAuthStore = create<AuthState>((set, get) => {
       } catch (err) {
         console.error('Failed to fetch organizations', err);
       }
+    },
+    createOrganization: async (name: string, slug: string, description: string) => {
+      const token = get().token;
+      if (!token) throw new Error('Not authenticated');
+
+      const res = await fetch(`${API_BASE}/orgs`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, slug, description }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to create organization');
+      }
+
+      const newOrg = await res.json();
+
+      // Refresh org list then switch to the new org
+      await get().fetchOrganizations();
+      await get().switchOrganization(newOrg.id);
     },
     switchOrganization: async (orgId: string) => {
       const token = get().token;

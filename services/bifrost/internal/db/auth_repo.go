@@ -85,6 +85,53 @@ func (db *Database) CreateUserAndOrg(ctx context.Context, email, username, passw
 	return userID, orgID, nil
 }
 
+// CreateOrganization creates a new organization, adds the creator as owner,
+// and creates a default #general channel. Returns the new org ID.
+func (db *Database) CreateOrganization(ctx context.Context, name, slug, creatorUserID string) (string, error) {
+	tx, err := db.Pool.Begin(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback(ctx)
+
+	orgID := uuid.New().String()
+
+	_, err = tx.Exec(ctx,
+		"INSERT INTO organizations (id, name, slug) VALUES ($1, $2, $3)",
+		orgID, name, slug)
+	if err != nil {
+		return "", fmt.Errorf("failed to create org: %w", err)
+	}
+
+	_, err = tx.Exec(ctx,
+		"INSERT INTO organization_memberships (user_id, org_id, role) VALUES ($1, $2, $3)",
+		creatorUserID, orgID, "owner")
+	if err != nil {
+		return "", fmt.Errorf("failed to add creator as owner: %w", err)
+	}
+
+	_, err = tx.Exec(ctx,
+		"INSERT INTO channels (org_id, name, description, is_private) VALUES ($1, $2, $3, $4)",
+		orgID, "general", "Default channel for everyone", false)
+	if err != nil {
+		return "", fmt.Errorf("failed to create default channel: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return "", err
+	}
+
+	return orgID, nil
+}
+
+// OrgSlugExists checks if a slug is already taken.
+func (db *Database) OrgSlugExists(ctx context.Context, slug string) (bool, error) {
+	var exists bool
+	err := db.Pool.QueryRow(ctx,
+		"SELECT EXISTS(SELECT 1 FROM organizations WHERE slug = $1)", slug).Scan(&exists)
+	return exists, err
+}
+
 type OrgMembership struct {
 	OrgID   string
 	OrgName string
