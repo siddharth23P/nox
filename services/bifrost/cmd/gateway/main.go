@@ -92,6 +92,8 @@ func main() {
 	invitationHandler := auth.NewInvitationHandler(invitationService)
 	rbacService := auth.NewRBACService(database)
 	rbacHandler := auth.NewRBACHandler(rbacService)
+	friendService := auth.NewFriendService(database)
+	friendHandler := auth.NewFriendHandler(friendService)
 	messagingHandler := messaging.NewMessagingHandler(messagingService, hub)
 	presenceHandler := presence.NewPresenceHandler(presenceService)
 
@@ -152,6 +154,17 @@ func main() {
 			authenticated.DELETE("/orgs/:orgId/members/:userId/roles/:roleId", rbacHandler.RemoveRole)
 			authenticated.GET("/orgs/:orgId/members/:userId/permissions", rbacHandler.GetEffectivePermissions)
 			authenticated.GET("/permissions/schema", rbacHandler.GetPermissionSchema)
+
+			// Friend System Routes (Issue #61)
+			authenticated.POST("/friends/request", friendHandler.SendFriendRequest)
+			authenticated.POST("/friends/:id/accept", friendHandler.AcceptFriendRequest)
+			authenticated.POST("/friends/:id/decline", friendHandler.DeclineFriendRequest)
+			authenticated.DELETE("/friends/:id", friendHandler.RemoveFriend)
+			authenticated.POST("/users/:userId/block", friendHandler.BlockUser)
+			authenticated.DELETE("/users/:userId/block", friendHandler.UnblockUser)
+			authenticated.GET("/friends", friendHandler.ListFriends)
+			authenticated.GET("/friends/mutual/:userId", friendHandler.MutualOrgs)
+			authenticated.GET("/users/search", friendHandler.SearchUsers)
 		}
 
 		// Messaging Routes

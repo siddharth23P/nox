@@ -13,7 +13,8 @@ import {
   Settings,
   LogOut,
   ChevronDown,
-  Check
+  Check,
+  Users
 } from 'lucide-react';
 
 const NavItem = ({ icon: Icon, text, active, onClick }: { icon: React.ElementType, text: string, active?: boolean, onClick?: () => void }) => (
@@ -125,6 +126,12 @@ export const Sidebar: React.FC = () => {
         <div className="space-y-1">
           <NavItem icon={Search} text="Search" />
           <NavItem icon={Bell} text="Activity" />
+          <NavItem
+            icon={Users}
+            text="Friends"
+            active={location.pathname.includes('/friends')}
+            onClick={() => navigate('/dashboard/friends')}
+          />
         </div>
 
         <div>
