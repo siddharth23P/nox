@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import CodeBlock from './CodeBlock';
 
 interface FormattedMessageProps {
@@ -6,9 +8,13 @@ interface FormattedMessageProps {
   className?: string;
 }
 
+/**
+ * Renders message content with syntax-highlighted code blocks (via CodeBlock)
+ * and GFM markdown for everything else. All HTML is sanitized with DOMPurify
+ * to prevent XSS attacks before rendering.
+ */
 export const FormattedMessage: React.FC<FormattedMessageProps> = ({ content, className }) => {
-  // Regex to match code blocks: ```[language]\n[code]```
-  const parts = content.split(/(```[\s\S]*?```)/);
+  const parts = useMemo(() => content.split(/(```[\s\S]*?```)/), [content]);
 
   return (
     <div className={className} data-testid="message-content">
@@ -17,22 +23,33 @@ export const FormattedMessage: React.FC<FormattedMessageProps> = ({ content, cla
           const match = part.match(/```(\w+)?\n?([\s\S]*?)```/);
           if (match) {
             return (
-              <CodeBlock 
+              <CodeBlock
                 key={index}
-                language={match[1]} 
-                code={match[2]} 
+                language={match[1]}
+                code={match[2]}
               />
             );
           }
         }
-        
-        // Render regular text with preservation of whitespace/newlines
+
+        // Render non-code text as GFM markdown, sanitized via DOMPurify
+        if (!part.trim()) return null;
+
+        const rawHtml = marked.parse(part, { async: false, gfm: true, breaks: true }) as string;
+        const safeHtml = DOMPurify.sanitize(rawHtml);
+
         return (
-          <span key={index} className="whitespace-pre-wrap">
-            {part}
-          </span>
+          <MarkdownSpan key={index} html={safeHtml} />
         );
       })}
     </div>
   );
 };
+
+/** Renders pre-sanitized HTML for inline markdown content */
+const MarkdownSpan: React.FC<{ html: string }> = ({ html }) => (
+  <span
+    className="whitespace-pre-wrap prose-invert prose-sm max-w-none [&>p]:m-0 [&>p]:leading-relaxed [&_code]:bg-white/10 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[13px] [&_code]:font-mono [&_code]:text-pink-300"
+    dangerouslySetInnerHTML={{ __html: html }}
+  />
+);

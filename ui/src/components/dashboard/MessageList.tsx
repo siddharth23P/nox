@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useLayoutEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import DOMPurify from 'dompurify';
+import { FormattedMessage } from '../common/FormattedMessage';
 import { useMessageStore } from '../../stores/messageStore';
 import { useAuthStore } from '../../stores/authStore';
 import { MessageCircle, Edit2, SmilePlus, Pin, Bookmark, Quote, Send, Trash2 } from 'lucide-react';
@@ -233,14 +233,17 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                       </div>
                     ) : (
                       <div className={`flex items-end gap-2 ${isCurrentUser ? 'flex-row-reverse' : 'flex-row'}`}>
-                        <div 
-                          className={`text-[15px] leading-relaxed font-light whitespace-pre-wrap ${
-                            isCurrentUser 
-                              ? 'bg-blue-600/20 text-blue-100 px-4 py-2.5 rounded-2xl rounded-tr-sm inline-block text-right border border-blue-500/20' 
+                        <div
+                          className={`text-[15px] leading-relaxed font-light ${
+                            isCurrentUser
+                              ? 'bg-blue-600/20 text-blue-100 px-4 py-2.5 rounded-2xl rounded-tr-sm inline-block text-right border border-blue-500/20'
                               : 'text-gray-300'
                           } ${msg.status === 'sending' ? 'opacity-50' : ''}`}
                         >
-                          <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(msg.content_html || msg.content_md) }} />
+                          <FormattedMessage
+                            content={msg.content_md}
+                            className={isCurrentUser ? 'text-blue-100' : 'text-gray-300'}
+                          />
                         </div>
                         <div className={`flex flex-col gap-1 items-start ${isCurrentUser ? 'mr-2' : 'ml-2'} mb-1`}>
                           {msg.status === 'sending' && (
