@@ -5,13 +5,16 @@ import (
 )
 
 type Channel struct {
-	ID          string    `json:"id"`
-	OrgID       string    `json:"org_id"`
-	Name        string    `json:"name"`
-	Description *string   `json:"description,omitempty"`
-	IsPrivate   bool      `json:"is_private"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID          string     `json:"id"`
+	OrgID       string     `json:"org_id"`
+	Name        string     `json:"name"`
+	Description *string    `json:"description,omitempty"`
+	Topic       *string    `json:"topic,omitempty"`
+	IsPrivate   bool       `json:"is_private"`
+	CreatedBy   *string    `json:"created_by,omitempty"`
+	ArchivedAt  *time.Time `json:"archived_at,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 type Message struct {
@@ -48,7 +51,14 @@ type MessageEdit struct {
 type CreateChannelRequest struct {
 	Name        string `json:"name" binding:"required"`
 	Description string `json:"description"`
+	Topic       string `json:"topic"`
 	IsPrivate   bool   `json:"is_private"`
+}
+
+type UpdateChannelRequest struct {
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
+	Topic       *string `json:"topic"`
 }
 
 type CreateMessageRequest struct {

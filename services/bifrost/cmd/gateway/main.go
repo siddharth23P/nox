@@ -167,9 +167,16 @@ func main() {
 			authenticated.GET("/users/search", friendHandler.SearchUsers)
 		}
 
-		// Messaging Routes
+		// Channel CRUD Routes
 		v1.POST("/channels", messagingHandler.CreateChannel)
 		v1.GET("/channels", messagingHandler.GetChannels)
+		v1.GET("/channels/:id", messagingHandler.GetChannel)
+		v1.PATCH("/channels/:id", messagingHandler.UpdateChannel)
+		v1.POST("/channels/:id/archive", messagingHandler.ArchiveChannel)
+		v1.POST("/channels/:id/unarchive", messagingHandler.UnarchiveChannel)
+		v1.DELETE("/channels/:id", messagingHandler.DeleteChannel)
+
+		// Messaging Routes
 		v1.POST("/channels/:id/messages", messagingHandler.CreateMessage)
 		v1.GET("/channels/:id/messages", messagingHandler.GetMessages)
 		v1.GET("/channels/:id/messages/:messageId/replies", messagingHandler.GetThreadReplies)

@@ -41,8 +41,11 @@ export interface Channel {
   id: string;
   org_id: string;
   name: string;
-  description: string;
+  description?: string;
+  topic?: string;
   is_private: boolean;
+  created_by?: string;
+  archived_at?: string;
   created_at: string;
   updated_at: string;
 }
