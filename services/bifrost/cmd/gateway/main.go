@@ -84,6 +84,8 @@ func main() {
 	r.Use(cors.New(config))
 	
 	authHandler := auth.NewAuthHandler(authService)
+	recoveryService := auth.NewRecoveryService(database)
+	recoveryHandler := auth.NewRecoveryHandler(recoveryService)
 	messagingHandler := messaging.NewMessagingHandler(messagingService, hub)
 	presenceHandler := presence.NewPresenceHandler(presenceService)
 
@@ -97,6 +99,9 @@ func main() {
 		v1.GET("/auth/github", authHandler.GithubLogin)
 		v1.GET("/auth/github/callback", authHandler.GithubCallback)
 		v1.GET("/auth/verify", authHandler.VerifyEmail)
+		v1.POST("/auth/forgot-password", recoveryHandler.ForgotPassword)
+		v1.POST("/auth/reset-password", recoveryHandler.ResetPassword)
+		v1.POST("/auth/recover", recoveryHandler.Recover)
 		v1.POST("/zk/verify", authHandler.VerifyZKProof)
 
 		// Authenticated routes (require JWT)

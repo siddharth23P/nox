@@ -4,6 +4,9 @@ import { Register } from './components/auth/Register';
 import { Login } from './components/auth/Login';
 import { EmailVerification } from './components/auth/EmailVerification';
 import { AuthCallback } from './components/auth/AuthCallback';
+import { ForgotPassword } from './components/auth/ForgotPassword';
+import { ResetPassword } from './components/auth/ResetPassword';
+import { AccountRecovery } from './components/auth/AccountRecovery';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { DashboardHome } from './components/dashboard/DashboardHome';
 import { useAuthStore } from './stores/authStore';
@@ -30,6 +33,9 @@ function App() {
           
           <Route path="/verify-email" element={<EmailVerification />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/account-recovery" element={<AccountRecovery />} />
           
           <Route path="/dashboard" element={
             isAuthenticated ? (
