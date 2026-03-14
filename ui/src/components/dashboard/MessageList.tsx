@@ -9,7 +9,6 @@ import { EditHistoryModal } from './EditHistoryModal';
 import ForwardModal from './ForwardModal';
 import { ReactionBubble } from './ReactionBubble';
 import { EmojiPicker } from './EmojiPicker';
-
 import type { Message } from '../../stores/messageStore';
 
 interface MessageListProps {
