@@ -5,7 +5,6 @@ import { useMessageStore } from '../../stores/messageStore';
 import { useAuthStore } from '../../stores/authStore';
 import { MessageCircle, Edit2, SmilePlus, Pin, Bookmark, Quote, Send, Trash2 } from 'lucide-react';
 import { PresenceAvatar } from '../common/PresenceAvatar';
-import { FormattedMessage } from '../common/FormattedMessage';
 import { EditHistoryModal } from './EditHistoryModal';
 import ForwardModal from './ForwardModal';
 import { ReactionBubble } from './ReactionBubble';
