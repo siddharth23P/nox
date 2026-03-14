@@ -35,17 +35,22 @@ func (s *MessagingService) CreateChannel(ctx context.Context, orgID, name, descr
 	if err != nil {
 		return nil, err
 	}
+	// Auto-add creator as a member for private channels
+	if isPrivate && createdBy != "" {
+		_, _ = s.db.Pool.Exec(ctx, `INSERT INTO channel_members (channel_id, user_id, added_by) VALUES ($1, $2, $2) ON CONFLICT DO NOTHING`, ch.ID, createdBy)
+	}
+
 	return &ch, nil
 }
 
-func (s *MessagingService) GetChannels(ctx context.Context, orgID string, includeArchived bool) ([]Channel, error) {
+func (s *MessagingService) GetChannels(ctx context.Context, orgID string, userID string, includeArchived bool) ([]Channel, error) {
 	var query string
 	if includeArchived {
-		query = `SELECT id, org_id, name, description, topic, is_private, created_by, archived_at, created_at, updated_at FROM channels WHERE org_id = $1 AND (is_dm = FALSE OR is_dm IS NULL) ORDER BY name ASC`
+		query = `SELECT id, org_id, name, description, topic, is_private, created_by, archived_at, created_at, updated_at FROM channels WHERE org_id = $1 AND (is_dm = FALSE OR is_dm IS NULL) AND (is_private = FALSE OR EXISTS(SELECT 1 FROM channel_members cm WHERE cm.channel_id = channels.id AND cm.user_id = $2)) ORDER BY name ASC`
 	} else {
-		query = `SELECT id, org_id, name, description, topic, is_private, created_by, archived_at, created_at, updated_at FROM channels WHERE org_id = $1 AND archived_at IS NULL AND (is_dm = FALSE OR is_dm IS NULL) ORDER BY name ASC`
+		query = `SELECT id, org_id, name, description, topic, is_private, created_by, archived_at, created_at, updated_at FROM channels WHERE org_id = $1 AND archived_at IS NULL AND (is_dm = FALSE OR is_dm IS NULL) AND (is_private = FALSE OR EXISTS(SELECT 1 FROM channel_members cm WHERE cm.channel_id = channels.id AND cm.user_id = $2)) ORDER BY name ASC`
 	}
-	rows, err := s.db.Pool.Query(ctx, query, orgID)
+	rows, err := s.db.Pool.Query(ctx, query, orgID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -563,6 +568,76 @@ func (s *MessagingService) GetChannelReadReceipts(ctx context.Context, channelID
 	return reads, nil
 }
 
+// ---------- Channel Members (Private Channel ACL - Issue #120) ----------
+
+func (s *MessagingService) IsChannelMember(ctx context.Context, channelID, userID string) (bool, error) {
+	var exists bool
+	err := s.db.Pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM channel_members WHERE channel_id = $1 AND user_id = $2)`, channelID, userID).Scan(&exists)
+	return exists, err
+}
+
+func (s *MessagingService) CheckPrivateAccess(ctx context.Context, channelID, userID string) error {
+	ch, err := s.GetChannel(ctx, channelID)
+	if err != nil {
+		return err
+	}
+	if !ch.IsPrivate {
+		return nil
+	}
+	isMember, err := s.IsChannelMember(ctx, channelID, userID)
+	if err != nil {
+		return err
+	}
+	if !isMember {
+		return fmt.Errorf("access denied: you are not a member of this private channel")
+	}
+	return nil
+}
+
+func (s *MessagingService) AddChannelMember(ctx context.Context, channelID, userID, addedBy string) (*ChannelMember, error) {
+	var m ChannelMember
+	err := s.db.Pool.QueryRow(ctx, `INSERT INTO channel_members (channel_id, user_id, added_by) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING channel_id, user_id, added_at, added_by`, channelID, userID, addedBy).Scan(&m.ChannelID, &m.UserID, &m.AddedAt, &m.AddedBy)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, fmt.Errorf("user is already a member of this channel")
+		}
+		return nil, err
+	}
+	_ = s.db.Pool.QueryRow(ctx, `SELECT username FROM users WHERE id = $1`, userID).Scan(&m.Username)
+	return &m, nil
+}
+
+func (s *MessagingService) RemoveChannelMember(ctx context.Context, channelID, userID string) error {
+	tag, err := s.db.Pool.Exec(ctx, `DELETE FROM channel_members WHERE channel_id = $1 AND user_id = $2`, channelID, userID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("member not found")
+	}
+	return nil
+}
+
+func (s *MessagingService) ListChannelMembers(ctx context.Context, channelID string) ([]ChannelMember, error) {
+	rows, err := s.db.Pool.Query(ctx, `SELECT cm.channel_id, cm.user_id, u.username, cm.added_at, cm.added_by FROM channel_members cm JOIN users u ON cm.user_id = u.id WHERE cm.channel_id = $1 ORDER BY cm.added_at ASC`, channelID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return []ChannelMember{}, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+	var members []ChannelMember
+	for rows.Next() {
+		var m ChannelMember
+		if err := rows.Scan(&m.ChannelID, &m.UserID, &m.Username, &m.AddedAt, &m.AddedBy); err != nil {
+			return nil, err
+		}
+		members = append(members, m)
+	}
+	return members, nil
+}
+
 // ---------- Channel Discovery (Issue #121) ----------
 
 // BrowseChannels returns all public, non-archived channels in an org with member counts
@@ -770,4 +845,3 @@ func (s *MessagingService) CreateOrGetDM(ctx context.Context, orgID, currentUser
 		CreatedAt: createdAt,
 	}, nil
 }
-

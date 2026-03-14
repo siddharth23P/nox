@@ -91,6 +91,20 @@ type UpdateReadRequest struct {
 	MessageID string `json:"message_id" binding:"required"`
 }
 
+// Channel Members (Private Channel ACL - Issue #120)
+
+type ChannelMember struct {
+	ChannelID string    `json:"channel_id"`
+	UserID    string    `json:"user_id"`
+	Username  string    `json:"username,omitempty"`
+	AddedAt   time.Time `json:"added_at"`
+	AddedBy   *string   `json:"added_by,omitempty"`
+}
+
+type AddMemberRequest struct {
+	UserID string `json:"user_id" binding:"required"`
+}
+
 // DM models (Issue #113)
 
 type DMChannel struct {

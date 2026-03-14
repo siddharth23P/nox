@@ -209,6 +209,11 @@ func main() {
 		v1.PATCH("/channels/:id/read", messagingHandler.UpdateLastRead)
 		v1.GET("/channels/:id/reads", messagingHandler.GetChannelReadReceipts)
 
+		// Channel Member Routes (Private Channel ACL - Issue #120)
+		v1.POST("/channels/:id/members", messagingHandler.AddChannelMember)
+		v1.DELETE("/channels/:id/members/:userId", messagingHandler.RemoveChannelMember)
+		v1.GET("/channels/:id/members", messagingHandler.ListChannelMembers)
+
 		// Direct Message Routes (Issue #113)
 		v1.GET("/dm", messagingHandler.ListDMs)
 		v1.POST("/dm", messagingHandler.CreateOrGetDM)

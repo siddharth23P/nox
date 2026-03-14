@@ -54,14 +54,14 @@ func (h *MessagingHandler) CreateChannel(c *gin.Context) {
 }
 
 func (h *MessagingHandler) GetChannels(c *gin.Context) {
-	orgID, _ := getAuthInfo(c)
+	orgID, userID := getAuthInfo(c)
 	if orgID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "X-Org-ID required"})
 		return
 	}
 
 	includeArchived := c.Query("include_archived") == "true"
-	channels, err := h.service.GetChannels(c.Request.Context(), orgID, includeArchived)
+	channels, err := h.service.GetChannels(c.Request.Context(), orgID, userID, includeArchived)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -74,6 +74,7 @@ func (h *MessagingHandler) GetChannels(c *gin.Context) {
 }
 
 func (h *MessagingHandler) GetChannel(c *gin.Context) {
+	_, userID := getAuthInfo(c)
 	channelID := c.Param("id")
 	if channelID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Channel ID required"})
@@ -84,6 +85,13 @@ func (h *MessagingHandler) GetChannel(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Channel not found"})
 		return
+	}
+
+	if ch.IsPrivate && userID != "" {
+		if err := h.service.CheckPrivateAccess(c.Request.Context(), channelID, userID); err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK, ch)
@@ -184,6 +192,11 @@ func (h *MessagingHandler) CreateMessage(c *gin.Context) {
 		return
 	}
 
+	if err := h.service.CheckPrivateAccess(c.Request.Context(), channelID, userID); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+
 	var req CreateMessageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -207,6 +220,14 @@ func (h *MessagingHandler) GetMessages(c *gin.Context) {
 	}
 
 	_, userID := getAuthInfo(c)
+
+	if userID != "" {
+		if err := h.service.CheckPrivateAccess(c.Request.Context(), channelID, userID); err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
 	before := c.Query("before")
 
 	messages, err := h.service.GetMessagesByChannel(c.Request.Context(), channelID, before, userID)
@@ -622,6 +643,92 @@ func (h *MessagingHandler) GetJoinedChannels(c *gin.Context) {
 		channels = []Channel{}
 	}
 	c.JSON(http.StatusOK, channels)
+}
+
+// ---------- Channel Members (Private Channel ACL - Issue #120) ----------
+
+func (h *MessagingHandler) AddChannelMember(c *gin.Context) {
+	_, userID := getAuthInfo(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "X-User-ID required"})
+		return
+	}
+	channelID := c.Param("id")
+	if channelID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Channel ID required"})
+		return
+	}
+	if err := h.service.CheckPrivateAccess(c.Request.Context(), channelID, userID); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+	var req AddMemberRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	member, err := h.service.AddChannelMember(c.Request.Context(), channelID, req.UserID, userID)
+	if err != nil {
+		if strings.Contains(err.Error(), "already a member") {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, member)
+}
+
+func (h *MessagingHandler) RemoveChannelMember(c *gin.Context) {
+	_, userID := getAuthInfo(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "X-User-ID required"})
+		return
+	}
+	channelID := c.Param("id")
+	targetUserID := c.Param("userId")
+	if channelID == "" || targetUserID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Channel ID and User ID required"})
+		return
+	}
+	if err := h.service.CheckPrivateAccess(c.Request.Context(), channelID, userID); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+	err := h.service.RemoveChannelMember(c.Request.Context(), channelID, targetUserID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "removed", "channel_id": channelID, "user_id": targetUserID})
+}
+
+func (h *MessagingHandler) ListChannelMembers(c *gin.Context) {
+	_, userID := getAuthInfo(c)
+	channelID := c.Param("id")
+	if channelID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Channel ID required"})
+		return
+	}
+	if userID != "" {
+		if err := h.service.CheckPrivateAccess(c.Request.Context(), channelID, userID); err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+	}
+	members, err := h.service.ListChannelMembers(c.Request.Context(), channelID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if members == nil {
+		members = []ChannelMember{}
+	}
+	c.JSON(http.StatusOK, members)
 }
 
 // ---------- Direct Messages (Issue #113) ----------

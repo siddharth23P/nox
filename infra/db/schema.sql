@@ -313,7 +313,19 @@ CREATE INDEX IF NOT EXISTS idx_friendships_addressee ON friendships(addressee_id
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '';
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS logo_url TEXT DEFAULT '';
 
--- 21. Direct Messages (Issue #113)
+-- 21. Channel Members (Private Channel ACL - Issue #120)
+CREATE TABLE IF NOT EXISTS channel_members (
+    channel_id UUID NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    added_at TIMESTAMPTZ DEFAULT NOW(),
+    added_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    PRIMARY KEY (channel_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_channel_members_user ON channel_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_channel_members_channel ON channel_members(channel_id);
+
+-- 22. Direct Messages (Issue #113)
 -- DM channels reuse the channels table (with is_dm=true) so messages can
 -- leverage the existing foreign key.  A separate dm_channels join table maps
 -- exactly two users to a backing channel.

@@ -13,6 +13,14 @@ export interface Channel {
   updated_at: string;
 }
 
+export interface ChannelMember {
+  channel_id: string;
+  user_id: string;
+  username?: string;
+  added_at: string;
+  added_by?: string;
+}
+
 interface CreateChannelPayload {
   name: string;
   description?: string;
@@ -30,6 +38,8 @@ interface ChannelState {
   channels: Channel[];
   isLoading: boolean;
   error: string | null;
+  members: ChannelMember[];
+  membersLoading: boolean;
 
   fetchChannels: (includeArchived?: boolean) => Promise<void>;
   createChannel: (payload: CreateChannelPayload) => Promise<Channel>;
@@ -38,6 +48,9 @@ interface ChannelState {
   unarchiveChannel: (channelId: string) => Promise<Channel>;
   deleteChannel: (channelId: string) => Promise<void>;
   getChannel: (channelId: string) => Promise<Channel>;
+  fetchMembers: (channelId: string) => Promise<void>;
+  addMember: (channelId: string, userId: string) => Promise<void>;
+  removeMember: (channelId: string, userId: string) => Promise<void>;
 }
 
 const API_BASE_URL = 'http://localhost:8080/v1';
@@ -57,6 +70,8 @@ export const useChannelStore = create<ChannelState>((set) => ({
   channels: [],
   isLoading: false,
   error: null,
+  members: [],
+  membersLoading: false,
 
   fetchChannels: async (includeArchived = false) => {
     set({ isLoading: true, error: null });
@@ -181,5 +196,57 @@ export const useChannelStore = create<ChannelState>((set) => ({
     });
     if (!response.ok) throw new Error('Failed to get channel');
     return response.json();
+  },
+
+  fetchMembers: async (channelId) => {
+    set({ membersLoading: true });
+    try {
+      const response = await fetch(`${API_BASE_URL}/channels/${channelId}/members`, {
+        headers: getHeaders(),
+      });
+      if (!response.ok) throw new Error('Failed to fetch members');
+      const data = await response.json();
+      set({ members: data, membersLoading: false });
+    } catch (err) {
+      set({ error: (err as Error).message, membersLoading: false });
+    }
+  },
+
+  addMember: async (channelId, userId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/channels/${channelId}/members`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ user_id: userId }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to add member');
+      }
+      const member = await response.json();
+      set((state) => ({ members: [...state.members, member] }));
+    } catch (err) {
+      set({ error: (err as Error).message });
+      throw err;
+    }
+  },
+
+  removeMember: async (channelId, userId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/channels/${channelId}/members/${userId}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to remove member');
+      }
+      set((state) => ({
+        members: state.members.filter((m) => m.user_id !== userId),
+      }));
+    } catch (err) {
+      set({ error: (err as Error).message });
+      throw err;
+    }
   },
 }));
