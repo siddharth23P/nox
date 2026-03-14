@@ -58,6 +58,13 @@ func (s *PresenceService) GetActiveUsers() []string {
 	return activeUsers
 }
 
+// RemoveUser immediately removes a user from the active presence map.
+// This is called when a WebSocket connection disconnects so that the user
+// appears offline without waiting for the heartbeat timeout.
+func (s *PresenceService) RemoveUser(userID string) {
+	s.users.Delete(userID)
+}
+
 func (s *PresenceService) cleanupRoutine() {
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()

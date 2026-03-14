@@ -10,9 +10,10 @@ import (
 
 // Client represents a single WebSocket connection
 type Client struct {
-	Hub  *Hub
-	Conn *websocket.Conn
-	Send chan []byte
+	Hub    *Hub
+	Conn   *websocket.Conn
+	Send   chan []byte
+	UserID string
 }
 
 // Event represents a WebSocket message type
@@ -34,13 +35,17 @@ type TypingPayload struct {
 	IsTyping  bool   `json:"is_typing"`
 }
 
+// OnDisconnectFunc is called when a client disconnects from the hub.
+type OnDisconnectFunc func(userID string)
+
 // Hub manages all active WebSocket connections
 type Hub struct {
-	clients    map[*Client]bool
-	broadcast  chan []byte
-	register   chan *Client
-	unregister chan *Client
-	mu         sync.Mutex
+	clients      map[*Client]bool
+	broadcast    chan []byte
+	register     chan *Client
+	unregister   chan *Client
+	mu           sync.Mutex
+	OnDisconnect OnDisconnectFunc
 }
 
 func NewHub() *Hub {
@@ -64,6 +69,9 @@ func (h *Hub) Run() {
 			if _, ok := h.clients[client]; ok {
 				delete(h.clients, client)
 				close(client.Send)
+				if client.UserID != "" && h.OnDisconnect != nil {
+					go h.OnDisconnect(client.UserID)
+				}
 			}
 			h.mu.Unlock()
 		case message := <-h.broadcast:

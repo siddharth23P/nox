@@ -40,12 +40,14 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
 
 
 
-  useEffect(() => {
-    // Scroll to bottom when channel changes and initial fetch completes
-    if (!isFetchingOlder) {
+  useLayoutEffect(() => {
+    // Scroll to bottom when channel changes and initial fetch completes.
+    // Uses useLayoutEffect so the scroll happens before the browser paints,
+    // preventing a flash of messages at the wrong scroll position.
+    if (!isFetchingOlder && !isLoading && messages.length > 0) {
       bottomRef.current?.scrollIntoView({ behavior: 'auto' });
     }
-  }, [messages.length, channelId, isFetchingOlder]);
+  }, [messages.length, channelId, isFetchingOlder, isLoading]);
 
   useLayoutEffect(() => {
     // Restore scroll position after prepending older messages

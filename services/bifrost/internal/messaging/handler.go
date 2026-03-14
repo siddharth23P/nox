@@ -480,10 +480,15 @@ func (h *MessagingHandler) HandleWS(c *gin.Context) {
 		return
 	}
 
+	// Extract user_id from query string so the hub can notify the presence
+	// service when this connection drops.
+	userID := c.Query("user_id")
+
 	client := &Client{
-		Hub:  h.hub,
-		Conn: conn,
-		Send: make(chan []byte, 256),
+		Hub:    h.hub,
+		Conn:   conn,
+		Send:   make(chan []byte, 256),
+		UserID: userID,
 	}
 	client.Hub.register <- client
 

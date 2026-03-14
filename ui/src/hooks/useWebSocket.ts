@@ -2,20 +2,30 @@ import { useEffect } from 'react';
 import { useMessageStore } from '../stores/messageStore';
 import { useAuthStore } from '../stores/authStore';
 
-const WS_URL = 'ws://localhost:8080/ws';
+const WS_BASE_URL = 'ws://localhost:8080/ws';
 let globalWs: WebSocket | null = null;
 let connectionPromise: Promise<WebSocket> | null = null;
+
+/**
+ * Immediately close the global WebSocket connection.
+ * Called from the auth store during logout so the server
+ * can broadcast an offline event without waiting for the
+ * heartbeat timeout.
+ */
+export function closeWebSocket() {
+  if (globalWs) {
+    globalWs.close();
+    globalWs = null;
+    connectionPromise = null;
+  }
+}
 
 export function useWebSocket() {
   const user = useAuthStore(state => state.user);
 
   useEffect(() => {
     if (!user) {
-      if (globalWs) {
-        globalWs.close();
-        globalWs = null;
-        connectionPromise = null;
-      }
+      closeWebSocket();
       return;
     }
 
@@ -23,7 +33,8 @@ export function useWebSocket() {
     if (connectionPromise) return;
 
     connectionPromise = new Promise((resolve) => {
-      const socket = new WebSocket(WS_URL);
+      const wsUrl = `${WS_BASE_URL}?user_id=${encodeURIComponent(user.id)}`;
+      const socket = new WebSocket(wsUrl);
       
       socket.onopen = () => {
         globalWs = socket;
