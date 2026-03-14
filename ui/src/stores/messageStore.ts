@@ -50,6 +50,14 @@ export interface Channel {
   updated_at: string;
 }
 
+export interface DMConversation {
+  id: string;
+  channel_id: string;
+  user_id: string;
+  username: string;
+  created_at: string;
+}
+
 interface MessageState {
   activeChannel: Channel | null;
   channels: Channel[];
@@ -86,6 +94,11 @@ interface MessageState {
   forwardMessage: (messageId: string, targetChannelId: string) => Promise<void>;
   scrollToMessage: (messageId: string) => void;
 
+  // Direct Messages (Issue #113)
+  dmConversations: DMConversation[];
+  fetchDMs: () => Promise<void>;
+  createOrGetDM: (otherUserId: string) => Promise<DMConversation>;
+
   // Real-time Event Handlers
   onMessageReceived: (message: Message) => void;
   onMessageEdited: (message: Message) => void;
@@ -121,6 +134,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   typingUsers: {},
   replyTo: null,
   highlightedMessageId: null,
+  dmConversations: [],
 
   setActiveChannel: (channel) => set((state) => {
     if (state.activeChannel?.id === channel.id) return state;
@@ -167,7 +181,59 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       set({ error: (err as Error).message, isLoading: false });
     }
   },
-  
+
+  // Direct Messages (Issue #113)
+  fetchDMs: async () => {
+    try {
+      const userStr = localStorage.getItem('nox_user');
+      const userId = userStr ? JSON.parse(userStr).id : '';
+      if (!userId) return;
+
+      const response = await fetch(`${API_BASE_URL}/dm`, {
+        headers: {
+          'X-Org-ID': localStorage.getItem('nox_org_id') || '',
+          'X-User-ID': userId,
+        }
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch DMs');
+      const data = await response.json();
+      set({ dmConversations: data });
+    } catch (err) {
+      console.error('fetchDMs error:', err);
+    }
+  },
+
+  createOrGetDM: async (otherUserId: string) => {
+    const userStr = localStorage.getItem('nox_user');
+    const userId = userStr ? JSON.parse(userStr).id : '';
+
+    const response = await fetch(`${API_BASE_URL}/dm`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Org-ID': localStorage.getItem('nox_org_id') || '',
+        'X-User-ID': userId,
+      },
+      body: JSON.stringify({ user_id: otherUserId }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || 'Failed to create DM');
+    }
+
+    const dm = await response.json();
+
+    // Add to local list if not already present
+    set((state) => {
+      if (state.dmConversations.some(d => d.id === dm.id)) return state;
+      return { dmConversations: [dm, ...state.dmConversations] };
+    });
+
+    return dm;
+  },
+
   // Handlers
   onMessageReceived: (message) => set((state) => {
     // 1. Prevent exact ID duplicates

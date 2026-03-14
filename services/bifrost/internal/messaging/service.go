@@ -41,9 +41,9 @@ func (s *MessagingService) CreateChannel(ctx context.Context, orgID, name, descr
 func (s *MessagingService) GetChannels(ctx context.Context, orgID string, includeArchived bool) ([]Channel, error) {
 	var query string
 	if includeArchived {
-		query = `SELECT id, org_id, name, description, topic, is_private, created_by, archived_at, created_at, updated_at FROM channels WHERE org_id = $1 ORDER BY name ASC`
+		query = `SELECT id, org_id, name, description, topic, is_private, created_by, archived_at, created_at, updated_at FROM channels WHERE org_id = $1 AND (is_dm = FALSE OR is_dm IS NULL) ORDER BY name ASC`
 	} else {
-		query = `SELECT id, org_id, name, description, topic, is_private, created_by, archived_at, created_at, updated_at FROM channels WHERE org_id = $1 AND archived_at IS NULL ORDER BY name ASC`
+		query = `SELECT id, org_id, name, description, topic, is_private, created_by, archived_at, created_at, updated_at FROM channels WHERE org_id = $1 AND archived_at IS NULL AND (is_dm = FALSE OR is_dm IS NULL) ORDER BY name ASC`
 	}
 	rows, err := s.db.Pool.Query(ctx, query, orgID)
 	if err != nil {
@@ -561,5 +561,125 @@ func (s *MessagingService) GetChannelReadReceipts(ctx context.Context, channelID
 		reads = append(reads, r)
 	}
 	return reads, nil
+}
+
+// ---------- Direct Messages (Issue #113) ----------
+
+// ListDMs returns all DM conversations for the given user, including the other
+// participant's username.
+func (s *MessagingService) ListDMs(ctx context.Context, userID string) ([]DMChannel, error) {
+	query := `
+		SELECT dm.id, dm.channel_id,
+			CASE WHEN dm.user1_id = $1 THEN dm.user2_id ELSE dm.user1_id END AS other_user_id,
+			CASE WHEN dm.user1_id = $1 THEN u2.username ELSE u1.username END AS other_username,
+			dm.created_at
+		FROM dm_channels dm
+		JOIN users u1 ON dm.user1_id = u1.id
+		JOIN users u2 ON dm.user2_id = u2.id
+		WHERE dm.user1_id = $1 OR dm.user2_id = $1
+		ORDER BY dm.created_at DESC
+	`
+	rows, err := s.db.Pool.Query(ctx, query, userID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return []DMChannel{}, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	var dms []DMChannel
+	for rows.Next() {
+		var dm DMChannel
+		if err := rows.Scan(&dm.ID, &dm.ChannelID, &dm.UserID, &dm.Username, &dm.CreatedAt); err != nil {
+			return nil, err
+		}
+		dms = append(dms, dm)
+	}
+	return dms, nil
+}
+
+// CreateOrGetDM finds an existing DM channel between two users or creates one.
+// It stores a canonical pair (smaller UUID first) so that duplicates are impossible.
+func (s *MessagingService) CreateOrGetDM(ctx context.Context, orgID, currentUserID, otherUserID string) (*DMChannel, error) {
+	// Canonical ordering so user1 < user2
+	u1, u2 := currentUserID, otherUserID
+	if u1 > u2 {
+		u1, u2 = u2, u1
+	}
+
+	// Check if a DM already exists
+	var dm DMChannel
+	err := s.db.Pool.QueryRow(ctx, `
+		SELECT dm.id, dm.channel_id,
+			CASE WHEN dm.user1_id = $3 THEN dm.user2_id ELSE dm.user1_id END,
+			CASE WHEN dm.user1_id = $3 THEN u2.username ELSE u1.username END,
+			dm.created_at
+		FROM dm_channels dm
+		JOIN users u1 ON dm.user1_id = u1.id
+		JOIN users u2 ON dm.user2_id = u2.id
+		WHERE dm.user1_id = $1 AND dm.user2_id = $2
+	`, u1, u2, currentUserID).Scan(&dm.ID, &dm.ChannelID, &dm.UserID, &dm.Username, &dm.CreatedAt)
+
+	if err == nil {
+		return &dm, nil
+	}
+	if err != pgx.ErrNoRows {
+		return nil, err
+	}
+
+	// Fetch the other user's username for the channel name
+	var otherUsername string
+	err = s.db.Pool.QueryRow(ctx, "SELECT username FROM users WHERE id = $1", otherUserID).Scan(&otherUsername)
+	if err != nil {
+		return nil, fmt.Errorf("user not found: %w", err)
+	}
+
+	var currentUsername string
+	err = s.db.Pool.QueryRow(ctx, "SELECT username FROM users WHERE id = $1", currentUserID).Scan(&currentUsername)
+	if err != nil {
+		return nil, fmt.Errorf("user not found: %w", err)
+	}
+
+	tx, err := s.db.Pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	// Create backing channel
+	channelName := "dm-" + currentUsername + "-" + otherUsername
+	var channelID string
+	err = tx.QueryRow(ctx, `
+		INSERT INTO channels (org_id, name, is_private, is_dm)
+		VALUES ($1, $2, TRUE, TRUE)
+		RETURNING id
+	`, orgID, channelName).Scan(&channelID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create dm_channels record
+	var dmID, createdAt string
+	err = tx.QueryRow(ctx, `
+		INSERT INTO dm_channels (channel_id, user1_id, user2_id)
+		VALUES ($1, $2, $3)
+		RETURNING id, created_at
+	`, channelID, u1, u2).Scan(&dmID, &createdAt)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+
+	return &DMChannel{
+		ID:        dmID,
+		ChannelID: channelID,
+		UserID:    otherUserID,
+		Username:  otherUsername,
+		CreatedAt: createdAt,
+	}, nil
 }
 

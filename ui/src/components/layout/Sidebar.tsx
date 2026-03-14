@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../stores/authStore';
-import { useMessageStore, type Channel } from '../../stores/messageStore';
+import { useMessageStore, type Channel, type DMConversation } from '../../stores/messageStore';
 import { usePresenceStore } from '../../stores/presenceStore';
 import { PresenceAvatar } from '../common/PresenceAvatar';
 import {
@@ -18,7 +18,8 @@ import {
   Building2,
   Users,
   Plus,
-  Archive
+  Archive,
+  X
 } from 'lucide-react';
 import CreateChannelModal from '../dashboard/CreateChannelModal';
 
@@ -33,27 +34,160 @@ const NavItem = ({ icon: Icon, text, active, onClick }: { icon: React.ElementTyp
     }`}
   >
     <Icon size={18} className={active ? 'text-blue-400' : ''} />
-    <span className="text-[14px] font-medium">{text}</span>
+    <span className="text-[14px] font-medium truncate">{text}</span>
   </motion.button>
 );
 
+// --- New DM Modal (Issue #113) ---
+const NewDMModal: React.FC<{ isOpen: boolean; onClose: () => void; onSelect: (userId: string, username: string) => void }> = ({ isOpen, onClose, onSelect }) => {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<{ id: string; username: string; email: string }[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  const doSearch = useCallback(async (q: string) => {
+    if (q.length < 2) { setResults([]); return; }
+    setSearching(true);
+    try {
+      const token = localStorage.getItem('nox_token') || '';
+      const res = await fetch(`http://localhost:8080/v1/users/search?q=${encodeURIComponent(q)}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'X-User-ID': JSON.parse(localStorage.getItem('nox_user') || '{}').id || '',
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setResults(Array.isArray(data) ? data : []);
+      }
+    } catch {
+      // ignore search errors
+    } finally {
+      setSearching(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) { setQuery(''); setResults([]); }
+  }, [isOpen]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => doSearch(query), 300);
+    return () => clearTimeout(timer);
+  }, [query, doSearch]);
+
+  const currentUserId = JSON.parse(localStorage.getItem('nox_user') || '{}').id || '';
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="w-full max-w-md bg-[#1a1a1a] border border-white/10 rounded-2xl overflow-hidden shadow-2xl"
+          >
+            <div className="flex items-center justify-between p-4 border-b border-white/5 bg-white/5">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <MessageSquare size={18} className="text-blue-400" />
+                New Direct Message
+              </h3>
+              <button
+                onClick={onClose}
+                title="Close"
+                className="p-1 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3">
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search users by name or email..."
+                autoFocus
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-gray-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25"
+                data-testid="dm-user-search-input"
+              />
+
+              <div className="max-h-60 overflow-y-auto space-y-1">
+                {searching && (
+                  <div className="text-center text-gray-500 text-sm py-4">Searching...</div>
+                )}
+                {!searching && query.length >= 2 && results.length === 0 && (
+                  <div className="text-center text-gray-500 text-sm py-4">No users found</div>
+                )}
+                {results
+                  .filter(u => u.id !== currentUserId)
+                  .map(u => (
+                    <motion.button
+                      key={u.id}
+                      whileHover={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                      onClick={() => { onSelect(u.id, u.username); onClose(); }}
+                      className="w-full px-3 py-2 rounded-xl flex items-center gap-3 text-left"
+                      data-testid={`dm-user-${u.username}`}
+                    >
+                      <PresenceAvatar userId={u.id} username={u.username} size="sm" />
+                      <div>
+                        <div className="text-sm text-white font-medium">{u.username}</div>
+                        <div className="text-[11px] text-gray-500">{u.email}</div>
+                      </div>
+                    </motion.button>
+                  ))}
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+};
+
 export const Sidebar: React.FC = () => {
   const { user, orgId, orgName, organizations, logout, fetchOrganizations, switchOrganization } = useAuthStore();
-  const { activeChannel, setActiveChannel, channels, fetchChannels } = useMessageStore();
-  const { isStealth, setStealth } = usePresenceStore();
+  const { activeChannel, setActiveChannel, channels, fetchChannels, dmConversations, fetchDMs, createOrGetDM, fetchMessages } = useMessageStore();
+  const { onlineUsers, isStealth, setStealth } = usePresenceStore();
   const [showOrgSwitcher, setShowOrgSwitcher] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
+  const [showNewDM, setShowNewDM] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
     fetchChannels();
     fetchOrganizations();
-  }, [fetchChannels, fetchOrganizations]);
+    fetchDMs();
+  }, [fetchChannels, fetchOrganizations, fetchDMs]);
 
   const handleChannelSelect = (channel: Channel) => {
     setActiveChannel(channel);
     navigate('/dashboard');
+  };
+
+  const handleDMSelect = (dm: DMConversation) => {
+    // Treat the DM's backing channel as the active channel
+    const dmChannel: Channel = {
+      id: dm.channel_id,
+      org_id: '',
+      name: dm.username,
+      is_private: true,
+      created_at: dm.created_at,
+      updated_at: dm.created_at,
+    };
+    setActiveChannel(dmChannel);
+    fetchMessages(dm.channel_id);
+    navigate('/dashboard');
+  };
+
+  const handleNewDM = async (userId: string, _username: string) => {
+    try {
+      const dm = await createOrGetDM(userId);
+      handleDMSelect(dm);
+    } catch (err) {
+      console.error('Failed to create DM:', err);
+    }
   };
 
   const handleOrgSwitch = (newOrgId: string) => {
@@ -175,11 +309,43 @@ export const Sidebar: React.FC = () => {
         <div>
           <div className="px-3 mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-500 flex items-center justify-between group">
             <span>Direct Messages</span>
-            <span className="cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity hover:text-white">+</span>
+            <button
+              onClick={() => setShowNewDM(true)}
+              className="cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity hover:text-white"
+              title="New Direct Message"
+              data-testid="new-dm-btn"
+            >
+              <Plus size={14} />
+            </button>
           </div>
           <div className="space-y-1">
-            <NavItem icon={MessageSquare} text="AliceReacts" />
-            <NavItem icon={MessageSquare} text="BobReacts" />
+            {dmConversations.map(dm => {
+              const isOnline = onlineUsers.includes(dm.user_id);
+              return (
+                <motion.button
+                  key={dm.id}
+                  whileHover={{ x: 4 }}
+                  whileTap={{ scale: 0.98 }}
+                  animate={{ backgroundColor: currentChannelId === dm.channel_id ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0)' }}
+                  onClick={() => handleDMSelect(dm)}
+                  className={`w-full h-10 px-3 rounded-xl flex items-center gap-3 transition-colors hover:bg-white/5 ${
+                    currentChannelId === dm.channel_id ? 'text-white' : 'text-gray-400 hover:text-white'
+                  }`}
+                  data-testid={`dm-${dm.username}`}
+                >
+                  <div className="relative">
+                    <MessageSquare size={18} className={currentChannelId === dm.channel_id ? 'text-blue-400' : ''} />
+                    {isOnline && (
+                      <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full border border-[#0d0d0d]" />
+                    )}
+                  </div>
+                  <span className="text-[14px] font-medium truncate">{dm.username}</span>
+                </motion.button>
+              );
+            })}
+            {dmConversations.length === 0 && (
+              <div className="px-3 py-2 text-xs text-gray-600">No conversations yet</div>
+            )}
           </div>
         </div>
 
@@ -239,6 +405,7 @@ export const Sidebar: React.FC = () => {
       </div>
 
       <CreateChannelModal isOpen={showCreateChannel} onClose={() => setShowCreateChannel(false)} />
+      <NewDMModal isOpen={showNewDM} onClose={() => setShowNewDM(false)} onSelect={handleNewDM} />
     </div>
   );
 };
