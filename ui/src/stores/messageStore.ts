@@ -212,9 +212,9 @@ export const useMessageStore = create<MessageState>((set, get) => ({
 
       // Refresh auto-clear timeout on every typing event (even if already in list)
       const timeoutId = `typing-${channelId}-${username}`;
-      const win = window as any;
+      const win = window as unknown as Record<string, ReturnType<typeof setTimeout> | undefined>;
       if (win[timeoutId]) clearTimeout(win[timeoutId]);
-      
+
       win[timeoutId] = setTimeout(() => {
         const latest = get().typingUsers[channelId] || [];
         if (latest.includes(username)) {
@@ -231,7 +231,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
         }
       }));
       const timeoutId = `typing-${channelId}-${username}`;
-      const win = window as any;
+      const win = window as unknown as Record<string, ReturnType<typeof setTimeout> | undefined>;
       if (win[timeoutId]) {
         clearTimeout(win[timeoutId]);
         delete win[timeoutId];
