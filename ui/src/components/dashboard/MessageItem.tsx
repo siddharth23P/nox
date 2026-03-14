@@ -61,7 +61,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   onShowHistory
 }) => {
   const currentUserId = useAuthStore((state) => state.user?.id);
-  const { setActiveThread, toggleReaction, toggleBookmark, togglePin, removeMessage } = useMessageStore();
+  const { setActiveThread, toggleReaction, toggleBookmark, togglePin, deleteMessage } = useMessageStore();
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const isCurrentUser = msg.user_id === currentUserId;
 
@@ -156,7 +156,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                 <span>Vanishing in</span>
                 <Countdown 
                   date={msg.expires_at} 
-                  onExpire={() => removeMessage(msg.id)} 
+                  onExpire={() => deleteMessage(msg.channel_id, msg.id)} 
                 />
               </div>
             )}

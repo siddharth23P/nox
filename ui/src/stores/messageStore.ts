@@ -24,6 +24,7 @@ export interface Message {
   forward_source_username?: string;
   created_at: string;
   updated_at: string;
+  expires_at?: string;
 }
 
 export interface MessageEdit {
