@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Camera, Check, Loader2, Building2 } from 'lucide-react';
+import { Camera, Check, Loader2, Building2, UserPlus } from 'lucide-react';
 import { useOrgStore } from '../../stores/orgStore';
 import { useAuthStore } from '../../stores/authStore';
+import { InviteModal } from './InviteModal';
 
 export const OrgSettings: React.FC = () => {
   const { settings, isLoading, error, fetchSettings, updateSettings, uploadLogo } = useOrgStore();
@@ -11,6 +12,7 @@ export const OrgSettings: React.FC = () => {
   const [description, setDescription] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isAdmin = role === 'owner' || role === 'admin';
@@ -184,6 +186,29 @@ export const OrgSettings: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Invite Members Section */}
+      {isAdmin && (
+        <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6 mb-6">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4">Invite Members</h3>
+          <p className="text-sm text-gray-400 mb-4">
+            Invite people to join your organization via a shareable link or direct email invitation.
+          </p>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setShowInviteModal(true)}
+            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-xl transition-colors"
+            data-testid="org-settings-invite-button"
+          >
+            <UserPlus size={16} />
+            Invite People
+          </motion.button>
+        </div>
+      )}
+
+      {/* Invite Modal */}
+      <InviteModal open={showInviteModal} onClose={() => setShowInviteModal(false)} />
     </motion.div>
   );
 };
