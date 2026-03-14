@@ -20,7 +20,8 @@ import {
   Plus,
   Archive,
   X,
-  Compass
+  Compass,
+  Shield
 } from 'lucide-react';
 import CreateChannelModal from '../dashboard/CreateChannelModal';
 import BrowseChannelsModal from '../dashboard/BrowseChannelsModal';
@@ -239,7 +240,7 @@ const handleNewDM = async (userId: string, _username: string) => {
 
         {/* Org Switcher Dropdown */}
         <AnimatePresence>
-          {showOrgSwitcher && organizations.length > 0 && (
+          {showOrgSwitcher && (
             <motion.div
               initial={{ opacity: 0, y: -8, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -407,6 +408,12 @@ const handleNewDM = async (userId: string, _username: string) => {
           text="Members"
           active={location.pathname.includes('/settings/members')}
           onClick={() => navigate('/dashboard/settings/members')}
+        />
+        <NavItem
+          icon={Shield}
+          text="Roles"
+          active={location.pathname.includes('/settings/roles')}
+          onClick={() => navigate('/dashboard/settings/roles')}
         />
         <NavItem
           icon={Settings}

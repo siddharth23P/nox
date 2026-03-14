@@ -15,6 +15,7 @@ import { PreferencesSettings } from './components/settings/PreferencesSettings';
 import { FriendsPage } from './components/friends/FriendsPage';
 import { OrgSettings } from './components/settings/OrgSettings';
 import { MemberDirectory } from './components/settings/MemberDirectory';
+import { RolesManager } from './components/settings/RolesManager';
 import { useAuthStore } from './stores/authStore';
 
 function App() {
@@ -57,6 +58,7 @@ function App() {
             <Route path="settings/preferences" element={<PreferencesSettings />} />
             <Route path="settings/organization" element={<OrgSettings />} />
             <Route path="settings/members" element={<MemberDirectory />} />
+            <Route path="settings/roles" element={<RolesManager />} />
           </Route>
 
           {/* Redirect /settings/profile to dashboard sub-route */}
