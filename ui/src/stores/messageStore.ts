@@ -65,6 +65,11 @@ export interface DMConversation {
   created_at: string;
 }
 
+export interface BrowsableChannel extends Channel {
+  member_count: number;
+  is_joined: boolean;
+}
+
 interface MessageState {
   activeChannel: Channel | null;
   channels: Channel[];
@@ -87,11 +92,11 @@ interface MessageState {
   loadMoreMessages: (channelId: string, before: string) => Promise<void>;
   sendMessage: (channelId: string, contentMd: string, parentId?: string, replyToId?: string) => Promise<void>;
   setReplyTo: (message: Message | null) => void;
-  
+
   setActiveThread: (messageId: string | null) => void;
   fetchThread: (channelId: string, messageId: string) => Promise<void>;
   sendThreadReply: (channelId: string, messageId: string, contentMd: string) => Promise<void>;
-  
+
   editMessage: (channelId: string, messageId: string, contentMd: string) => Promise<void>;
   deleteMessage: (channelId: string, messageId: string) => Promise<void>;
   getMessageHistory: (channelId: string, messageId: string) => Promise<MessageEdit[]>;
@@ -105,6 +110,12 @@ interface MessageState {
   dmConversations: DMConversation[];
   fetchDMs: () => Promise<void>;
   createOrGetDM: (otherUserId: string) => Promise<DMConversation>;
+
+  // Channel Discovery (Issue #121)
+  browseChannels: () => Promise<BrowsableChannel[]>;
+  joinChannel: (channelId: string) => Promise<void>;
+  leaveChannel: (channelId: string) => Promise<void>;
+  fetchJoinedChannels: () => Promise<void>;
 
   // Real-time Event Handlers
   onMessageReceived: (message: Message) => void;
@@ -755,5 +766,80 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     setTimeout(() => {
       set((state) => state.highlightedMessageId === messageId ? { highlightedMessageId: null } : state);
     }, 2000);
-  }
+  },
+
+  // ---------- Channel Discovery (Issue #121) ----------
+
+  browseChannels: async () => {
+    const orgId = localStorage.getItem('nox_org_id');
+    const userStr = localStorage.getItem('nox_user');
+    const userId = userStr ? JSON.parse(userStr).id : '';
+    if (!orgId) throw new Error('No organization selected');
+
+    const response = await fetch(`${API_BASE_URL}/channels/browse`, {
+      headers: {
+        'X-Org-ID': orgId,
+        'X-User-ID': userId,
+      },
+    });
+    if (!response.ok) throw new Error('Failed to browse channels');
+    return response.json();
+  },
+
+  joinChannel: async (channelId: string) => {
+    const userStr = localStorage.getItem('nox_user');
+    const userId = userStr ? JSON.parse(userStr).id : '';
+
+    const response = await fetch(`${API_BASE_URL}/channels/${channelId}/join`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Org-ID': localStorage.getItem('nox_org_id') || '',
+        'X-User-ID': userId,
+      },
+    });
+    if (!response.ok) throw new Error('Failed to join channel');
+
+    // Refresh the sidebar channel list
+    await get().fetchJoinedChannels();
+  },
+
+  leaveChannel: async (channelId: string) => {
+    const userStr = localStorage.getItem('nox_user');
+    const userId = userStr ? JSON.parse(userStr).id : '';
+
+    const response = await fetch(`${API_BASE_URL}/channels/${channelId}/leave`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Org-ID': localStorage.getItem('nox_org_id') || '',
+        'X-User-ID': userId,
+      },
+    });
+    if (!response.ok) throw new Error('Failed to leave channel');
+
+    // Refresh the sidebar channel list
+    await get().fetchJoinedChannels();
+  },
+
+  fetchJoinedChannels: async () => {
+    try {
+      const orgId = localStorage.getItem('nox_org_id');
+      const userStr = localStorage.getItem('nox_user');
+      const userId = userStr ? JSON.parse(userStr).id : '';
+      if (!orgId) return;
+
+      const response = await fetch(`${API_BASE_URL}/channels/joined`, {
+        headers: {
+          'X-Org-ID': orgId,
+          'X-User-ID': userId,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to fetch joined channels');
+      const data = await response.json();
+      set({ channels: data });
+    } catch (err) {
+      set({ error: (err as Error).message });
+    }
+  },
 }));

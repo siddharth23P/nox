@@ -528,6 +528,102 @@ func (h *MessagingHandler) ForwardMessage(c *gin.Context) {
 	c.JSON(http.StatusCreated, msg)
 }
 
+// ---------- Channel Discovery (Issue #121) ----------
+
+// BrowseChannels lists all public channels in the org with member counts.
+func (h *MessagingHandler) BrowseChannels(c *gin.Context) {
+	orgID, userID := getAuthInfo(c)
+	if orgID == "" || userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "X-Org-ID and X-User-ID required"})
+		return
+	}
+
+	channels, err := h.service.BrowseChannels(c.Request.Context(), orgID, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if channels == nil {
+		channels = []BrowsableChannel{}
+	}
+	c.JSON(http.StatusOK, channels)
+}
+
+// JoinChannel adds the current user to a public channel.
+func (h *MessagingHandler) JoinChannel(c *gin.Context) {
+	_, userID := getAuthInfo(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "X-User-ID required"})
+		return
+	}
+
+	channelID := c.Param("id")
+	if channelID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Channel ID required"})
+		return
+	}
+
+	err := h.service.JoinChannel(c.Request.Context(), channelID, userID)
+	if err != nil {
+		if strings.Contains(err.Error(), "private") {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		if strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "joined", "channel_id": channelID})
+}
+
+// LeaveChannel removes the current user from a channel.
+func (h *MessagingHandler) LeaveChannel(c *gin.Context) {
+	_, userID := getAuthInfo(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "X-User-ID required"})
+		return
+	}
+
+	channelID := c.Param("id")
+	if channelID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Channel ID required"})
+		return
+	}
+
+	err := h.service.LeaveChannel(c.Request.Context(), channelID, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "left", "channel_id": channelID})
+}
+
+// GetJoinedChannels returns only channels the user has joined.
+func (h *MessagingHandler) GetJoinedChannels(c *gin.Context) {
+	orgID, userID := getAuthInfo(c)
+	if orgID == "" || userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "X-Org-ID and X-User-ID required"})
+		return
+	}
+
+	channels, err := h.service.GetJoinedChannels(c.Request.Context(), orgID, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if channels == nil {
+		channels = []Channel{}
+	}
+	c.JSON(http.StatusOK, channels)
+}
+
 // ---------- Direct Messages (Issue #113) ----------
 
 func (h *MessagingHandler) ListDMs(c *gin.Context) {

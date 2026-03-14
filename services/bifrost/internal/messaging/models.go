@@ -104,3 +104,19 @@ type DMChannel struct {
 type CreateDMRequest struct {
 	UserID string `json:"user_id" binding:"required"`
 }
+
+// BrowsableChannel extends Channel with member count and join status for the browse endpoint (Issue #121).
+type BrowsableChannel struct {
+	ID          string     `json:"id"`
+	OrgID       string     `json:"org_id"`
+	Name        string     `json:"name"`
+	Description *string    `json:"description,omitempty"`
+	Topic       *string    `json:"topic,omitempty"`
+	IsPrivate   bool       `json:"is_private"`
+	CreatedBy   *string    `json:"created_by,omitempty"`
+	ArchivedAt  *time.Time `json:"archived_at,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+	MemberCount int        `json:"member_count"`
+	IsJoined    bool       `json:"is_joined"`
+}

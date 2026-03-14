@@ -563,6 +563,94 @@ func (s *MessagingService) GetChannelReadReceipts(ctx context.Context, channelID
 	return reads, nil
 }
 
+// ---------- Channel Discovery (Issue #121) ----------
+
+// BrowseChannels returns all public, non-archived channels in an org with member counts
+// and whether the given user has joined each one.
+func (s *MessagingService) BrowseChannels(ctx context.Context, orgID string, userID string) ([]BrowsableChannel, error) {
+	query := `
+		SELECT
+			c.id, c.org_id, c.name, c.description, c.topic, c.is_private, c.created_by, c.archived_at, c.created_at, c.updated_at,
+			COALESCE(mc.cnt, 0)::int AS member_count,
+			EXISTS(SELECT 1 FROM channel_members cm WHERE cm.channel_id = c.id AND cm.user_id = $2) AS is_joined
+		FROM channels c
+		LEFT JOIN (
+			SELECT channel_id, COUNT(*) AS cnt FROM channel_members GROUP BY channel_id
+		) mc ON mc.channel_id = c.id
+		WHERE c.org_id = $1
+		  AND c.is_private = FALSE
+		  AND c.archived_at IS NULL
+		ORDER BY c.name ASC
+	`
+	rows, err := s.db.Pool.Query(ctx, query, orgID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var channels []BrowsableChannel
+	for rows.Next() {
+		var ch BrowsableChannel
+		if err := rows.Scan(&ch.ID, &ch.OrgID, &ch.Name, &ch.Description, &ch.Topic, &ch.IsPrivate, &ch.CreatedBy, &ch.ArchivedAt, &ch.CreatedAt, &ch.UpdatedAt, &ch.MemberCount, &ch.IsJoined); err != nil {
+			return nil, err
+		}
+		channels = append(channels, ch)
+	}
+	return channels, nil
+}
+
+// JoinChannel adds the user as a member of the given public channel.
+func (s *MessagingService) JoinChannel(ctx context.Context, channelID string, userID string) error {
+	var isPrivate bool
+	err := s.db.Pool.QueryRow(ctx, "SELECT is_private FROM channels WHERE id = $1", channelID).Scan(&isPrivate)
+	if err != nil {
+		return fmt.Errorf("channel not found")
+	}
+	if isPrivate {
+		return fmt.Errorf("cannot join a private channel without an invitation")
+	}
+
+	_, err = s.db.Pool.Exec(ctx, `
+		INSERT INTO channel_members (channel_id, user_id)
+		VALUES ($1, $2)
+		ON CONFLICT (channel_id, user_id) DO NOTHING
+	`, channelID, userID)
+	return err
+}
+
+// LeaveChannel removes the user from the given channel.
+func (s *MessagingService) LeaveChannel(ctx context.Context, channelID string, userID string) error {
+	_, err := s.db.Pool.Exec(ctx, `DELETE FROM channel_members WHERE channel_id = $1 AND user_id = $2`, channelID, userID)
+	return err
+}
+
+// GetJoinedChannels returns only channels the user has joined.
+func (s *MessagingService) GetJoinedChannels(ctx context.Context, orgID string, userID string) ([]Channel, error) {
+	query := `
+		SELECT c.id, c.org_id, c.name, c.description, c.topic, c.is_private, c.created_by, c.archived_at, c.created_at, c.updated_at
+		FROM channels c
+		INNER JOIN channel_members cm ON cm.channel_id = c.id AND cm.user_id = $2
+		WHERE c.org_id = $1
+		  AND c.archived_at IS NULL
+		ORDER BY c.name ASC
+	`
+	rows, err := s.db.Pool.Query(ctx, query, orgID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var channels []Channel
+	for rows.Next() {
+		var ch Channel
+		if err := rows.Scan(&ch.ID, &ch.OrgID, &ch.Name, &ch.Description, &ch.Topic, &ch.IsPrivate, &ch.CreatedBy, &ch.ArchivedAt, &ch.CreatedAt, &ch.UpdatedAt); err != nil {
+			return nil, err
+		}
+		channels = append(channels, ch)
+	}
+	return channels, nil
+}
+
 // ---------- Direct Messages (Issue #113) ----------
 
 // ListDMs returns all DM conversations for the given user, including the other

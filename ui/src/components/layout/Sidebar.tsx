@@ -19,9 +19,11 @@ import {
   Users,
   Plus,
   Archive,
-  X
+  X,
+  Compass
 } from 'lucide-react';
 import CreateChannelModal from '../dashboard/CreateChannelModal';
+import BrowseChannelsModal from '../dashboard/BrowseChannelsModal';
 
 const NavItem = ({ icon: Icon, text, active, onClick }: { icon: React.ElementType, text: string, active?: boolean, onClick?: () => void }) => (
   <motion.button
@@ -147,19 +149,27 @@ const NewDMModal: React.FC<{ isOpen: boolean; onClose: () => void; onSelect: (us
 
 export const Sidebar: React.FC = () => {
   const { user, orgId, orgName, organizations, logout, fetchOrganizations, switchOrganization } = useAuthStore();
-  const { activeChannel, setActiveChannel, channels, fetchChannels, dmConversations, fetchDMs, createOrGetDM, fetchMessages } = useMessageStore();
+  const { activeChannel, setActiveChannel, channels, fetchChannels, fetchJoinedChannels, dmConversations, fetchDMs, createOrGetDM, fetchMessages } = useMessageStore();
   const { onlineUsers, isStealth, setStealth } = usePresenceStore();
   const [showOrgSwitcher, setShowOrgSwitcher] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [showNewDM, setShowNewDM] = useState(false);
+  const [showBrowseChannels, setShowBrowseChannels] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    fetchChannels();
+    // Try to load joined channels first; fall back to all channels
+    fetchJoinedChannels().then(() => {
+      // If no joined channels were loaded, fall back to fetchChannels
+      const currentChannels = useMessageStore.getState().channels;
+      if (currentChannels.length === 0) {
+        fetchChannels();
+      }
+    });
     fetchOrganizations();
     fetchDMs();
-  }, [fetchChannels, fetchOrganizations, fetchDMs]);
+  }, [fetchChannels, fetchJoinedChannels, fetchOrganizations, fetchDMs]);
 
   const handleChannelSelect = (channel: Channel) => {
     setActiveChannel(channel);
@@ -280,14 +290,24 @@ const handleNewDM = async (userId: string, _username: string) => {
         <div>
           <div className="px-3 mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-500 flex items-center justify-between group">
             <span>Channels</span>
-            <button
-              onClick={() => setShowCreateChannel(true)}
-              className="cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity hover:text-white"
-              title="Create Channel"
-              data-testid="create-channel-btn"
-            >
-              <Plus size={14} />
-            </button>
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={() => setShowBrowseChannels(true)}
+                className="cursor-pointer hover:text-white"
+                title="Browse Channels"
+                data-testid="browse-channels-btn"
+              >
+                <Compass size={14} />
+              </button>
+              <button
+                onClick={() => setShowCreateChannel(true)}
+                className="cursor-pointer hover:text-white"
+                title="Create Channel"
+                data-testid="create-channel-btn"
+              >
+                <Plus size={14} />
+              </button>
+            </div>
           </div>
           <div className="space-y-1">
             {channels.map(channel => {
@@ -407,6 +427,7 @@ const handleNewDM = async (userId: string, _username: string) => {
 
       <CreateChannelModal isOpen={showCreateChannel} onClose={() => setShowCreateChannel(false)} />
       <NewDMModal isOpen={showNewDM} onClose={() => setShowNewDM(false)} onSelect={handleNewDM} />
+      <BrowseChannelsModal isOpen={showBrowseChannels} onClose={() => setShowBrowseChannels(false)} />
     </div>
   );
 };
