@@ -92,6 +92,8 @@ func main() {
 	invitationHandler := auth.NewInvitationHandler(invitationService)
 	rbacService := auth.NewRBACService(database)
 	rbacHandler := auth.NewRBACHandler(rbacService)
+	orgService := auth.NewOrgService(database)
+	orgHandler := auth.NewOrgHandler(orgService)
 	messagingHandler := messaging.NewMessagingHandler(messagingService, hub)
 	presenceHandler := presence.NewPresenceHandler(presenceService)
 
@@ -152,6 +154,14 @@ func main() {
 			authenticated.DELETE("/orgs/:orgId/members/:userId/roles/:roleId", rbacHandler.RemoveRole)
 			authenticated.GET("/orgs/:orgId/members/:userId/permissions", rbacHandler.GetEffectivePermissions)
 			authenticated.GET("/permissions/schema", rbacHandler.GetPermissionSchema)
+
+			// Organization Settings & Member Management (Issue #30)
+			authenticated.GET("/orgs/:orgId/settings", orgHandler.GetOrgSettings)
+			authenticated.PATCH("/orgs/:orgId", orgHandler.UpdateOrgSettings)
+			authenticated.POST("/orgs/:orgId/logo", orgHandler.UploadOrgLogo)
+			authenticated.GET("/orgs/:orgId/members", orgHandler.ListOrgMembers)
+			authenticated.PATCH("/orgs/:orgId/members/:userId/role", orgHandler.ChangeMemberRole)
+			authenticated.DELETE("/orgs/:orgId/members/:userId", orgHandler.RemoveMember)
 		}
 
 		// Channel CRUD Routes
