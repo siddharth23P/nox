@@ -40,8 +40,8 @@ test.describe('Real-time Indicators', () => {
     await bobPage.goto('http://localhost:5173');
     await bobPage.waitForFunction(() => (window as unknown as { WS_CONNECTED?: boolean }).WS_CONNECTED === true, { timeout: 30000 });
 
-    // 3. Verify Bob sees Nexus Inc (to ensure logged in)
-    await expect(bobPage.getByText('Nexus Inc')).toBeVisible({ timeout: 15000 });
+    // 3. Verify Bob sees org name (to ensure logged in)
+    await expect(bobPage.getByText('Nox Workspace')).toBeVisible({ timeout: 15000 });
     
     // Select channel explicitly to ensure we are in the right state
     await bobPage.getByRole('button', { name: 'general' }).click();

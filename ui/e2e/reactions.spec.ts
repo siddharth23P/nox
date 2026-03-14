@@ -45,7 +45,7 @@ test.describe('Reaction Engine (E2E)', () => {
     await bobPage.waitForFunction(() => (window as unknown as { WS_CONNECTED?: boolean }).WS_CONNECTED === true, { timeout: 15000 });
     
     // 3. Alice sends message
-    await expect(alicePage.getByText('Nexus Inc')).toBeVisible({ timeout: 15000 });
+    await expect(alicePage.getByText('Nox Workspace')).toBeVisible({ timeout: 15000 });
     // Channel name is engineering, but sidebar might be loading. Let it auto-select engineering from LS.
     await expect(alicePage.getByPlaceholder(`Message #engineering...`)).toBeVisible({ timeout: 15000 });
     await expect(alicePage.getByText('Loading messages...')).not.toBeVisible();
@@ -68,7 +68,7 @@ test.describe('Reaction Engine (E2E)', () => {
     await expect(reactionBubble).toContainText('1');
 
     // 4. Bob sees message
-    await expect(bobPage.getByText('Nexus Inc')).toBeVisible({ timeout: 15000 });
+    await expect(bobPage.getByText('Nox Workspace')).toBeVisible({ timeout: 15000 });
     // Bob should also land on engineering automatically from LS
     await expect(bobPage.getByPlaceholder(`Message #engineering...`)).toBeVisible({ timeout: 15000 });
     await expect(bobPage.getByText('Loading messages...')).not.toBeVisible();
