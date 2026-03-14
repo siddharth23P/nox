@@ -1,0 +1,40 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Bifrost Gateway (Go Backend)",
+      "runtimeExecutable": "go",
+      "runtimeArgs": ["run", "cmd/gateway/main.go"],
+      "port": 8080,
+      "cwd": "services/bifrost"
+    },
+    {
+      "name": "Nexus UI (Vite Dev Server)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 5173,
+      "cwd": "ui"
+    },
+    {
+      "name": "Orchestrator (Rust gRPC)",
+      "runtimeExecutable": "cargo",
+      "runtimeArgs": ["run"],
+      "port": 50052,
+      "cwd": "services/orchestrator"
+    },
+    {
+      "name": "DB Seed (Bifrost)",
+      "runtimeExecutable": "go",
+      "runtimeArgs": ["run", "cmd/seed/main.go"],
+      "port": null,
+      "cwd": "services/bifrost"
+    },
+    {
+      "name": "DB Clean (Bifrost)",
+      "runtimeExecutable": "go",
+      "runtimeArgs": ["run", "cmd/clean/main.go"],
+      "port": null,
+      "cwd": "services/bifrost"
+    }
+  ]
+}
