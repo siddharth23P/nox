@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import DOMPurify from 'dompurify';
 import { X, Clock } from 'lucide-react';
 import { useMessageStore, type MessageEdit } from '../../stores/messageStore';
 
@@ -90,7 +91,7 @@ export const EditHistoryModal: React.FC<EditHistoryModalProps> = ({ isOpen, onCl
                       <div className="text-xs text-gray-500 mb-1 uppercase tracking-wider font-semibold">Previous Content</div>
                       <div 
                         className="text-gray-300 text-sm whitespace-pre-wrap"
-                        dangerouslySetInnerHTML={{ __html: edit.old_content_html || edit.old_content_md }}
+                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(edit.old_content_html || edit.old_content_md) }}
                       />
                     </div>
                   </div>

@@ -171,6 +171,32 @@ func (h *MessagingHandler) EditMessage(c *gin.Context) {
 	c.JSON(http.StatusOK, msg)
 }
 
+func (h *MessagingHandler) DeleteMessage(c *gin.Context) {
+	_, userID := getAuthInfo(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "X-User-ID required"})
+		return
+	}
+
+	messageID := c.Param("messageId")
+	if messageID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Message ID required"})
+		return
+	}
+
+	err := h.service.DeleteMessage(c.Request.Context(), messageID, userID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden: You cannot delete this message."})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "deleted", "message_id": messageID})
+}
+
 func (h *MessagingHandler) GetMessageEditHistory(c *gin.Context) {
 	messageID := c.Param("messageId")
 	if messageID == "" {

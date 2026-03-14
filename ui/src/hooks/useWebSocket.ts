@@ -53,6 +53,9 @@ export function useWebSocket() {
             case 'PIN_UPDATED':
               store.onPinUpdated(payload.message_id, payload.is_pinned);
               break;
+            case 'MESSAGE_DELETED':
+              store.onMessageDeleted(payload.message_id);
+              break;
             case 'TYPING_INDICATOR':
               if (payload.user_id !== user?.id) {
                 store.onTypingIndicator(payload.channel_id, payload.username, payload.is_typing);

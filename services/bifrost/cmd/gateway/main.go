@@ -115,6 +115,7 @@ func main() {
 		v1.GET("/channels/:id/messages", messagingHandler.GetMessages)
 		v1.GET("/channels/:id/messages/:messageId/replies", messagingHandler.GetThreadReplies)
 		v1.PATCH("/channels/:id/messages/:messageId", messagingHandler.EditMessage)
+		v1.DELETE("/channels/:id/messages/:messageId", messagingHandler.DeleteMessage)
 		v1.GET("/channels/:id/messages/:messageId/history", messagingHandler.GetMessageEditHistory)
 		v1.POST("/channels/:id/messages/:messageId/react", messagingHandler.ReactToMessage)
 		v1.POST("/channels/:id/messages/:messageId/pin", messagingHandler.TogglePin)

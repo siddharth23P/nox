@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import DOMPurify from 'dompurify';
 import { X, CornerDownRight, MessageCircle } from 'lucide-react';
 import { useMessageStore } from '../../stores/messageStore';
 import { PresenceAvatar } from '../common/PresenceAvatar';
@@ -86,7 +87,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
                     </div>
                     <div 
                       className="text-[15px] text-gray-300 leading-relaxed font-light whitespace-pre-wrap"
-                      dangerouslySetInnerHTML={{ __html: parentMessage.content_html || parentMessage.content_md }}
+                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(parentMessage.content_html || parentMessage.content_md) }}
                     />
                   </div>
                 </div>
@@ -126,7 +127,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
                       </div>
                       <div 
                         className={`text-[14px] text-gray-400 leading-relaxed font-light whitespace-pre-wrap ${reply.status === 'sending' ? 'opacity-50' : ''}`}
-                        dangerouslySetInnerHTML={{ __html: reply.content_html || reply.content_md }}
+                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(reply.content_html || reply.content_md) }}
                       />
                       {reply.status === 'sending' && (
                         <span className="text-[10px] text-gray-500 animate-pulse block mt-1">Sending...</span>
