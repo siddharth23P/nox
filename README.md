@@ -1,9 +1,11 @@
 # Nox: The Distributed Cognitive Nexus 🌌
 
 [![Build & Test](https://github.com/siddharth23P/nox/actions/workflows/main.yml/badge.svg)](https://github.com/siddharth23P/nox/actions/workflows/main.yml)
+[![codecov](https://codecov.io/gh/siddharth23P/nox/branch/main/graph/badge.svg)](https://codecov.io/gh/siddharth23P/nox)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://go.dev/)
 [![Rust Version](https://img.shields.io/badge/Rust-2021+-000000?style=flat&logo=rust)](https://www.rust-lang.org/)
+[![Contributing](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 Nox is a next-generation distributed collaboration platform designed for **high-fidelity reasoning** and **secure knowledge sharing**. It leverages a multi-service architecture with a focus on zero-trust identity and premium aesthetics.
 
@@ -89,7 +91,11 @@ curl -X POST http://localhost:8080/v1/auth/login \
 
 ## 🛡️ Security & Contributing
 
-Please read our [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests to us.
+We welcome contributions! Please read our **[Contributing Guide](CONTRIBUTING.md)** for details on:
+- How to file issues and feature requests
+- Branch naming and PR conventions
+- Code style requirements (Go, Rust, TypeScript)
+- Commit message format
 
 ---
 
