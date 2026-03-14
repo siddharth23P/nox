@@ -184,10 +184,14 @@ func main() {
 		// Channel CRUD Routes
 		v1.POST("/channels", messagingHandler.CreateChannel)
 		v1.GET("/channels", messagingHandler.GetChannels)
+		v1.GET("/channels/browse", messagingHandler.BrowseChannels)
+		v1.GET("/channels/joined", messagingHandler.GetJoinedChannels)
 		v1.GET("/channels/:id", messagingHandler.GetChannel)
 		v1.PATCH("/channels/:id", messagingHandler.UpdateChannel)
 		v1.POST("/channels/:id/archive", messagingHandler.ArchiveChannel)
 		v1.POST("/channels/:id/unarchive", messagingHandler.UnarchiveChannel)
+		v1.POST("/channels/:id/join", messagingHandler.JoinChannel)
+		v1.POST("/channels/:id/leave", messagingHandler.LeaveChannel)
 		v1.DELETE("/channels/:id", messagingHandler.DeleteChannel)
 
 		// Messaging Routes
