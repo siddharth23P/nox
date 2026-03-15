@@ -17,6 +17,8 @@ import { OrgSettings } from './components/settings/OrgSettings';
 import { MemberDirectory } from './components/settings/MemberDirectory';
 import { RolesManager } from './components/settings/RolesManager';
 import { useAuthStore } from './stores/authStore';
+// Initialize theme store (applies persisted theme on load)
+import './stores/themeStore';
 
 function App() {
   const { isAuthenticated } = useAuthStore();

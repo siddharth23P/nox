@@ -283,7 +283,8 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                             onChange={(e) => setEditContent(e.target.value)}
                             aria-label="Edit message"
                             placeholder="Edit your message..."
-                            className={`w-full bg-[#2a2a2a] border border-white/10 rounded-xl p-3 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none min-h-[80px] custom-scrollbar`}
+                            className="w-full rounded-xl p-3 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none min-h-[80px] custom-scrollbar"
+                            style={{ backgroundColor: 'var(--nox-input-bg)', border: '1px solid var(--nox-input-border)', color: 'var(--nox-text-primary)' }}
                             autoFocus
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' && !e.shiftKey) {
@@ -385,7 +386,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                             setEditingMessageId(msg.id);
                             setEditContent(msg.content_md);
                           }}
-                          className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-white hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                          className="p-1.5 rounded-lg border text-gray-400 hover:text-white hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
                           title="Edit message"
                         >
                           <Edit2 size={14} />
@@ -394,7 +395,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                           onClick={() => {
                             if (channelId) deleteMessage(channelId, msg.id);
                           }}
-                          className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-red-400 hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                          className="p-1.5 rounded-lg border text-gray-400 hover:text-red-400 hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
                           title="Delete message"
                         >
                           <Trash2 size={14} />
@@ -405,7 +406,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                     <div className="relative">
                       <button
                         onClick={() => setActiveEmojiPickerMsgId(activeEmojiPickerMsgId === msg.id ? null : msg.id)}
-                        className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-white hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                        className="p-1.5 rounded-lg border text-gray-400 hover:text-white hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
                         title="Add reaction"
                       >
                         <SmilePlus size={14} />
@@ -420,7 +421,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
 
                     <button
                       onClick={() => useMessageStore.getState().toggleBookmark(channelId!, msg.id)}
-                      className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-blue-400 hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                      className="p-1.5 rounded-lg border text-gray-400 hover:text-blue-400 hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
                       title={msg.is_bookmarked ? "Remove bookmark" : "Bookmark"}
                     >
                       <Bookmark size={14} className={msg.is_bookmarked ? "fill-blue-400 text-blue-400" : ""} />
@@ -428,7 +429,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
 
                     <button
                       onClick={() => useMessageStore.getState().togglePin(channelId!, msg.id)}
-                      className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-yellow-500 hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                      className="p-1.5 rounded-lg border text-gray-400 hover:text-yellow-500 hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
                       title={msg.is_pinned ? "Unpin message" : "Pin to channel"}
                     >
                       <Pin size={14} className={msg.is_pinned ? "fill-yellow-500 text-yellow-500" : ""} />
@@ -436,7 +437,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
 
                     <button
                       onClick={() => setActiveThread(msg.id)}
-                      className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-white hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                      className="p-1.5 rounded-lg border text-gray-400 hover:text-white hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
                       title="Open thread"
                     >
                       <MessageCircle size={14} />
@@ -445,7 +446,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
 
                     <button
                       onClick={() => setForwardModalMessage(msg)}
-                      className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-white hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                      className="p-1.5 rounded-lg border text-gray-400 hover:text-white hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
                       title="Forward message"
                     >
                       <Send size={14} />
