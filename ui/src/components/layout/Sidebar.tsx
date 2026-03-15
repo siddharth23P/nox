@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../stores/authStore';
 import { useMessageStore, type Channel, type DMConversation } from '../../stores/messageStore';
 import { usePresenceStore } from '../../stores/presenceStore';
+import { useFriendStore } from '../../stores/friendStore';
 import { PresenceAvatar } from '../common/PresenceAvatar';
 import {
   Hash,
@@ -47,6 +48,7 @@ const NewDMModal: React.FC<{ isOpen: boolean; onClose: () => void; onSelect: (us
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<{ id: string; username: string; email: string }[]>([]);
   const [searching, setSearching] = useState(false);
+  const { friends, fetchFriends } = useFriendStore();
 
   const doSearch = useCallback(async (q: string) => {
     if (q.length < 2) { setResults([]); return; }
@@ -71,8 +73,12 @@ const NewDMModal: React.FC<{ isOpen: boolean; onClose: () => void; onSelect: (us
   }, []);
 
   useEffect(() => {
-    if (!isOpen) { setQuery(''); setResults([]); }
-  }, [isOpen]);
+    if (isOpen) {
+      fetchFriends('accepted');
+    } else {
+      setQuery(''); setResults([]);
+    }
+  }, [isOpen, fetchFriends]);
 
   useEffect(() => {
     const timer = setTimeout(() => doSearch(query), 300);
@@ -123,7 +129,35 @@ const NewDMModal: React.FC<{ isOpen: boolean; onClose: () => void; onSelect: (us
                 {!searching && query.length >= 2 && results.length === 0 && (
                   <div className="text-center text-gray-500 text-sm py-4">No users found</div>
                 )}
-                {results
+                {query.length < 2 && !searching && (
+                  <>
+                    {friends.length > 0 ? (
+                      <>
+                        <div className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Friends</div>
+                        {friends
+                          .filter(u => u.user_id !== currentUserId)
+                          .map(u => (
+                            <motion.button
+                              key={u.user_id}
+                              whileHover={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                              onClick={() => { onSelect(u.user_id, u.username); onClose(); }}
+                              className="w-full px-3 py-2 rounded-xl flex items-center gap-3 text-left"
+                              data-testid={`dm-user-${u.username}`}
+                            >
+                              <PresenceAvatar userId={u.user_id} username={u.username} size="sm" />
+                              <div>
+                                <div className="text-sm text-white font-medium">{u.username}</div>
+                                <div className="text-[11px] text-gray-500">{u.full_name}</div>
+                              </div>
+                            </motion.button>
+                          ))}
+                      </>
+                    ) : (
+                      <div className="text-center text-gray-500 text-sm py-4">Add friends to start messaging</div>
+                    )}
+                  </>
+                )}
+                {query.length >= 2 && results
                   .filter(u => u.id !== currentUserId)
                   .map(u => (
                     <motion.button
