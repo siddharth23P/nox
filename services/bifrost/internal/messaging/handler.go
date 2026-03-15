@@ -324,6 +324,27 @@ func (h *MessagingHandler) DeleteMessage(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "deleted", "message_id": messageID})
 }
 
+func (h *MessagingHandler) HideMessage(c *gin.Context) {
+	_, userID := getAuthInfo(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	messageID := c.Param("messageId")
+	if messageID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Message ID required"})
+		return
+	}
+
+	if err := h.service.HideMessage(c.Request.Context(), messageID, userID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "hidden", "message_id": messageID})
+}
+
 func (h *MessagingHandler) GetMessageEditHistory(c *gin.Context) {
 	messageID := c.Param("messageId")
 	if messageID == "" {

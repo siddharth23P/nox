@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { FormattedMessage } from '../common/FormattedMessage';
 import { useMessageStore } from '../../stores/messageStore';
 import { useAuthStore } from '../../stores/authStore';
-import { MessageCircle, Edit2, SmilePlus, Pin, Bookmark, Quote, Send, Trash2 } from 'lucide-react';
+import { MessageCircle, Edit2, SmilePlus, Pin, Bookmark, Quote, Send, Trash2, EyeOff, Ban } from 'lucide-react';
 import { PresenceAvatar } from '../common/PresenceAvatar';
 import { EditHistoryModal } from './EditHistoryModal';
 import ForwardModal from './ForwardModal';
@@ -16,7 +16,7 @@ interface MessageListProps {
 }
 
 export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
-  const { messages, fetchMessages, loadMoreMessages, isLoading, hasMore, setActiveThread, editMessage, deleteMessage, highlightedMessageId, activeThreadId } = useMessageStore();
+  const { messages, fetchMessages, loadMoreMessages, isLoading, hasMore, setActiveThread, editMessage, deleteMessage, hideMessage, highlightedMessageId, activeThreadId } = useMessageStore();
   const { user } = useAuthStore();
   const currentUserId = user?.id;
   
@@ -25,6 +25,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
   const [historyModalMessageId, setHistoryModalMessageId] = useState<string | null>(null);
   const [activeEmojiPickerMsgId, setActiveEmojiPickerMsgId] = useState<string | null>(null);
   const [forwardModalMessage, setForwardModalMessage] = useState<Message | null>(null);
+  const [deleteConfirmMsg, setDeleteConfirmMsg] = useState<Message | null>(null);
   
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -197,7 +198,12 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                       </div>
                     )}
                     
-                    {editingMessageId === msg.id ? (
+                    {msg.is_deleted ? (
+                      <div className="flex items-center gap-2 text-gray-500 italic text-sm py-1 opacity-60">
+                        <Ban size={14} />
+                        <span>This message was deleted</span>
+                      </div>
+                    ) : editingMessageId === msg.id ? (
                       <div className="w-full max-w-lg mt-1 relative z-10 flex flex-col gap-2">
                         <textarea
                           value={editContent}
@@ -298,6 +304,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                 </div>
 
                 {/* Hover Actions */}
+                {!msg.is_deleted && (
                 <div className={`absolute top-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 ${isCurrentUser ? 'left-4' : 'right-4'}`}>
                   {isCurrentUser && (
                     <>
@@ -312,9 +319,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                         <Edit2 size={14} />
                       </button>
                       <button
-                        onClick={() => {
-                          if (channelId) deleteMessage(channelId, msg.id);
-                        }}
+                        onClick={() => setDeleteConfirmMsg(msg)}
                         className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-red-400 hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
                         title="Delete message"
                       >
@@ -364,14 +369,26 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                     <span className="text-xs font-medium pr-1">Reply</span>
                   </button>
 
-                  <button 
+                  <button
                     onClick={() => setForwardModalMessage(msg)}
                     className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-white hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
                     title="Forward message"
                   >
                     <Send size={14} />
                   </button>
+
+                  {/* Hide for me (non-owner) */}
+                  {!isCurrentUser && (
+                    <button
+                      onClick={() => { if (channelId) hideMessage(channelId, msg.id); }}
+                      className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-red-400 hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                      title="Hide for me"
+                    >
+                      <EyeOff size={14} />
+                    </button>
+                  )}
                 </div>
+                )}
 
               </motion.div>
             );
@@ -391,11 +408,57 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
       )}
 
       {forwardModalMessage && (
-        <ForwardModal 
+        <ForwardModal
           isOpen={!!forwardModalMessage}
           onClose={() => setForwardModalMessage(null)}
           message={forwardModalMessage}
         />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirmMsg && channelId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setDeleteConfirmMsg(null)}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-white font-semibold text-lg mb-2">Delete Message</h3>
+            <p className="text-gray-400 text-sm mb-1">Are you sure you want to delete this message?</p>
+            <div className="bg-white/5 rounded-lg p-3 mb-4 text-sm text-gray-300 truncate">
+              {deleteConfirmMsg.content_md.slice(0, 100)}{deleteConfirmMsg.content_md.length > 100 ? '...' : ''}
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={async () => {
+                  await deleteMessage(channelId, deleteConfirmMsg.id);
+                  setDeleteConfirmMsg(null);
+                }}
+                className="w-full py-2 px-4 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                <Trash2 size={14} />
+                Delete for Everyone
+              </button>
+              <button
+                onClick={async () => {
+                  await hideMessage(channelId, deleteConfirmMsg.id);
+                  setDeleteConfirmMsg(null);
+                }}
+                className="w-full py-2 px-4 bg-white/10 hover:bg-white/15 text-gray-300 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                <EyeOff size={14} />
+                Delete for Me
+              </button>
+              <button
+                onClick={() => setDeleteConfirmMsg(null)}
+                className="w-full py-2 px-4 text-gray-500 hover:text-white text-sm transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </motion.div>
+        </div>
       )}
     </div>
   );

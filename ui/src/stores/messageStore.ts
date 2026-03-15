@@ -33,6 +33,7 @@ export interface Message {
   user_reactions?: string[];
   is_pinned?: boolean;
   is_bookmarked?: boolean;
+  is_deleted?: boolean;
   forward_source_id?: string;
   forward_source_username?: string;
   created_at: string;
@@ -105,6 +106,7 @@ interface MessageState {
 
   editMessage: (channelId: string, messageId: string, contentMd: string) => Promise<void>;
   deleteMessage: (channelId: string, messageId: string) => Promise<void>;
+  hideMessage: (channelId: string, messageId: string) => Promise<void>;
   getMessageHistory: (channelId: string, messageId: string) => Promise<MessageEdit[]>;
   toggleReaction: (channelId: string, messageId: string, emoji: string) => Promise<void>;
   togglePin: (channelId: string, messageId: string) => Promise<void>;
@@ -578,10 +580,38 @@ export const useMessageStore = create<MessageState>((set, get) => ({
 
       if (!response.ok) throw new Error('Failed to delete message');
 
+      // Show tombstone instead of removing
       set((state) => ({
-        messages: state.messages.filter(m => m.id !== messageId),
-        threadMessages: state.threadMessages.filter(m => m.id !== messageId)
+        messages: state.messages.map(m =>
+          m.id === messageId ? { ...m, is_deleted: true, content_md: '', content_html: '' } : m
+        ),
+        threadMessages: state.threadMessages.map(m =>
+          m.id === messageId ? { ...m, is_deleted: true, content_md: '', content_html: '' } : m
+        ),
       }));
+    } catch (err) {
+      set({ error: (err as Error).message });
+      throw err;
+    }
+  },
+
+  hideMessage: async (channelId, messageId) => {
+    // Optimistic: remove from view immediately
+    const prevMessages = get().messages;
+    set((state) => ({
+      messages: state.messages.filter(m => m.id !== messageId),
+    }));
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}/hide`, {
+        method: 'POST',
+        headers: authHeaders(),
+      });
+      if (!response.ok) {
+        // Revert on error
+        set({ messages: prevMessages });
+        throw new Error('Failed to hide message');
+      }
     } catch (err) {
       set({ error: (err as Error).message });
       throw err;
