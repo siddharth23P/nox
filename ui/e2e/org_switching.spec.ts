@@ -72,7 +72,7 @@ test.describe('Organization Switching & Listing', () => {
     await expect(page.getByTestId('org-switcher-button')).toBeVisible({ timeout: 10000 });
 
     // The org name should appear in the sidebar (not hardcoded "Nexus Inc")
-    await expect(page.getByText('My Test Org')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('org-switcher-button').getByText('My Test Org')).toBeVisible({ timeout: 10000 });
 
     // 5. Click org switcher to see dropdown
     await page.getByTestId('org-switcher-button').click();
@@ -80,7 +80,7 @@ test.describe('Organization Switching & Listing', () => {
 
     // Should show at least one org
     await expect(page.getByText('Your Organizations')).toBeVisible();
-    await expect(page.getByText('My Test Org')).toBeVisible();
+    await expect(page.getByTestId('org-switcher-dropdown').getByText('My Test Org')).toBeVisible();
 
     // 6. Verify API directly: GET /v1/orgs returns user's orgs
     const token = await page.evaluate(() => localStorage.getItem('nox_token'));
