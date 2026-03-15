@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { usePresenceStore } from './presenceStore';
+import { useMessageStore } from './messageStore';
+import { useOrgStore } from './orgStore';
 import { closeWebSocket } from '../hooks/useWebSocket';
 
 const API_BASE = 'http://localhost:8080/v1';
@@ -73,6 +75,9 @@ export const useAuthStore = create<AuthState>((set, get) => {
       localStorage.removeItem('nox_org_name');
       localStorage.removeItem('nox_role');
       localStorage.removeItem('nox_user');
+      localStorage.removeItem('nox_active_channel');
+      useMessageStore.getState().resetForOrgSwitch();
+      useOrgStore.getState().reset();
       set({ user: null, token: null, orgId: null, orgName: null, role: null, organizations: [], isAuthenticated: false });
     },
     fetchOrganizations: async () => {
@@ -151,6 +156,10 @@ export const useAuthStore = create<AuthState>((set, get) => {
           role: data.role,
           orgName: newOrg?.name || null,
         });
+
+        // Clear stale org-specific state before reload
+        useMessageStore.getState().resetForOrgSwitch();
+        useOrgStore.getState().reset();
 
         // Reload to refresh all data for new org context
         window.location.reload();
