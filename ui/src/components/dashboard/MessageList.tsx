@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FormattedMessage } from '../common/FormattedMessage';
 import { useMessageStore } from '../../stores/messageStore';
 import { useAuthStore } from '../../stores/authStore';
-import { MessageCircle, Edit2, SmilePlus, Pin, Bookmark, Quote, Send, Trash2, ArrowDown, Shield, EyeOff, Ban } from 'lucide-react';
+import { MessageCircle, Edit2, SmilePlus, Pin, Bookmark, Quote, Send, Trash2, EyeOff, Ban, ArrowDown, Shield } from 'lucide-react';
 import { PresenceAvatar } from '../common/PresenceAvatar';
 import { EditHistoryModal } from './EditHistoryModal';
 import ForwardModal from './ForwardModal';
