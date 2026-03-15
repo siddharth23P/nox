@@ -1,11 +1,12 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Smile, AtSign, Paperclip, Code } from 'lucide-react';
+import { Send, Smile, AtSign, Paperclip, Code, Bold, Italic, Strikethrough, List, ListOrdered, Quote, Eye, EyeOff } from 'lucide-react';
 import { useMessageStore } from '../../stores/messageStore';
 import { TypingIndicator } from './TypingIndicator';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { ReplyPreview } from './ReplyPreview';
 import { MentionAutocomplete } from './MentionAutocomplete';
+import { FormattedMessage } from '../common/FormattedMessage';
 import { encodeMention } from '../../utils/mentions';
 import type { MentionUser } from '../../utils/mentions';
 
@@ -14,10 +15,77 @@ interface MessageInputProps {
   channelId: string | undefined;
 }
 
+/**
+ * Wraps selected text (or inserts at cursor) with markdown syntax.
+ * For prefix-only formats (lists, blockquote), inserts at line start.
+ */
+function applyFormat(
+  textarea: HTMLTextAreaElement,
+  content: string,
+  format: 'bold' | 'italic' | 'strikethrough' | 'code' | 'bullet' | 'numbered' | 'blockquote'
+): { newContent: string; cursorPos: number } {
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const selected = content.substring(start, end);
+  const before = content.substring(0, start);
+  const after = content.substring(end);
+
+  let wrapper = '';
+  let prefix = '';
+
+  switch (format) {
+    case 'bold': wrapper = '**'; break;
+    case 'italic': wrapper = '_'; break;
+    case 'strikethrough': wrapper = '~~'; break;
+    case 'code': wrapper = '`'; break;
+    case 'bullet': prefix = '- '; break;
+    case 'numbered': prefix = '1. '; break;
+    case 'blockquote': prefix = '> '; break;
+  }
+
+  if (prefix) {
+    // Line-start format: apply prefix to each selected line or insert at current line start
+    if (selected) {
+      const formatted = selected.split('\n').map(line => `${prefix}${line}`).join('\n');
+      return { newContent: before + formatted + after, cursorPos: start + formatted.length };
+    }
+    // Find start of current line
+    const lineStart = before.lastIndexOf('\n') + 1;
+    const beforeLine = content.substring(0, lineStart);
+    const currentLine = content.substring(lineStart, start);
+    return {
+      newContent: beforeLine + prefix + currentLine + after,
+      cursorPos: start + prefix.length,
+    };
+  }
+
+  // Wrapper format
+  if (selected) {
+    // Check if already wrapped — toggle off
+    if (before.endsWith(wrapper) && after.startsWith(wrapper)) {
+      return {
+        newContent: before.slice(0, -wrapper.length) + selected + after.slice(wrapper.length),
+        cursorPos: start - wrapper.length + selected.length,
+      };
+    }
+    return {
+      newContent: before + wrapper + selected + wrapper + after,
+      cursorPos: start + wrapper.length + selected.length,
+    };
+  }
+
+  // No selection: insert wrapper pair and place cursor inside
+  return {
+    newContent: before + wrapper + wrapper + after,
+    cursorPos: start + wrapper.length,
+  };
+}
+
 export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
   const [content, setContent] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [codeMode, setCodeMode] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sendMessage = useMessageStore((state) => state.sendMessage);
   const activeChannel = useMessageStore((state) => state.activeChannel);
@@ -37,7 +105,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
     if (!textarea) { setCodeMode(v => !v); return; }
 
     if (!codeMode) {
-      // Entering code mode: wrap existing content or insert empty fences
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
       const selectedText = content.substring(start, end);
@@ -64,7 +131,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
         });
       }
     } else {
-      // Exiting code mode: strip wrapping fences if present
       const stripped = content.replace(/^```\n?/, '').replace(/\n?```$/, '');
       setContent(stripped);
       requestAnimationFrame(() => {
@@ -76,6 +142,18 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
     setCodeMode(v => !v);
   };
 
+  const handleFormat = useCallback((format: 'bold' | 'italic' | 'strikethrough' | 'code' | 'bullet' | 'numbered' | 'blockquote') => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const { newContent, cursorPos } = applyFormat(textarea, content, format);
+    setContent(newContent);
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.selectionStart = cursorPos;
+      textarea.selectionEnd = cursorPos;
+    });
+  }, [content]);
+
   const handleTyping = () => {
     if (!channelId) return;
     const now = Date.now();
@@ -85,16 +163,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
     }
   };
 
-  /**
-   * Detect @ trigger in textarea input and activate mention autocomplete.
-   */
   const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     const cursorPos = e.target.selectionStart ?? value.length;
     setContent(value);
     handleTyping();
 
-    // Look backwards from cursor to find an @ trigger
     const textBeforeCursor = value.slice(0, cursorPos);
     const atIdx = textBeforeCursor.lastIndexOf('@');
 
@@ -115,9 +189,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mentionActive]);
 
-  /**
-   * When a mention is selected, replace the @query with the encoded mention.
-   */
   const handleMentionSelect = useCallback((user: MentionUser) => {
     const encoded = encodeMention(user);
     const before = content.slice(0, mentionStartPos);
@@ -141,9 +212,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
     setMentionQuery('');
   }, []);
 
-  /**
-   * Insert @ character at cursor and activate mention mode (toolbar button).
-   */
   const handleAtButtonClick = useCallback(() => {
     if (!textareaRef.current) return;
     const ta = textareaRef.current;
@@ -180,6 +248,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
       sendTyping(channelId, false);
       setContent('');
       setReplyTo(null);
+      setShowPreview(false);
     } catch (err) {
       console.error("Failed to send", err);
     }
@@ -190,6 +259,31 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
     if (mentionActive && ['ArrowDown', 'ArrowUp', 'Enter', 'Tab', 'Escape'].includes(e.key)) {
       return;
     }
+
+    const mod = e.metaKey || e.ctrlKey;
+
+    // Formatting shortcuts
+    if (mod && e.key === 'b') {
+      e.preventDefault();
+      handleFormat('bold');
+      return;
+    }
+    if (mod && e.key === 'i') {
+      e.preventDefault();
+      handleFormat('italic');
+      return;
+    }
+    if (mod && e.shiftKey && e.key === 'x') {
+      e.preventDefault();
+      handleFormat('strikethrough');
+      return;
+    }
+    if (mod && e.key === 'e') {
+      e.preventDefault();
+      handleFormat('code');
+      return;
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e as unknown as React.FormEvent);
@@ -198,10 +292,10 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
 
   if (!channelId) {
     return (
-      <div className="p-4 bg-[#030712]">
+      <div className="p-4" style={{ backgroundColor: 'var(--nox-bg-primary)' }}>
         <div className="max-w-4xl mx-auto">
-          <div className="h-14 rounded-2xl bg-[#0d0d0d] border border-white/5 flex items-center px-4 opacity-50 cursor-not-allowed">
-            <span className="text-gray-500 text-sm">Select a channel to send a message...</span>
+          <div className="h-14 rounded-2xl flex items-center px-4 opacity-50 cursor-not-allowed" style={{ backgroundColor: 'var(--nox-input-bg)', border: '1px solid var(--nox-border)' }}>
+            <span className="text-sm" style={{ color: 'var(--nox-text-muted)' }}>Select a channel to send a message...</span>
           </div>
         </div>
       </div>
@@ -209,7 +303,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
   }
 
   return (
-    <div className="p-6 bg-gradient-to-t from-[#030712] via-[#030712] to-transparent shrink-0">
+    <div className="p-6 shrink-0" style={{ background: `linear-gradient(to top, var(--nox-bg-primary), var(--nox-bg-primary), transparent)` }}>
       <div className="max-w-4xl mx-auto relative group">
         <TypingIndicator channelId={channelId} />
         <ReplyPreview />
@@ -219,7 +313,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
 
         <form
           onSubmit={handleSubmit}
-          className={`relative rounded-2xl bg-[#0d0d0d] border transition-colors duration-200 flex flex-col ${isFocused ? 'border-blue-500/30' : 'border-white/5 group-hover:border-white/10'}`}
+          className={`relative rounded-2xl border transition-colors duration-200 flex flex-col ${isFocused ? 'border-blue-500/30' : ''}`}
+          style={{ backgroundColor: 'var(--nox-input-bg)', borderColor: isFocused ? undefined : 'var(--nox-input-border)' }}
         >
           {/* Mention Autocomplete Dropdown */}
           <MentionAutocomplete
@@ -229,6 +324,47 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
             visible={mentionActive}
           />
 
+          {/* Formatting toolbar */}
+          <div className="flex items-center gap-0.5 px-3 pt-2 pb-0.5">
+            <button type="button" title="Bold (Cmd+B)" onClick={() => handleFormat('bold')} className="p-1 text-gray-500 hover:text-white hover:bg-white/10 rounded transition-colors">
+              <Bold size={15} />
+            </button>
+            <button type="button" title="Italic (Cmd+I)" onClick={() => handleFormat('italic')} className="p-1 text-gray-500 hover:text-white hover:bg-white/10 rounded transition-colors">
+              <Italic size={15} />
+            </button>
+            <button type="button" title="Strikethrough (Cmd+Shift+X)" onClick={() => handleFormat('strikethrough')} className="p-1 text-gray-500 hover:text-white hover:bg-white/10 rounded transition-colors">
+              <Strikethrough size={15} />
+            </button>
+            <div className="w-px h-4 bg-white/10 mx-1" />
+            <button type="button" title="Inline code (Cmd+E)" onClick={() => handleFormat('code')} className="p-1 text-gray-500 hover:text-white hover:bg-white/10 rounded transition-colors">
+              <Code size={15} />
+            </button>
+            <button type="button" title="Bullet list" onClick={() => handleFormat('bullet')} className="p-1 text-gray-500 hover:text-white hover:bg-white/10 rounded transition-colors">
+              <List size={15} />
+            </button>
+            <button type="button" title="Numbered list" onClick={() => handleFormat('numbered')} className="p-1 text-gray-500 hover:text-white hover:bg-white/10 rounded transition-colors">
+              <ListOrdered size={15} />
+            </button>
+            <button type="button" title="Blockquote" onClick={() => handleFormat('blockquote')} className="p-1 text-gray-500 hover:text-white hover:bg-white/10 rounded transition-colors">
+              <Quote size={15} />
+            </button>
+            <div className="flex-1" />
+            <button
+              type="button"
+              title={showPreview ? 'Hide preview' : 'Preview markdown'}
+              onClick={() => setShowPreview(v => !v)}
+              className={`p-1 rounded transition-colors ${showPreview ? 'text-blue-400 bg-blue-500/10' : 'text-gray-500 hover:text-white hover:bg-white/10'}`}
+            >
+              {showPreview ? <EyeOff size={15} /> : <Eye size={15} />}
+            </button>
+          </div>
+
+          {showPreview && content.trim() ? (
+            <div className="px-4 py-3 min-h-[56px] max-h-[40vh] overflow-y-auto border-b border-white/5 custom-scrollbar">
+              <FormattedMessage content={content} className="text-gray-300 text-[15px]" />
+            </div>
+          ) : null}
+
           <textarea
             ref={textareaRef}
             value={content}
@@ -237,7 +373,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             placeholder={codeMode ? 'Paste or type code...' : `Message #${placeholderSuffix}...`}
-            className={`w-full bg-transparent text-white px-4 py-4 resize-none outline-none min-h-[56px] max-h-[40vh] placeholder:text-gray-500 rounded-t-2xl custom-scrollbar ${
+            className={`w-full bg-transparent px-4 py-3 resize-none outline-none min-h-[56px] max-h-[40vh] custom-scrollbar ${
               codeMode
                 ? 'font-mono text-[13px] leading-relaxed bg-[#0d1117]/60'
                 : 'text-[15px]'
@@ -245,7 +381,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
             rows={1}
           />
 
-          {/* Action formatting bar */}
+          {/* Action bar */}
           <div className="flex items-center justify-between px-3 py-2 bg-white/[0.02] border-t border-white/5 rounded-b-2xl">
             <div className="flex items-center gap-1">
               <button type="button" title="Attach file" className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
@@ -264,7 +400,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
               </button>
               <button
                 type="button"
-                title={codeMode ? 'Exit code mode' : 'Code mode'}
+                title={codeMode ? 'Exit code mode' : 'Code block'}
                 onClick={toggleCodeMode}
                 className={`p-1.5 rounded-lg transition-colors ${
                   codeMode
