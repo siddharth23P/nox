@@ -1,36 +1,19 @@
 import { test, expect } from '@playwright/test';
+import { loginAndInject, USERS } from './auth-helper';
 
 test.describe('Threaded Conversations Regression', () => {
-  
-  test.beforeEach(async ({ context, page }) => {
-    // 1. Set IS_PLAYWRIGHT via init script so it persists across reloads
-    await context.addInitScript(() => {
-      (window as unknown as { IS_PLAYWRIGHT: boolean }).IS_PLAYWRIGHT = true;
-    });
 
-    // 2. Bypass authentication by setting mock tokens in localStorage
-    await page.goto('/');
-    
-    await page.evaluate(() => {
-      localStorage.setItem('nox_token', 'test-jwt-token-bypass');
-      localStorage.setItem('nox_user', JSON.stringify({
-        id: '22222222-2222-2222-2222-222222222222',
-        email: 'test@nox.inc',
-        role: 'admin'
-      }));
-      // Using the exact org ID we inserted in our seed script
-      localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
-    });
+  test.beforeEach(async ({ page }) => {
+    await loginAndInject(page, USERS.TestUser, { role: 'admin' });
 
-    // 2. Navigate straight to the dashboard and wait for data load
     await page.goto('/dashboard');
     await expect(page).toHaveURL(/.*\/dashboard/);
-    
+
     // Explicitly select #general to ensure we are in the right state
     await page.getByRole('button', { name: 'general' }).click();
     await expect(page.locator('main')).toContainText('Team discussion');
-    
-    // Wait for WS to be ready if in Playwright
+
+    // Wait for WS to be ready
     await page.waitForFunction(() => (window as unknown as { WS_CONNECTED: boolean }).WS_CONNECTED === true, { timeout: 10000 });
     await expect(page.getByPlaceholder('Message #general...')).toBeVisible();
   });
@@ -50,7 +33,7 @@ test.describe('Threaded Conversations Regression', () => {
     // 2. Hover over the newly created message to reveal the Reply button
     const messageContainer = msgElement.locator('xpath=./ancestor::div[contains(@class, "group")]').first();
     await messageContainer.hover();
-    
+
     // 3. Click the Reply button
     await messageContainer.locator('button:has-text("Reply")').click({ force: true });
 
@@ -63,7 +46,7 @@ test.describe('Threaded Conversations Regression', () => {
     const replyText = `This is a child reply - ${Date.now()}`;
     const threadInput = page.getByTestId('thread-reply-input');
     await threadInput.fill(replyText);
-    
+
     // Submit the reply via Enter key
     await threadInput.press('Enter');
 

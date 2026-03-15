@@ -180,49 +180,48 @@ func main() {
 			authenticated.GET("/orgs/:orgId/members", orgHandler.ListOrgMembers)
 			authenticated.PATCH("/orgs/:orgId/members/:userId/role", orgHandler.ChangeMemberRole)
 			authenticated.DELETE("/orgs/:orgId/members/:userId", orgHandler.RemoveMember)
+			// Channel CRUD Routes
+			authenticated.POST("/channels", messagingHandler.CreateChannel)
+			authenticated.GET("/channels", messagingHandler.GetChannels)
+			authenticated.GET("/channels/browse", messagingHandler.BrowseChannels)
+			authenticated.GET("/channels/joined", messagingHandler.GetJoinedChannels)
+			authenticated.GET("/channels/:id", messagingHandler.GetChannel)
+			authenticated.PATCH("/channels/:id", messagingHandler.UpdateChannel)
+			authenticated.POST("/channels/:id/archive", messagingHandler.ArchiveChannel)
+			authenticated.POST("/channels/:id/unarchive", messagingHandler.UnarchiveChannel)
+			authenticated.POST("/channels/:id/join", messagingHandler.JoinChannel)
+			authenticated.POST("/channels/:id/leave", messagingHandler.LeaveChannel)
+			authenticated.DELETE("/channels/:id", messagingHandler.DeleteChannel)
+
+			// Messaging Routes
+			authenticated.POST("/channels/:id/messages", messagingHandler.CreateMessage)
+			authenticated.GET("/channels/:id/messages", messagingHandler.GetMessages)
+			authenticated.GET("/channels/:id/messages/:messageId/replies", messagingHandler.GetThreadReplies)
+			authenticated.PATCH("/channels/:id/messages/:messageId", messagingHandler.EditMessage)
+			authenticated.DELETE("/channels/:id/messages/:messageId", messagingHandler.DeleteMessage)
+			authenticated.GET("/channels/:id/messages/:messageId/history", messagingHandler.GetMessageEditHistory)
+			authenticated.POST("/channels/:id/messages/:messageId/react", messagingHandler.ReactToMessage)
+			authenticated.POST("/channels/:id/messages/:messageId/pin", messagingHandler.TogglePin)
+			authenticated.POST("/channels/:id/messages/:messageId/bookmark", messagingHandler.ToggleBookmark)
+			authenticated.POST("/channels/:id/messages/:messageId/forward", messagingHandler.ForwardMessage)
+			authenticated.PATCH("/channels/:id/read", messagingHandler.UpdateLastRead)
+			authenticated.GET("/channels/:id/reads", messagingHandler.GetChannelReadReceipts)
+
+			// Channel Member Routes (Private Channel ACL - Issue #120)
+			authenticated.POST("/channels/:id/members", messagingHandler.AddChannelMember)
+			authenticated.DELETE("/channels/:id/members/:userId", messagingHandler.RemoveChannelMember)
+			authenticated.GET("/channels/:id/members", messagingHandler.ListChannelMembers)
+
+			// Direct Message Routes (Issue #113)
+			authenticated.GET("/dm", messagingHandler.ListDMs)
+			authenticated.POST("/dm", messagingHandler.CreateOrGetDM)
+
+			// Presence Routes
+			authenticated.POST("/presence/heartbeat", presenceHandler.Heartbeat)
+			authenticated.GET("/presence/active", presenceHandler.GetActiveUsers)
 		}
 
-		// Channel CRUD Routes
-		v1.POST("/channels", messagingHandler.CreateChannel)
-		v1.GET("/channels", messagingHandler.GetChannels)
-		v1.GET("/channels/browse", messagingHandler.BrowseChannels)
-		v1.GET("/channels/joined", messagingHandler.GetJoinedChannels)
-		v1.GET("/channels/:id", messagingHandler.GetChannel)
-		v1.PATCH("/channels/:id", messagingHandler.UpdateChannel)
-		v1.POST("/channels/:id/archive", messagingHandler.ArchiveChannel)
-		v1.POST("/channels/:id/unarchive", messagingHandler.UnarchiveChannel)
-		v1.POST("/channels/:id/join", messagingHandler.JoinChannel)
-		v1.POST("/channels/:id/leave", messagingHandler.LeaveChannel)
-		v1.DELETE("/channels/:id", messagingHandler.DeleteChannel)
-
-		// Messaging Routes
-		v1.POST("/channels/:id/messages", messagingHandler.CreateMessage)
-		v1.GET("/channels/:id/messages", messagingHandler.GetMessages)
-		v1.GET("/channels/:id/messages/:messageId/replies", messagingHandler.GetThreadReplies)
-		v1.PATCH("/channels/:id/messages/:messageId", messagingHandler.EditMessage)
-		v1.DELETE("/channels/:id/messages/:messageId", messagingHandler.DeleteMessage)
-		v1.GET("/channels/:id/messages/:messageId/history", messagingHandler.GetMessageEditHistory)
-		v1.POST("/channels/:id/messages/:messageId/react", messagingHandler.ReactToMessage)
-		v1.POST("/channels/:id/messages/:messageId/pin", messagingHandler.TogglePin)
-		v1.POST("/channels/:id/messages/:messageId/bookmark", messagingHandler.ToggleBookmark)
-		v1.POST("/channels/:id/messages/:messageId/forward", messagingHandler.ForwardMessage)
-		v1.PATCH("/channels/:id/read", messagingHandler.UpdateLastRead)
-		v1.GET("/channels/:id/reads", messagingHandler.GetChannelReadReceipts)
-
-		// Channel Member Routes (Private Channel ACL - Issue #120)
-		v1.POST("/channels/:id/members", messagingHandler.AddChannelMember)
-		v1.DELETE("/channels/:id/members/:userId", messagingHandler.RemoveChannelMember)
-		v1.GET("/channels/:id/members", messagingHandler.ListChannelMembers)
-
-		// Direct Message Routes (Issue #113)
-		v1.GET("/dm", messagingHandler.ListDMs)
-		v1.POST("/dm", messagingHandler.CreateOrGetDM)
-
-		// Presence Routes
-		v1.POST("/presence/heartbeat", presenceHandler.Heartbeat)
-		v1.GET("/presence/active", presenceHandler.GetActiveUsers)
-
-		// WebSocket Route
+		// WebSocket Route (auth handled at connection level)
 		r.GET("/ws", messagingHandler.HandleWS)
 	}
 

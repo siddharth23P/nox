@@ -119,12 +119,12 @@ test.describe('User Profiles & Preferences (Issue #26)', () => {
 
   test('UI: Navigate to profile settings and update', async ({ page }) => {
     // Inject auth state and navigate
-    await page.goto('/');
-    await page.evaluate((token) => {
-      localStorage.setItem('nox_token', token);
+    await page.addInitScript((data) => {
+      (window as unknown as { IS_PLAYWRIGHT: boolean }).IS_PLAYWRIGHT = true;
+      localStorage.setItem('nox_token', data.token);
       localStorage.setItem('nox_user', JSON.stringify({ id: 'test', email: 'test@test.com', username: 'testuser' }));
       localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
-    }, authToken);
+    }, { token: authToken });
 
     await page.goto('/dashboard/settings/profile');
     await page.waitForTimeout(1000);

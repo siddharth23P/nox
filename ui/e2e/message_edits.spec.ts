@@ -1,37 +1,23 @@
 import { test, expect } from '@playwright/test';
+import { loginAndInjectContext, USERS } from './auth-helper';
 
 test.describe('Message Lifecycle (Audit-Trailed Edits)', () => {
 
   test('Alice can edit a message, see (edited) badge, and view edit history. Bob can see history but not edit.', async ({ browser }) => {
     test.setTimeout(45000);
-    
+
     // 1. Setup Alice's Context
     const aliceContext = await browser.newContext();
-    await aliceContext.addInitScript(() => {
-      (window as unknown as { IS_PLAYWRIGHT?: boolean }).IS_PLAYWRIGHT = true;
-    });
+    await loginAndInjectContext(aliceContext, USERS.AliceReacts);
     const alicePage = await aliceContext.newPage();
-    
-    // Login as Alice
-    await alicePage.goto('http://localhost:5173/login');
-    await alicePage.evaluate(() => {
-      localStorage.setItem('nox_token', 'test_jwt_token');
-      localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
-      localStorage.setItem('nox_role', 'member');
-      localStorage.setItem('nox_user', JSON.stringify({
-        id: 'a1000000-0000-0000-0000-000000000000',
-        email: 'alice@nox.inc',
-        username: 'alice'
-      }));
-    });
     await alicePage.goto('http://localhost:5173');
-    
+
     // Explicitly select #general and wait for WS
     await alicePage.getByRole('button', { name: 'general' }).click();
     await alicePage.waitForFunction(() => (window as unknown as { WS_CONNECTED: boolean }).WS_CONNECTED === true, { timeout: 10000 });
 
     // Wait for messages to load
-    await expect(alicePage.getByPlaceholder('Message #general...')).toBeVisible({ timeout: 15000 }); 
+    await expect(alicePage.getByPlaceholder('Message #general...')).toBeVisible({ timeout: 15000 });
 
     // Send a new message so we can edit it reliably
     const uniqueId = Date.now().toString().slice(-4);
@@ -43,7 +29,7 @@ test.describe('Message Lifecycle (Audit-Trailed Edits)', () => {
     // Wait for it to appear
     const aliceMsg = alicePage.locator(`text="${aliceMsgText}"`).first();
     await expect(aliceMsg).toBeVisible();
-    
+
     const aliceWrapper = aliceMsg.locator('xpath=./ancestor::div[contains(@class, "group relative")]').first();
     await aliceWrapper.hover();
 
@@ -54,7 +40,7 @@ test.describe('Message Lifecycle (Audit-Trailed Edits)', () => {
     // The textarea should appear
     const textarea = alicePage.locator('textarea[aria-label="Edit message"]');
     await expect(textarea).toBeVisible();
-    
+
     // Type new content and save
     const newContent = `Hey team, updated message ${uniqueId}`;
     await textarea.fill(newContent);
@@ -65,7 +51,7 @@ test.describe('Message Lifecycle (Audit-Trailed Edits)', () => {
     // The message should update and have an (edited) badge
     const newMsgLocator = alicePage.locator(`text="${newContent}"`).first();
     await expect(newMsgLocator).toBeVisible();
-    
+
     // Original message should be gone from the main DOM
     await expect(alicePage.locator(`text="${aliceMsgText}"`).first()).not.toBeVisible();
 
@@ -91,35 +77,21 @@ test.describe('Message Lifecycle (Audit-Trailed Edits)', () => {
 
     // Verify Bob's perspective
     const bobContext = await browser.newContext();
-    await bobContext.addInitScript(() => {
-      (window as unknown as { IS_PLAYWRIGHT?: boolean }).IS_PLAYWRIGHT = true;
-    });
+    await loginAndInjectContext(bobContext, USERS.BobReacts);
     const bobPage = await bobContext.newPage();
-    
-    await bobPage.goto('http://localhost:5173/login');
-    await bobPage.evaluate(() => {
-      localStorage.setItem('nox_token', 'test_jwt_token_2');
-      localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
-      localStorage.setItem('nox_role', 'member');
-      localStorage.setItem('nox_user', JSON.stringify({
-        id: 'b2000000-0000-0000-0000-000000000000',
-        email: 'bob@nox.inc',
-        username: 'bob'
-      }));
-    });
     await bobPage.goto('http://localhost:5173');
-    
+
     // Explicitly select #general and wait for WS
     await bobPage.getByRole('button', { name: 'general' }).click();
     await bobPage.waitForFunction(() => (window as unknown as { WS_CONNECTED: boolean }).WS_CONNECTED === true, { timeout: 10000 });
-    
-    await expect(bobPage.getByPlaceholder('Message #general...')).toBeVisible({ timeout: 15000 }); 
+
+    await expect(bobPage.getByPlaceholder('Message #general...')).toBeVisible({ timeout: 15000 });
 
     // Bob should see the edited message and badge
     const bobsViewOfMsg = bobPage.locator(`text="${newContent}"`).first();
     await expect(bobsViewOfMsg).toBeVisible();
     const bobWrapperView = bobsViewOfMsg.locator('xpath=./ancestor::div[contains(@class, "group relative")]').first();
-    
+
     // Bob should NOT be able to hover and edit it
     await bobWrapperView.hover();
     await expect(bobWrapperView.getByTitle('Edit message')).not.toBeVisible();

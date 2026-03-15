@@ -56,13 +56,10 @@ interface ChannelState {
 const API_BASE_URL = 'http://localhost:8080/v1';
 
 function getHeaders(): Record<string, string> {
-  const orgId = localStorage.getItem('nox_org_id') || '';
-  const userStr = localStorage.getItem('nox_user');
-  const userId = userStr ? JSON.parse(userStr).id : '';
+  const token = localStorage.getItem('nox_token') || '';
   return {
     'Content-Type': 'application/json',
-    'X-Org-ID': orgId,
-    'X-User-ID': userId,
+    Authorization: `Bearer ${token}`,
   };
 }
 

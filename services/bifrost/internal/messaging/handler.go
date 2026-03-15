@@ -19,12 +19,14 @@ func NewMessagingHandler(service *MessagingService, hub *Hub) *MessagingHandler 
 	return &MessagingHandler{service: service, hub: hub}
 }
 
-// Helper to extract org_id and user_id. In a real app this comes from JWT middleware.
-// For now, we expect them as headers `X-Org-ID` and `X-User-ID` matching our simplified testing approach.
+// getAuthInfo extracts org_id (tenant_id) and user_id from JWT auth context,
+// set by AuthMiddleware after token verification.
 func getAuthInfo(c *gin.Context) (string, string) {
-	orgID := c.GetHeader("X-Org-ID")
-	userID := c.GetHeader("X-User-ID")
-	return orgID, userID
+	orgID, _ := c.Get("tenant_id")
+	userID, _ := c.Get("user_id")
+	orgStr, _ := orgID.(string)
+	userStr, _ := userID.(string)
+	return orgStr, userStr
 }
 
 func (h *MessagingHandler) CreateChannel(c *gin.Context) {

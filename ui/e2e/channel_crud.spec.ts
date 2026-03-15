@@ -1,19 +1,14 @@
 import { test, expect } from '@playwright/test';
+import { loginAndInject, USERS } from './auth-helper';
 
 test.describe('Channel CRUD (Issue #28)', () => {
 
-  test.beforeEach(async ({ context, page }) => {
-    await context.addInitScript(() => {
-      (window as unknown as { IS_PLAYWRIGHT: boolean }).IS_PLAYWRIGHT = true;
-      localStorage.setItem('nox_token', 'mock_jwt_token_alice');
-      localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
-      localStorage.setItem('nox_role', 'admin');
-      localStorage.setItem('nox_user', JSON.stringify({ id: 'a1111111-1111-1111-1111-111111111111', username: 'AliceReacts' }));
-    });
+  test.beforeEach(async ({ page }) => {
+    await loginAndInject(page, USERS.AliceReads, { role: 'admin' });
 
     await page.goto('/');
     await page.waitForFunction(() => (window as unknown as { WS_CONNECTED?: boolean }).WS_CONNECTED === true, { timeout: 20000 });
-    await expect(page.getByText('Nox Workspace')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Nexus Inc')).toBeVisible({ timeout: 15000 });
   });
 
   test('User can open the create channel modal', async ({ page }) => {

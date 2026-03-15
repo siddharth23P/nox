@@ -1,27 +1,13 @@
 import { test, expect } from '@playwright/test';
+import { loginAndInject, USERS } from './auth-helper';
 
 test.describe('Core Messaging Flow', () => {
-  test('Send and receive a basic message', async ({ context, page }) => {
-    await context.addInitScript(() => {
-      (window as unknown as { IS_PLAYWRIGHT: boolean }).IS_PLAYWRIGHT = true;
-    });
+  test('Send and receive a basic message', async ({ page }) => {
+    await loginAndInject(page, USERS.TestUser, { role: 'admin' });
 
-    await page.goto('/');
-    
-    await page.evaluate(() => {
-      localStorage.setItem('nox_token', 'test_jwt_token_msg_reg');
-      localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
-      localStorage.setItem('nox_role', 'admin');
-      localStorage.setItem('nox_user', JSON.stringify({
-        id: '22222222-2222-2222-2222-222222222222',
-        username: 'TestUser',
-        email: 'test@example.com'
-      }));
-    });
-
-    await page.reload();
+    await page.goto('/dashboard');
     await expect(page).toHaveURL(/.*\/dashboard/);
-    
+
     // Explicitly select #general
     await page.getByRole('button', { name: 'general' }).click();
 

@@ -36,7 +36,6 @@ export const usePresenceStore = create<PresenceState>((set, get) => ({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-User-ID': userId,
             'Authorization': `Bearer ${token}`,
           },
           body: JSON.stringify({ status: stealth ? 'stealth' : 'online' }),
@@ -55,7 +54,7 @@ export const usePresenceStore = create<PresenceState>((set, get) => ({
 
   clearStealthError: () => set({ stealthError: null }),
 
-  startHeartbeat: (userId: string, token: string) => {
+  startHeartbeat: (_userId: string, token: string) => {
     const { heartbeatInterval } = get();
     if (heartbeatInterval) return; // Already running
 
@@ -66,7 +65,6 @@ export const usePresenceStore = create<PresenceState>((set, get) => ({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-User-ID': userId,
             'Authorization': `Bearer ${token}`,
           },
           body: JSON.stringify({ status: get().isStealth ? 'stealth' : 'online' }),

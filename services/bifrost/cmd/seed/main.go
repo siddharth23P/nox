@@ -56,7 +56,7 @@ func main() {
 			INSERT INTO users (id, email, username, password_hash, is_email_verified) 
 			VALUES ($1, $2, $3, $4, TRUE)
 			ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, username = EXCLUDED.username
-		`, u.ID, u.Email, u.Username, "$2a$10$X8Xf7Y7Y7Y7Y7Y7Y7Y7Y7e.O0O0O0O0O0O0O0O0O0O0O0O0O0O0")
+		`, u.ID, u.Email, u.Username, "$2a$10$sMEYk2z/HSiIO2Yduw/kiuI.tzoiUo0CR.yuzuzpLJ19bVDeTY/QS")
 		
 		if err != nil {
 			// If conflict on email, just ignore

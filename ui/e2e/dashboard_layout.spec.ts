@@ -1,24 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { loginAndInject, USERS } from './auth-helper';
 
 test.describe('Dashboard Layout & Sidebar', () => {
-  test('Bypass Auth and Verify Dashboard Layout', async ({ context, page }) => {
-    // Navigate to root
+  test('Bypass Auth and Verify Dashboard Layout', async ({ page }) => {
+    await loginAndInject(page, USERS.AliceReads, { role: 'admin' });
+
     await page.goto('/');
-    
-    // Inject auth state into localStorage to bypass login
-    await context.addInitScript(() => {
-      (window as unknown as { IS_PLAYWRIGHT: boolean }).IS_PLAYWRIGHT = true;
-    });
-
-    await page.evaluate(() => {
-      localStorage.setItem('nox_token', 'fake-jwt-token');
-      localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
-      localStorage.setItem('nox_role', 'admin');
-      localStorage.setItem('nox_user', JSON.stringify({ id: 'a1111111-1111-1111-1111-111111111111', username: 'AliceReads' }));
-    });
-
-    // Reload the page to trigger state re-evaluation
-    await page.reload();
 
     // Verify it automatically redirects to /dashboard
     await expect(page).toHaveURL(/.*\/dashboard/, { timeout: 10000 });
@@ -29,7 +16,7 @@ test.describe('Dashboard Layout & Sidebar', () => {
     // Verify Sidebar contents
     const sidebar = page.locator('.w-64');
     await expect(sidebar).toBeVisible();
-    await expect(sidebar).toContainText('Nox Workspace');
+    await expect(sidebar).toContainText('Nexus Inc');
     await expect(sidebar).toContainText('Channels');
     await expect(sidebar).toContainText('Direct Messages');
     await expect(sidebar).toContainText('general');
