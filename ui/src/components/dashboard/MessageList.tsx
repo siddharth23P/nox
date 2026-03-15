@@ -107,10 +107,13 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
   }
 
   return (
-    <div 
+    <div
       ref={scrollContainerRef}
       onScroll={handleScroll}
       className="flex-1 overflow-y-auto px-6 pt-4 flex flex-col custom-scrollbar"
+      role="log"
+      aria-label="Message list"
+      aria-live="polite"
     >
       <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full min-h-0">
         
