@@ -11,7 +11,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/nox-labs/bifrost/internal/auth"
 	"github.com/nox-labs/bifrost/internal/db"
+	"github.com/nox-labs/bifrost/internal/ephemeral"
 	"github.com/nox-labs/bifrost/internal/messaging"
+	"github.com/nox-labs/bifrost/internal/moderation"
 	"github.com/nox-labs/bifrost/internal/notification"
 	"github.com/nox-labs/bifrost/internal/presence"
 	pb "github.com/nox-labs/bifrost/pkg/authv1/auth/v1"
@@ -51,20 +53,24 @@ func main() {
 	// 1. Initialize Auth Service
 	authService := auth.NewAuthService(jwtSecret, database)
 	
-	// Initialize Presence Service (must be created before the hub so we can
-	// wire the disconnect callback)
-	presenceService := presence.NewPresenceService()
+	// Initialize ephemeral state store (in-memory; swap for Redis later).
+	ephemeralStore := ephemeral.NewMemoryStore()
 
-	// Initialize WebSocket Hub
+	// Initialize Presence Service backed by ephemeral store (must be created
+	// before the hub so we can wire the disconnect callback).
+	presenceService := presence.NewPresenceServiceWithStore(ephemeralStore)
+
+	// Initialize WebSocket Hub with ephemeral store for typing indicators.
 	hub := messaging.NewHub()
+	hub.Ephemeral = ephemeralStore
 	hub.OnDisconnect = func(userID string) {
 		presenceService.RemoveUser(userID)
 	}
 	go hub.Run()
 
-	// Initialize Messaging & Reaction Service
+	// Initialize Messaging & Reaction Service (with ephemeral message cache)
 	reactionService := messaging.NewReactionService(hub)
-	messagingService := messaging.NewMessagingService(database, reactionService, hub)
+	messagingService := messaging.NewMessagingServiceWithCache(database, reactionService, hub, ephemeralStore)
 
 	// 2. Start gRPC Server
 	go func() {
@@ -101,7 +107,9 @@ func main() {
 	friendHandler := auth.NewFriendHandler(friendService)
 	orgService := auth.NewOrgService(database)
 	orgHandler := auth.NewOrgHandler(orgService)
-	messagingHandler := messaging.NewMessagingHandler(messagingService, hub)
+	moderationService := moderation.NewService(database)
+	moderationHandler := moderation.NewHandler(moderationService)
+	messagingHandler := messaging.NewMessagingHandler(messagingService, hub, moderationService)
 	categoryRepo := messaging.NewCategoryRepo(database)
 	categoryHandler := messaging.NewCategoryHandler(categoryRepo)
 	presenceHandler := presence.NewPresenceHandler(presenceService)
@@ -234,6 +242,15 @@ func main() {
 			authenticated.GET("/dm", messagingHandler.ListDMs)
 			authenticated.POST("/dm", messagingHandler.CreateOrGetDM)
 			authenticated.POST("/dm/:dmId/convert", messagingHandler.ConvertDMToChannel)
+
+			// Moderation Routes (Issue #66)
+			authenticated.POST("/moderation/timeout", moderationHandler.TimeoutUser)
+			authenticated.POST("/moderation/mute", moderationHandler.MuteUser)
+			authenticated.POST("/moderation/warn", moderationHandler.WarnUser)
+			authenticated.POST("/moderation/ban", moderationHandler.BanUser)
+			authenticated.POST("/moderation/actions/:id/revoke", moderationHandler.RevokeAction)
+			authenticated.GET("/moderation/actions", moderationHandler.ListActions)
+			authenticated.GET("/moderation/users/:userId/status", moderationHandler.GetUserStatus)
 
 			// Notification Routes (Issue #33)
 			authenticated.GET("/notifications", notificationHandler.ListNotifications)

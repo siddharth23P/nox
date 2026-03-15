@@ -9,15 +9,21 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v5"
+	"github.com/nox-labs/bifrost/internal/moderation"
 )
 
 type MessagingHandler struct {
-	service *MessagingService
-	hub     *Hub
+	service    *MessagingService
+	hub        *Hub
+	moderation *moderation.Service
 }
 
-func NewMessagingHandler(service *MessagingService, hub *Hub) *MessagingHandler {
-	return &MessagingHandler{service: service, hub: hub}
+func NewMessagingHandler(service *MessagingService, hub *Hub, moderationSvc ...*moderation.Service) *MessagingHandler {
+	h := &MessagingHandler{service: service, hub: hub}
+	if len(moderationSvc) > 0 {
+		h.moderation = moderationSvc[0]
+	}
+	return h
 }
 
 // getAuthInfo extracts org_id (tenant_id) and user_id from JWT auth context,
@@ -183,7 +189,7 @@ func (h *MessagingHandler) DeleteChannel(c *gin.Context) {
 }
 
 func (h *MessagingHandler) CreateMessage(c *gin.Context) {
-	_, userID := getAuthInfo(c)
+	orgID, userID := getAuthInfo(c)
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "X-User-ID required"})
 		return
@@ -193,6 +199,14 @@ func (h *MessagingHandler) CreateMessage(c *gin.Context) {
 	if channelID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Channel ID required"})
 		return
+	}
+
+	// Enforce moderation restrictions (Issue #66)
+	if h.moderation != nil && orgID != "" {
+		if reason, err := h.moderation.IsUserRestricted(c.Request.Context(), orgID, userID, channelID); err == nil && reason != "" {
+			c.JSON(http.StatusForbidden, gin.H{"error": reason})
+			return
+		}
 	}
 
 	if err := h.service.CheckPrivateAccess(c.Request.Context(), channelID, userID); err != nil {
