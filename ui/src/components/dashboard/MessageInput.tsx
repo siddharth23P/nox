@@ -303,7 +303,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
   }
 
   return (
-    <div className="p-6 shrink-0" style={{ background: `linear-gradient(to top, var(--nox-bg-primary), var(--nox-bg-primary), transparent)` }}>
+    <div className="p-2 md:p-6 shrink-0" style={{ background: `linear-gradient(to top, var(--nox-bg-primary), var(--nox-bg-primary), transparent)` }}>
       <div className="max-w-4xl mx-auto relative group">
         <TypingIndicator channelId={channelId} />
         <ReplyPreview />

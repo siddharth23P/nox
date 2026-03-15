@@ -16,6 +16,10 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
+  /* PWA: safe area padding for devices with notches */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  /* Prevent overscroll/bounce on mobile */
+  overscroll-behavior: none;
 }
 
 .dark body {
@@ -86,5 +90,26 @@ body {
   }
   .mention-special:hover {
     background: rgba(234, 179, 8, 0.25);
+  }
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 767px) {
+  /* Reduce scrollbar width on mobile */
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  /* Prevent pull-to-refresh interfering with scroll */
+  html, body {
+    overflow: hidden;
+    height: 100%;
+    position: fixed;
+    width: 100%;
+  }
+
+  #root {
+    height: 100%;
+    overflow: hidden;
   }
 }
