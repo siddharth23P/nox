@@ -180,6 +180,10 @@ func main() {
 			authenticated.GET("/orgs/:orgId/members", orgHandler.ListOrgMembers)
 			authenticated.PATCH("/orgs/:orgId/members/:userId/role", orgHandler.ChangeMemberRole)
 			authenticated.DELETE("/orgs/:orgId/members/:userId", orgHandler.RemoveMember)
+			authenticated.POST("/orgs/:orgId/members/:userId/ban", orgHandler.BanMember)
+			authenticated.DELETE("/orgs/:orgId/members/:userId/ban", orgHandler.UnbanMember)
+			authenticated.GET("/orgs/:orgId/bans", orgHandler.ListBannedMembers)
+			authenticated.POST("/orgs/:orgId/transfer-ownership", orgHandler.TransferOwnership)
 			// Channel CRUD Routes
 			authenticated.POST("/channels", messagingHandler.CreateChannel)
 			authenticated.GET("/channels", messagingHandler.GetChannels)

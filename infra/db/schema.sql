@@ -342,3 +342,14 @@ CREATE TABLE IF NOT EXISTS dm_channels (
 
 CREATE INDEX IF NOT EXISTS idx_dm_channels_user1 ON dm_channels(user1_id);
 CREATE INDEX IF NOT EXISTS idx_dm_channels_user2 ON dm_channels(user2_id);
+
+-- 23. Banned Members (Issue #63 - Org Member Management)
+CREATE TABLE IF NOT EXISTS banned_members (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    banned_by UUID NOT NULL REFERENCES users(id),
+    reason TEXT DEFAULT '',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(org_id, user_id)
+);

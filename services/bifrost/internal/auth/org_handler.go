@@ -189,3 +189,112 @@ func (h *OrgHandler) RemoveMember(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "member removed"})
 }
+
+// BanMember bans a member from the organization.
+// POST /v1/orgs/:orgId/members/:userId/ban
+func (h *OrgHandler) BanMember(c *gin.Context) {
+	orgID := c.Param("orgId")
+	targetUserID := c.Param("userId")
+	callerID := c.GetString("user_id")
+	if orgID == "" || targetUserID == "" || callerID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "org_id and user_id required"})
+		return
+	}
+
+	var req struct {
+		Reason string `json:"reason"`
+	}
+	// Bind JSON body but don't fail if empty (reason is optional)
+	_ = c.ShouldBindJSON(&req)
+
+	if err := h.service.BanMember(c.Request.Context(), orgID, callerID, targetUserID, req.Reason); err != nil {
+		status := http.StatusBadRequest
+		if err.Error() == "only owners can ban members" {
+			status = http.StatusForbidden
+		}
+		c.JSON(status, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "member banned"})
+}
+
+// UnbanMember removes a ban for a member in the organization.
+// DELETE /v1/orgs/:orgId/members/:userId/ban
+func (h *OrgHandler) UnbanMember(c *gin.Context) {
+	orgID := c.Param("orgId")
+	targetUserID := c.Param("userId")
+	callerID := c.GetString("user_id")
+	if orgID == "" || targetUserID == "" || callerID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "org_id and user_id required"})
+		return
+	}
+
+	if err := h.service.UnbanMember(c.Request.Context(), orgID, callerID, targetUserID); err != nil {
+		status := http.StatusBadRequest
+		if err.Error() == "only owners can unban members" {
+			status = http.StatusForbidden
+		} else if err.Error() == "ban record not found" {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "member unbanned"})
+}
+
+// ListBannedMembers returns all banned members for an organization.
+// GET /v1/orgs/:orgId/bans
+func (h *OrgHandler) ListBannedMembers(c *gin.Context) {
+	orgID := c.Param("orgId")
+	callerID := c.GetString("user_id")
+	if orgID == "" || callerID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "org_id required"})
+		return
+	}
+
+	banned, err := h.service.ListBannedMembers(c.Request.Context(), orgID, callerID)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "insufficient permissions: admin or owner role required" {
+			status = http.StatusForbidden
+		}
+		c.JSON(status, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"banned": banned})
+}
+
+// TransferOwnership transfers organization ownership to another member.
+// POST /v1/orgs/:orgId/transfer-ownership
+func (h *OrgHandler) TransferOwnership(c *gin.Context) {
+	orgID := c.Param("orgId")
+	callerID := c.GetString("user_id")
+	if orgID == "" || callerID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "org_id required"})
+		return
+	}
+
+	var req struct {
+		UserID string `json:"user_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.TransferOwnership(c.Request.Context(), orgID, callerID, req.UserID); err != nil {
+		status := http.StatusBadRequest
+		if err.Error() == "only the current owner can transfer ownership" {
+			status = http.StatusForbidden
+		} else if err.Error() == "target user is not a member of this organization" {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "ownership transferred"})
+}

@@ -263,6 +263,88 @@ func (s *OrgService) RemoveMember(ctx context.Context, orgID, callerID, targetUs
 	return s.repo.RemoveOrgMember(ctx, orgID, targetUserID)
 }
 
+// BanMember bans a member from the organization (removes + records ban). Only owners can ban.
+func (s *OrgService) BanMember(ctx context.Context, orgID, callerID, targetUserID, reason string) error {
+	// Verify caller is owner
+	callerRole, err := s.repo.GetMemberRole(ctx, orgID, callerID)
+	if err != nil {
+		return errors.New("not a member of this organization")
+	}
+	if callerRole != "owner" {
+		return errors.New("only owners can ban members")
+	}
+
+	// Cannot ban yourself
+	if callerID == targetUserID {
+		return errors.New("cannot ban yourself")
+	}
+
+	// Cannot ban owners
+	targetRole, err := s.repo.GetMemberRole(ctx, orgID, targetUserID)
+	if err != nil {
+		return errors.New("target member not found")
+	}
+	if targetRole == "owner" {
+		return errors.New("cannot ban an owner")
+	}
+
+	return s.repo.BanMember(ctx, orgID, targetUserID, callerID, reason)
+}
+
+// UnbanMember removes a ban record for a user in the organization. Only owners can unban.
+func (s *OrgService) UnbanMember(ctx context.Context, orgID, callerID, targetUserID string) error {
+	callerRole, err := s.repo.GetMemberRole(ctx, orgID, callerID)
+	if err != nil {
+		return errors.New("not a member of this organization")
+	}
+	if callerRole != "owner" {
+		return errors.New("only owners can unban members")
+	}
+
+	return s.repo.UnbanMember(ctx, orgID, targetUserID)
+}
+
+// ListBannedMembers returns all banned members for an organization. Requires admin+ role.
+func (s *OrgService) ListBannedMembers(ctx context.Context, orgID, callerID string) ([]db.BannedMember, error) {
+	if err := s.requireAdminOrOwner(ctx, orgID, callerID); err != nil {
+		return nil, err
+	}
+
+	banned, err := s.repo.ListBannedMembers(ctx, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list banned members: %w", err)
+	}
+	if banned == nil {
+		banned = []db.BannedMember{}
+	}
+	return banned, nil
+}
+
+// TransferOwnership transfers org ownership from the current owner to a target member.
+func (s *OrgService) TransferOwnership(ctx context.Context, orgID, currentOwnerID, newOwnerID string) error {
+	// Verify caller is owner
+	callerRole, err := s.repo.GetMemberRole(ctx, orgID, currentOwnerID)
+	if err != nil {
+		return errors.New("not a member of this organization")
+	}
+	if callerRole != "owner" {
+		return errors.New("only the current owner can transfer ownership")
+	}
+
+	// Cannot transfer to self
+	if currentOwnerID == newOwnerID {
+		return errors.New("cannot transfer ownership to yourself")
+	}
+
+	// Verify target is a member
+	_, err = s.repo.GetMemberRole(ctx, orgID, newOwnerID)
+	if err != nil {
+		return errors.New("target user is not a member of this organization")
+	}
+
+	return s.repo.TransferOwnership(ctx, orgID, currentOwnerID, newOwnerID)
+}
+
 // requireAdminOrOwner checks that the caller has admin or owner role.
 func (s *OrgService) requireAdminOrOwner(ctx context.Context, orgID, userID string) error {
 	role, err := s.repo.GetMemberRole(ctx, orgID, userID)
