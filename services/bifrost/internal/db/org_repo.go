@@ -156,3 +156,114 @@ func (db *Database) GetMemberRole(ctx context.Context, orgID, userID string) (st
 	}
 	return role, nil
 }
+
+// BannedMember represents a banned member record.
+type BannedMember struct {
+	ID        string `json:"id"`
+	OrgID     string `json:"org_id"`
+	UserID    string `json:"user_id"`
+	Username  string `json:"username"`
+	Email     string `json:"email"`
+	BannedBy  string `json:"banned_by"`
+	Reason    string `json:"reason"`
+	CreatedAt string `json:"created_at"`
+}
+
+// BanMember removes a member from the org and inserts a ban record in a transaction.
+func (db *Database) BanMember(ctx context.Context, orgID, userID, bannedBy, reason string) error {
+	tx, err := db.Pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Remove from organization_memberships
+	_, err = tx.Exec(ctx,
+		`DELETE FROM organization_memberships WHERE org_id = $1 AND user_id = $2`,
+		orgID, userID)
+	if err != nil {
+		return fmt.Errorf("failed to remove member: %w", err)
+	}
+
+	// Insert ban record
+	_, err = tx.Exec(ctx,
+		`INSERT INTO banned_members (org_id, user_id, banned_by, reason)
+		 VALUES ($1, $2, $3, $4)
+		 ON CONFLICT (org_id, user_id) DO UPDATE SET banned_by = $3, reason = $4, created_at = NOW()`,
+		orgID, userID, bannedBy, reason)
+	if err != nil {
+		return fmt.Errorf("failed to insert ban record: %w", err)
+	}
+
+	return tx.Commit(ctx)
+}
+
+// UnbanMember removes a ban record for a user in an org.
+func (db *Database) UnbanMember(ctx context.Context, orgID, userID string) error {
+	tag, err := db.Pool.Exec(ctx,
+		`DELETE FROM banned_members WHERE org_id = $1 AND user_id = $2`,
+		orgID, userID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("ban record not found")
+	}
+	return nil
+}
+
+// ListBannedMembers returns all banned members for an org.
+func (db *Database) ListBannedMembers(ctx context.Context, orgID string) ([]BannedMember, error) {
+	rows, err := db.Pool.Query(ctx,
+		`SELECT bm.id, bm.org_id, bm.user_id, COALESCE(u.username, ''), COALESCE(u.email, ''),
+		        bm.banned_by, COALESCE(bm.reason, ''), bm.created_at::text
+		 FROM banned_members bm
+		 JOIN users u ON u.id = bm.user_id
+		 WHERE bm.org_id = $1
+		 ORDER BY bm.created_at DESC`, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list banned members: %w", err)
+	}
+	defer rows.Close()
+
+	var banned []BannedMember
+	for rows.Next() {
+		var b BannedMember
+		if err := rows.Scan(&b.ID, &b.OrgID, &b.UserID, &b.Username, &b.Email,
+			&b.BannedBy, &b.Reason, &b.CreatedAt); err != nil {
+			return nil, err
+		}
+		banned = append(banned, b)
+	}
+	return banned, nil
+}
+
+// TransferOwnership sets the current owner to admin and promotes the target to owner in a transaction.
+func (db *Database) TransferOwnership(ctx context.Context, orgID, currentOwnerID, newOwnerID string) error {
+	tx, err := db.Pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Demote current owner to admin
+	_, err = tx.Exec(ctx,
+		`UPDATE organization_memberships SET role = 'admin' WHERE org_id = $1 AND user_id = $2`,
+		orgID, currentOwnerID)
+	if err != nil {
+		return fmt.Errorf("failed to demote current owner: %w", err)
+	}
+
+	// Promote new owner
+	tag, err := tx.Exec(ctx,
+		`UPDATE organization_memberships SET role = 'owner' WHERE org_id = $1 AND user_id = $2`,
+		orgID, newOwnerID)
+	if err != nil {
+		return fmt.Errorf("failed to promote new owner: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("target user is not a member of this organization")
+	}
+
+	return tx.Commit(ctx)
+}

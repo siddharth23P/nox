@@ -36,6 +36,9 @@ interface OrgState {
   fetchMembers: (orgId: string, search?: string, limit?: number, offset?: number) => Promise<void>;
   changeMemberRole: (orgId: string, userId: string, role: string) => Promise<boolean>;
   removeMember: (orgId: string, userId: string) => Promise<boolean>;
+  banMember: (orgId: string, userId: string, reason?: string) => Promise<boolean>;
+  unbanMember: (orgId: string, userId: string) => Promise<boolean>;
+  transferOwnership: (orgId: string, userId: string) => Promise<boolean>;
   clearError: () => void;
   reset: () => void;
 }
@@ -183,6 +186,69 @@ export const useOrgStore = create<OrgState>((set, get) => ({
         totalMembers: state.totalMembers - 1,
         isLoading: false,
       }));
+      return true;
+    } catch (err) {
+      set({ error: (err as Error).message, isLoading: false });
+      return false;
+    }
+  },
+
+  banMember: async (orgId: string, userId: string, reason = '') => {
+    set({ isLoading: true, error: null });
+    try {
+      const res = await fetch(`${API_BASE}/orgs/${orgId}/members/${userId}/ban`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ reason }),
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to ban member');
+      }
+      set((state) => ({
+        members: state.members.filter((m) => m.user_id !== userId),
+        totalMembers: state.totalMembers - 1,
+        isLoading: false,
+      }));
+      return true;
+    } catch (err) {
+      set({ error: (err as Error).message, isLoading: false });
+      return false;
+    }
+  },
+
+  unbanMember: async (orgId: string, userId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const res = await fetch(`${API_BASE}/orgs/${orgId}/members/${userId}/ban`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to unban member');
+      }
+      set({ isLoading: false });
+      return true;
+    } catch (err) {
+      set({ error: (err as Error).message, isLoading: false });
+      return false;
+    }
+  },
+
+  transferOwnership: async (orgId: string, userId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const res = await fetch(`${API_BASE}/orgs/${orgId}/transfer-ownership`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ user_id: userId }),
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to transfer ownership');
+      }
+      set({ isLoading: false });
       return true;
     } catch (err) {
       set({ error: (err as Error).message, isLoading: false });
