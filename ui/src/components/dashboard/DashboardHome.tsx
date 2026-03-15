@@ -40,8 +40,8 @@ export const DashboardHome: React.FC = () => {
       {/* Dynamic Background Glow */}
       <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-blue-500/5 rounded-full blur-[150px] pointer-events-none" />
 
-      {/* Main Channel Area */}
-      <div className="flex-1 h-full flex flex-col relative min-w-0 min-h-0">
+      {/* Main Channel Area - shrinks smoothly when thread panel opens */}
+      <div className="flex-1 h-full flex flex-col relative min-w-0 min-h-0 transition-all duration-300 ease-in-out">
         {/* Header */}
         <div className="h-14 border-b border-white/5 flex items-center px-6 bg-[#030712]/50 backdrop-blur-md z-10 shrink-0">
           <div className="flex items-center gap-2">
