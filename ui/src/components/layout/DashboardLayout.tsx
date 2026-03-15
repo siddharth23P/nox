@@ -79,7 +79,7 @@ export const DashboardLayout: React.FC = () => {
   useKeyboardShortcuts(shortcuts);
 
   return (
-    <div className="h-screen w-full bg-[#030712] flex overflow-hidden">
+    <div className="h-screen w-full flex overflow-hidden" style={{ backgroundColor: 'var(--nox-bg-primary)' }}>
       {/* Skip to content link for keyboard/screen reader users */}
       <a
         href="#main-content"
