@@ -488,6 +488,25 @@ func (h *MessagingHandler) GetChannelReadReceipts(c *gin.Context) {
 	c.JSON(http.StatusOK, reads)
 }
 
+func (h *MessagingHandler) GetUnreadCounts(c *gin.Context) {
+	_, userID := getAuthInfo(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "X-User-ID required"})
+		return
+	}
+
+	counts, err := h.service.GetUnreadCounts(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if counts == nil {
+		counts = []UnreadCount{}
+	}
+	c.JSON(http.StatusOK, counts)
+}
+
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,

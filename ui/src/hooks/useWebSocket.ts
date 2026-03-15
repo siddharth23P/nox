@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useMessageStore } from '../stores/messageStore';
 import { useAuthStore } from '../stores/authStore';
 import { useNotificationStore } from '../stores/notificationStore';
+import { useReadStore } from '../stores/readStore';
 
 const WS_BASE_URL = 'ws://localhost:8080/ws';
 let globalWs: WebSocket | null = null;
@@ -72,6 +73,9 @@ export function useWebSocket() {
               if (payload.user_id !== user?.id) {
                 store.onTypingIndicator(payload.channel_id, payload.username, payload.is_typing);
               }
+              break;
+            case 'READ_RECEIPT_UPDATED':
+              useReadStore.getState().onReadReceiptUpdated(payload);
               break;
             case 'NOTIFICATION_NEW':
               useNotificationStore.getState().addNotification(payload);
