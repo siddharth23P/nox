@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useReducer } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, X } from 'lucide-react';
 import { useOnboardingStore } from '../../stores/onboardingStore';
@@ -46,31 +46,26 @@ interface SpotlightRect {
 export const TourSpotlight: React.FC = () => {
   const { dismissTour } = useOnboardingStore();
   const [step, setStep] = useState(0);
-  const [rect, setRect] = useState<SpotlightRect | null>(null);
+  const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
 
   const currentTourStep = tourSteps[step];
 
-  const updateRect = useCallback(() => {
-    if (!currentTourStep) return;
+  // Compute rect directly during render (no effect needed)
+  const getRect = useCallback((): SpotlightRect | null => {
+    if (!currentTourStep) return null;
     const el = document.querySelector(currentTourStep.target);
-    if (el) {
-      const r = el.getBoundingClientRect();
-      setRect({
-        top: r.top - 4,
-        left: r.left - 4,
-        width: r.width + 8,
-        height: r.height + 8,
-      });
-    } else {
-      setRect(null);
-    }
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { top: r.top - 4, left: r.left - 4, width: r.width + 8, height: r.height + 8 };
   }, [currentTourStep]);
 
+  const rect = getRect();
+
   useEffect(() => {
-    updateRect();
-    window.addEventListener('resize', updateRect);
-    return () => window.removeEventListener('resize', updateRect);
-  }, [updateRect, step]);
+    const handleResize = () => forceUpdate();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleNext = () => {
     if (step < tourSteps.length - 1) {
