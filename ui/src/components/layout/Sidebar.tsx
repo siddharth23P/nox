@@ -39,16 +39,21 @@ import CreateChannelModal from '../dashboard/CreateChannelModal';
 import BrowseChannelsModal from '../dashboard/BrowseChannelsModal';
 import CreateOrgModal from '../dashboard/CreateOrgModal';
 
-const NavItem = ({ icon: Icon, text, active, onClick }: { icon: React.ElementType, text: string, active?: boolean, onClick?: () => void }) => (
+const NavItem = ({ icon: Icon, text, active, onClick, ariaLabel }: { icon: React.ElementType, text: string, active?: boolean, onClick?: () => void, ariaLabel?: string }) => (
   <motion.button
     whileHover={{ x: 4 }}
     whileTap={{ scale: 0.98 }}
     animate={{ backgroundColor: active ? 'var(--nox-hover)' : 'transparent' }}
     onClick={onClick}
-    className="w-full h-10 px-3 rounded-xl flex items-center gap-3 transition-colors"
+    aria-label={ariaLabel || text}
+    aria-current={active ? 'page' : undefined}
+    role="menuitem"
+    className={`w-full h-10 px-3 rounded-xl flex items-center gap-3 transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-[#0d0d0d] ${
+      active ? 'text-white' : 'text-gray-400 hover:text-white'
+    }`}
     style={{ color: active ? 'var(--nox-text-primary)' : 'var(--nox-text-secondary)' }}
   >
-    <Icon size={18} className={active ? 'text-blue-400' : ''} />
+    <Icon size={18} className={active ? 'text-blue-400' : ''} aria-hidden="true" />
     <span className="text-[14px] font-medium truncate">{text}</span>
   </motion.button>
 );
@@ -318,7 +323,7 @@ const handleNewDM = async (userId: string, _username: string) => {
   const displayOrgName = orgName || 'Nox Workspace';
 
   return (
-    <div className="w-64 h-full border-r flex flex-col pt-4 pb-4" style={{ backgroundColor: 'var(--nox-sidebar-bg)', borderColor: 'var(--nox-border)' }}>
+    <nav className="w-64 h-full border-r flex flex-col pt-4 pb-4" role="navigation" aria-label="Sidebar navigation" style={{ backgroundColor: 'var(--nox-sidebar-bg)', borderColor: 'var(--nox-border)' }}>
 
       {/* Org Header with Switcher */}
       <div className="relative px-2 mb-6">
@@ -392,7 +397,7 @@ const handleNewDM = async (userId: string, _username: string) => {
       </div>
 
       {/* Main Navigation */}
-      <div className="flex-1 overflow-y-auto px-3 space-y-6">
+      <div className="flex-1 overflow-y-auto px-3 space-y-6" role="menu">
 
         <div className="space-y-1">
           <NavItem icon={Search} text="Search" />
@@ -907,6 +912,6 @@ const handleNewDM = async (userId: string, _username: string) => {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </nav>
   );
 };
