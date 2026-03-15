@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import DOMPurify from 'dompurify';
-import { X, CornerDownRight, MessageCircle } from 'lucide-react';
+import { X, CornerDownRight, MessageCircle, ChevronDown, ChevronRight, Reply } from 'lucide-react';
 import { useMessageStore } from '../../stores/messageStore';
 import { renderMentionsInHTML } from '../../utils/mentions';
 import { PresenceAvatar } from '../common/PresenceAvatar';
@@ -10,32 +10,87 @@ interface ThreadPanelProps {
   channelId: string;
 }
 
+const MAX_INDENT_DEPTH = 10;
+
 export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
-  const { 
-    activeThreadId, 
-    setActiveThread, 
+  const {
+    activeThreadId,
+    setActiveThread,
     activeChannel,
-    messages, 
-    threadMessages, 
-    fetchThread, 
-    sendThreadReply, 
-    isLoading 
+    messages,
+    threadMessages,
+    fetchThread,
+    sendThreadReply,
+    isLoading
   } = useMessageStore();
-  
+
   const [replyInput, setReplyInput] = useState('');
-  
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
+  const [replyTargetId, setReplyTargetId] = useState<string | null>(null);
+
   const parentMessage = messages.find((m) => m.id === activeThreadId);
 
   useEffect(() => {
     if (activeThreadId && channelId) {
       fetchThread(channelId, activeThreadId);
     }
+    return () => {
+      setCollapsedIds(new Set());
+      setReplyTargetId(null);
+    };
   }, [activeThreadId, channelId, fetchThread]);
+
+  // Build a set of all descendant IDs for collapsed messages so we can hide them
+  const hiddenIds = useMemo(() => {
+    if (collapsedIds.size === 0) return new Set<string>();
+
+    // Build parent->children map
+    const childrenMap = new Map<string, string[]>();
+    for (const msg of threadMessages) {
+      if (msg.parent_id) {
+        const siblings = childrenMap.get(msg.parent_id) || [];
+        siblings.push(msg.id);
+        childrenMap.set(msg.parent_id, siblings);
+      }
+    }
+
+    const hidden = new Set<string>();
+    const collectDescendants = (id: string) => {
+      const children = childrenMap.get(id) || [];
+      for (const childId of children) {
+        hidden.add(childId);
+        collectDescendants(childId);
+      }
+    };
+
+    collapsedIds.forEach((id) => collectDescendants(id));
+    return hidden;
+  }, [collapsedIds, threadMessages]);
+
+  const visibleMessages = useMemo(
+    () => threadMessages.filter((m) => !hiddenIds.has(m.id)),
+    [threadMessages, hiddenIds]
+  );
+
+  const toggleCollapse = useCallback((id: string) => {
+    setCollapsedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const effectiveParentId = replyTargetId || activeThreadId;
 
   const handleSend = async () => {
     if (!replyInput.trim() || !activeThreadId) return;
-    await sendThreadReply(channelId, activeThreadId, replyInput);
+    await sendThreadReply(channelId, effectiveParentId!, replyInput);
     setReplyInput('');
+    setReplyTargetId(null);
   };
 
   return (
@@ -73,10 +128,10 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
             {parentMessage && (
               <div className="p-4 border-b border-white/10 bg-blue-500/[0.03] border-l-2 border-l-blue-500/40">
                 <div className="flex items-start gap-4">
-                  <PresenceAvatar 
-                    userId={parentMessage.user_id} 
-                    username={parentMessage.username || 'U'} 
-                    size="md" 
+                  <PresenceAvatar
+                    userId={parentMessage.user_id}
+                    username={parentMessage.username || 'U'}
+                    size="md"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-2 mb-1">
@@ -87,7 +142,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
                         {new Date(parentMessage.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
-                    <div 
+                    <div
                       className="text-[15px] text-gray-300 leading-relaxed font-light whitespace-pre-wrap"
                       dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMentionsInHTML(parentMessage.content_html || parentMessage.content_md), { ADD_ATTR: ['data-mention'] }) }}
                     />
@@ -97,7 +152,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
             )}
 
             {/* Replies List */}
-            <div className="flex-1 p-4 space-y-6">
+            <div className="flex-1 p-4 space-y-1">
               <div className="flex items-center gap-4 py-2">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
                   {threadMessages.length} {threadMessages.length === 1 ? 'Reply' : 'Replies'}
@@ -111,41 +166,103 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
                   <span className="text-sm">Loading replies...</span>
                 </div>
               ) : (
-                threadMessages.map((reply) => (
-                  <div key={reply.id} className="group flex items-start gap-3 hover:bg-white/[0.01] -mx-2 px-2 py-1 rounded-xl transition-colors">
-                    <PresenceAvatar 
-                      userId={reply.user_id} 
-                      username={reply.username || 'U'} 
-                      size="sm" 
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline gap-2 mb-1">
-                        <span className="text-[14px] font-semibold text-gray-200">
-                          {reply.username || `User ${reply.user_id.substring(0, 4)}`}
-                        </span>
-                        <span className="text-[11px] text-gray-500 font-medium whitespace-nowrap">
-                          {new Date(reply.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
+                visibleMessages.map((reply) => {
+                  const depth = reply.depth || 1;
+                  const indent = Math.min(depth - 1, MAX_INDENT_DEPTH) * 16;
+                  const hasReplies = (reply.reply_count || 0) > 0;
+                  const isCollapsed = collapsedIds.has(reply.id);
+
+                  return (
+                    <div
+                      key={reply.id}
+                      className="group"
+                      style={{ marginLeft: indent }}
+                    >
+                      {/* Left border for nested depth */}
+                      <div
+                        className={`flex items-start gap-3 hover:bg-white/[0.01] px-2 py-1.5 rounded-xl transition-colors ${
+                          depth > 1 ? 'border-l border-white/5 pl-3' : ''
+                        }`}
+                      >
+                        {/* Collapse toggle */}
+                        {hasReplies ? (
+                          <button
+                            onClick={() => toggleCollapse(reply.id)}
+                            className="mt-1 p-0.5 rounded text-gray-500 hover:text-gray-300 hover:bg-white/10 transition-colors flex-shrink-0"
+                            title={isCollapsed ? 'Expand replies' : 'Collapse replies'}
+                          >
+                            {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                          </button>
+                        ) : (
+                          <div className="w-[18px] flex-shrink-0" />
+                        )}
+
+                        <PresenceAvatar
+                          userId={reply.user_id}
+                          username={reply.username || 'U'}
+                          size="sm"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline gap-2 mb-0.5">
+                            <span className="text-[14px] font-semibold text-gray-200">
+                              {reply.username || `User ${reply.user_id.substring(0, 4)}`}
+                            </span>
+                            <span className="text-[11px] text-gray-500 font-medium whitespace-nowrap">
+                              {new Date(reply.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            {hasReplies && (
+                              <span className="text-[10px] text-gray-500">
+                                {reply.reply_count} {reply.reply_count === 1 ? 'reply' : 'replies'}
+                                {isCollapsed && ' (collapsed)'}
+                              </span>
+                            )}
+                          </div>
+                          <div
+                            className={`text-[14px] text-gray-400 leading-relaxed font-light whitespace-pre-wrap ${reply.status === 'sending' ? 'opacity-50' : ''}`}
+                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMentionsInHTML(reply.content_html || reply.content_md), { ADD_ATTR: ['data-mention'] }) }}
+                          />
+                          {reply.status === 'sending' && (
+                            <span className="text-[10px] text-gray-500 animate-pulse block mt-1">Sending...</span>
+                          )}
+                          {reply.status === 'error' && (
+                            <span className="text-[10px] text-red-500 block mt-1">Failed to send</span>
+                          )}
+                          {/* Reply button for nested replies */}
+                          <button
+                            onClick={() => setReplyTargetId(replyTargetId === reply.id ? null : reply.id)}
+                            className={`mt-1 flex items-center gap-1 text-[11px] font-medium transition-colors ${
+                              replyTargetId === reply.id
+                                ? 'text-blue-400'
+                                : 'text-gray-500 hover:text-gray-300 opacity-0 group-hover:opacity-100'
+                            }`}
+                          >
+                            <Reply size={12} />
+                            Reply
+                          </button>
+                        </div>
                       </div>
-                      <div 
-                        className={`text-[14px] text-gray-400 leading-relaxed font-light whitespace-pre-wrap ${reply.status === 'sending' ? 'opacity-50' : ''}`}
-                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMentionsInHTML(reply.content_html || reply.content_md), { ADD_ATTR: ['data-mention'] }) }}
-                      />
-                      {reply.status === 'sending' && (
-                        <span className="text-[10px] text-gray-500 animate-pulse block mt-1">Sending...</span>
-                      )}
-                      {reply.status === 'error' && (
-                        <span className="text-[10px] text-red-500 block mt-1">Failed to send</span>
-                      )}
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
 
-          {/* Simple Reply Input below the list */}
+          {/* Reply Input */}
           <div className="p-4 w-full border-t shrink-0" style={{ borderColor: 'var(--nox-border)', backgroundColor: 'var(--nox-bg-secondary)' }}>
+             {replyTargetId && (
+               <div className="flex items-center justify-between mb-2 px-2 py-1.5 bg-blue-500/5 border border-blue-500/10 rounded-lg">
+                 <span className="text-[11px] text-blue-400 font-medium">
+                   Replying to {threadMessages.find(m => m.id === replyTargetId)?.username || 'message'}
+                 </span>
+                 <button
+                   onClick={() => setReplyTargetId(null)}
+                   className="text-gray-500 hover:text-gray-300 transition-colors"
+                 >
+                   <X size={14} />
+                 </button>
+               </div>
+             )}
              <div className="backdrop-blur rounded-xl focus-within:border-blue-500/30 transition-all p-3 flex flex-col gap-2 shadow-2xl group relative" style={{ backgroundColor: 'var(--nox-bg-glass)', border: '1px solid var(--nox-border)' }}>
                 <div className={`absolute -inset-0.5 bg-blue-500/10 rounded-xl blur transition-opacity opacity-0 group-focus-within:opacity-100 pointer-events-none`} />
                 <textarea
@@ -157,7 +274,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
                       handleSend();
                     }
                   }}
-                  placeholder="Reply to thread..."
+                  placeholder={replyTargetId ? 'Reply to this message...' : 'Reply to thread...'}
                   data-testid="thread-reply-input"
                   className="w-full bg-transparent text-gray-200 placeholder-gray-500 text-sm focus:outline-none resize-none min-h-[80px] relative z-10 custom-scrollbar"
                 />

@@ -368,17 +368,32 @@ func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID s
 
 func (s *MessagingService) GetThreadReplies(ctx context.Context, messageID string, currentUserID string) ([]Message, error) {
 	query := `
-		SELECT m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.reply_to, m.forward_source_id,
+		WITH RECURSIVE thread_tree AS (
+			SELECT m.id, m.channel_id, m.parent_id, m.user_id, m.content_md, m.content_html,
+				m.created_at, m.updated_at, m.is_edited, m.reply_to, m.forward_source_id,
+				0 AS depth
+			FROM messages m
+			WHERE m.id = $1
+			UNION ALL
+			SELECT m.id, m.channel_id, m.parent_id, m.user_id, m.content_md, m.content_html,
+				m.created_at, m.updated_at, m.is_edited, m.reply_to, m.forward_source_id,
+				tt.depth + 1
+			FROM messages m
+			JOIN thread_tree tt ON m.parent_id = tt.id
+		)
+		SELECT tt.id, tt.channel_id, tt.user_id, u.username, tt.parent_id, tt.reply_to, tt.forward_source_id,
 			fsu.username as forward_source_username,
-			m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited,
-			EXISTS(SELECT 1 FROM channel_pins cp WHERE cp.message_id = m.id) as is_pinned,
-			EXISTS(SELECT 1 FROM user_bookmarks ub WHERE ub.message_id = m.id AND ub.user_id = $2) as is_bookmarked 
-		FROM messages m
-		JOIN users u ON m.user_id = u.id
-		LEFT JOIN messages fsm ON m.forward_source_id = fsm.id
+			tt.content_md, tt.content_html, tt.created_at, tt.updated_at, tt.is_edited,
+			(SELECT COUNT(*) FROM messages r WHERE r.parent_id = tt.id) as reply_count,
+			EXISTS(SELECT 1 FROM channel_pins cp WHERE cp.message_id = tt.id) as is_pinned,
+			EXISTS(SELECT 1 FROM user_bookmarks ub WHERE ub.message_id = tt.id AND ub.user_id = $2) as is_bookmarked,
+			tt.depth
+		FROM thread_tree tt
+		JOIN users u ON tt.user_id = u.id
+		LEFT JOIN messages fsm ON tt.forward_source_id = fsm.id
 		LEFT JOIN users fsu ON fsm.user_id = fsu.id
-		WHERE m.parent_id = $1 
-		ORDER BY m.created_at ASC
+		WHERE tt.depth > 0
+		ORDER BY tt.depth ASC, tt.created_at ASC
 	`
 	rows, err := s.db.Pool.Query(ctx, query, messageID, currentUserID)
 	if err != nil {
@@ -392,15 +407,14 @@ func (s *MessagingService) GetThreadReplies(ctx context.Context, messageID strin
 	var messages []Message
 	for rows.Next() {
 		var msg Message
-		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ReplyTo, &msg.ForwardSourceID, &msg.ForwardSourceUsername, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.IsEdited, &msg.IsPinned, &msg.IsBookmarked); err != nil {
+		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ReplyTo, &msg.ForwardSourceID, &msg.ForwardSourceUsername, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.IsEdited, &msg.ReplyCount, &msg.IsPinned, &msg.IsBookmarked, &msg.Depth); err != nil {
 			return nil, err
 		}
-		msg.ReplyCount = 0 // Replies don't have replies in this simple 1-level thread model
 		messages = append(messages, msg)
 	}
-	
+
 	messages = s.Reactions.InjectReactionsIntoMessages(messages, currentUserID)
-	
+
 	return messages, nil
 }
 
