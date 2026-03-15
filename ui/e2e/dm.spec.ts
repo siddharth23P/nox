@@ -107,7 +107,8 @@ test.describe('Direct Messages (Issue #113)', () => {
       headers: bobHeaders,
     });
     expect(getRes.ok()).toBeTruthy();
-    const messages = await getRes.json();
+    const body = await getRes.json();
+    const messages = body.messages || body;
     const found = messages.find((m: { content_md: string }) => m.content_md === msgContent);
     expect(found).toBeTruthy();
     expect(found.user_id).toBe(alice.id);
