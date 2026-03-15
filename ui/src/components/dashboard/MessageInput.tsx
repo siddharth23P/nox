@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Send, Smile, AtSign, Paperclip, Code } from 'lucide-react';
 import { useMessageStore } from '../../stores/messageStore';
