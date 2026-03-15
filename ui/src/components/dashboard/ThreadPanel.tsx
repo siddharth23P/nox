@@ -33,9 +33,11 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
   useEffect(() => {
     if (activeThreadId && channelId) {
       fetchThread(channelId, activeThreadId);
+    }
+    return () => {
       setCollapsedIds(new Set());
       setReplyTargetId(null);
-    }
+    };
   }, [activeThreadId, channelId, fetchThread]);
 
   // Build a set of all descendant IDs for collapsed messages so we can hide them
