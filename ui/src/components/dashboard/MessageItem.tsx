@@ -201,9 +201,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         )}
 
         {msg.reply_count && msg.reply_count > 0 && !hideReply ? (
-          <div 
-            className={`mt-2 flex items-center gap-2 text-sm text-blue-400/80 cursor-pointer hover:text-blue-400 transition-colors w-max ${isCurrentUser ? 'flex-row-reverse' : ''}`}
-            onClick={() => setActiveThread(msg.id)}
+          <div
+            className={`mt-2 flex items-center gap-2 text-sm text-blue-400/80 w-max ${isCurrentUser ? 'flex-row-reverse' : ''}`}
           >
             <MessageCircle size={14} className="opacity-80" />
             <span className="font-medium">{msg.reply_count} {msg.reply_count === 1 ? 'reply' : 'replies'}</span>
