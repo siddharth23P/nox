@@ -30,7 +30,11 @@ import {
   FolderPlus,
   Pencil,
   Trash2,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react';
+import { useThemeStore, type ThemeMode } from '../../stores/themeStore';
 import CreateChannelModal from '../dashboard/CreateChannelModal';
 import BrowseChannelsModal from '../dashboard/BrowseChannelsModal';
 import CreateOrgModal from '../dashboard/CreateOrgModal';
@@ -39,16 +43,46 @@ const NavItem = ({ icon: Icon, text, active, onClick }: { icon: React.ElementTyp
   <motion.button
     whileHover={{ x: 4 }}
     whileTap={{ scale: 0.98 }}
-    animate={{ backgroundColor: active ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0)' }}
+    animate={{ backgroundColor: active ? 'var(--nox-hover)' : 'transparent' }}
     onClick={onClick}
-    className={`w-full h-10 px-3 rounded-xl flex items-center gap-3 transition-colors hover:bg-white/5 ${
-      active ? 'text-white' : 'text-gray-400 hover:text-white'
-    }`}
+    className="w-full h-10 px-3 rounded-xl flex items-center gap-3 transition-colors"
+    style={{ color: active ? 'var(--nox-text-primary)' : 'var(--nox-text-secondary)' }}
   >
     <Icon size={18} className={active ? 'text-blue-400' : ''} />
     <span className="text-[14px] font-medium truncate">{text}</span>
   </motion.button>
 );
+
+const themeOrder: ThemeMode[] = ['dark', 'light', 'system'];
+const themeIcons: Record<ThemeMode, React.ElementType> = { dark: Moon, light: Sun, system: Monitor };
+const themeLabels: Record<ThemeMode, string> = { dark: 'Dark', light: 'Light', system: 'System' };
+
+const ThemeToggle: React.FC = () => {
+  const { mode, setMode } = useThemeStore();
+  const Icon = themeIcons[mode];
+
+  const cycleTheme = () => {
+    const idx = themeOrder.indexOf(mode);
+    const next = themeOrder[(idx + 1) % themeOrder.length];
+    setMode(next);
+  };
+
+  return (
+    <div className="px-3 py-2 flex items-center justify-between">
+      <span className="text-sm font-medium text-gray-400">Theme</span>
+      <button
+        onClick={cycleTheme}
+        title={`Theme: ${themeLabels[mode]} (click to cycle)`}
+        aria-label={`Theme: ${themeLabels[mode]}`}
+        className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors text-xs font-medium"
+        data-testid="theme-toggle"
+      >
+        <Icon size={14} />
+        <span>{themeLabels[mode]}</span>
+      </button>
+    </div>
+  );
+};
 
 // --- New DM Modal (Issue #113) ---
 const NewDMModal: React.FC<{ isOpen: boolean; onClose: () => void; onSelect: (userId: string, username: string) => void }> = ({ isOpen, onClose, onSelect }) => {
@@ -101,7 +135,8 @@ const NewDMModal: React.FC<{ isOpen: boolean; onClose: () => void; onSelect: (us
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="w-full max-w-md bg-[#1a1a1a] border border-white/10 rounded-2xl overflow-hidden shadow-2xl"
+            className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl"
+            style={{ backgroundColor: 'var(--nox-bg-secondary)', border: '1px solid var(--nox-border)' }}
           >
             <div className="flex items-center justify-between p-4 border-b border-white/5 bg-white/5">
               <h3 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -283,7 +318,7 @@ const handleNewDM = async (userId: string, _username: string) => {
   const displayOrgName = orgName || 'Nox Workspace';
 
   return (
-    <div className="w-64 h-full bg-[#0d0d0d] border-r border-white/5 flex flex-col pt-4 pb-4">
+    <div className="w-64 h-full border-r flex flex-col pt-4 pb-4" style={{ backgroundColor: 'var(--nox-sidebar-bg)', borderColor: 'var(--nox-border)' }}>
 
       {/* Org Header with Switcher */}
       <div className="relative px-2 mb-6">
@@ -316,7 +351,8 @@ const handleNewDM = async (userId: string, _username: string) => {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.95 }}
               transition={{ duration: 0.15 }}
-              className="absolute top-full left-2 right-2 mt-1 z-50 bg-[#1a1a1a] border border-white/10 rounded-xl overflow-hidden shadow-2xl"
+              className="absolute top-full left-2 right-2 mt-1 z-50 rounded-xl overflow-hidden shadow-2xl"
+              style={{ backgroundColor: 'var(--nox-bg-secondary)', border: '1px solid var(--nox-border)' }}
               data-testid="org-switcher-dropdown"
             >
               <div className="p-2 text-[11px] font-bold uppercase tracking-wider text-gray-500 px-3">
@@ -387,7 +423,8 @@ const handleNewDM = async (userId: string, _username: string) => {
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -10 }}
-                  className="absolute left-full top-0 ml-2 w-80 max-h-[500px] bg-[#111] border border-white/10 rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden"
+                  className="absolute left-full top-0 ml-2 w-80 max-h-[500px] rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden"
+                  style={{ backgroundColor: 'var(--nox-bg-secondary)', border: '1px solid var(--nox-border)' }}
                 >
                   <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between shrink-0">
                     <h3 className="text-sm font-semibold text-white">Notifications</h3>
@@ -729,7 +766,9 @@ const handleNewDM = async (userId: string, _username: string) => {
       </div>
 
       {/* Footer / User Profile */}
-      <div className="px-3 pt-4 border-t border-white/5 space-y-1">
+      <div className="px-3 pt-4 border-t space-y-1" style={{ borderColor: 'var(--nox-border)' }}>
+        {/* Theme Toggle */}
+        <ThemeToggle />
         {/* Stealth Toggle */}
         <div className="px-3 py-2 flex flex-col gap-1">
           <div className="flex items-center justify-between">
@@ -817,7 +856,8 @@ const handleNewDM = async (userId: string, _username: string) => {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-[#111] border border-white/10 rounded-2xl p-6 w-[400px] shadow-2xl"
+              className="rounded-2xl p-6 w-[400px] shadow-2xl"
+              style={{ backgroundColor: 'var(--nox-bg-secondary)', border: '1px solid var(--nox-border)' }}
             >
               <h3 className="text-lg font-semibold text-white mb-1">Convert to Channel</h3>
               <p className="text-sm text-gray-400 mb-4">
