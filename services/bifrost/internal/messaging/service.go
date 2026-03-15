@@ -201,54 +201,82 @@ func (s *MessagingService) CreateMessage(ctx context.Context, channelID, userID,
 	return &msg, nil
 }
 
-func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID string, before string, currentUserID string) ([]Message, error) {
+// MessageQueryParams holds pagination parameters for message fetching.
+type MessageQueryParams struct {
+	Before string // Fetch messages before this timestamp
+	After  string // Fetch messages after this timestamp
+	Around string // Fetch messages around this message ID
+	Limit  int    // Number of messages to fetch (max 100, default 50)
+}
+
+func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID string, params MessageQueryParams, currentUserID string) ([]Message, bool, error) {
+	if params.Limit <= 0 || params.Limit > 100 {
+		params.Limit = 50
+	}
+
 	var query string
 	var args []interface{}
 
-	if before != "" {
-		query = `
-			SELECT 
-				m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.reply_to, m.forward_source_id,
-				fsu.username as forward_source_username,
-				m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited,
-				(SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id) as reply_count,
-				EXISTS(SELECT 1 FROM channel_pins cp WHERE cp.message_id = m.id) as is_pinned,
-				EXISTS(SELECT 1 FROM user_bookmarks ub WHERE ub.message_id = m.id AND ub.user_id = $3) as is_bookmarked
-			FROM messages m
-			JOIN users u ON m.user_id = u.id
-			LEFT JOIN messages fsm ON m.forward_source_id = fsm.id
-			LEFT JOIN users fsu ON fsm.user_id = fsu.id
-			WHERE m.channel_id = $1 AND m.parent_id IS NULL AND m.created_at < $2::timestamp
+	baseSelect := `
+		SELECT
+			m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.reply_to, m.forward_source_id,
+			fsu.username as forward_source_username,
+			m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited,
+			(SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id) as reply_count,
+			EXISTS(SELECT 1 FROM channel_pins cp WHERE cp.message_id = m.id) as is_pinned,
+			EXISTS(SELECT 1 FROM user_bookmarks ub WHERE ub.message_id = m.id AND ub.user_id = `
+
+	baseFrom := `
+		FROM messages m
+		JOIN users u ON m.user_id = u.id
+		LEFT JOIN messages fsm ON m.forward_source_id = fsm.id
+		LEFT JOIN users fsu ON fsm.user_id = fsu.id
+		WHERE m.channel_id = $1 AND m.parent_id IS NULL`
+
+	switch {
+	case params.Around != "":
+		// Fetch messages around a specific message ID: half before, half after
+		half := params.Limit / 2
+		query = `WITH target AS (
+			SELECT created_at FROM messages WHERE id = $2 AND channel_id = $1
+		)
+		(` + baseSelect + `$3) as is_bookmarked` + baseFrom + ` AND m.created_at <= (SELECT created_at FROM target)
 			ORDER BY m.created_at DESC
-			LIMIT 50
-		`
-		args = []interface{}{channelID, before, currentUserID}
-	} else {
-		query = `
-			SELECT 
-				m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.reply_to, m.forward_source_id,
-				fsu.username as forward_source_username,
-				m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited,
-				(SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id) as reply_count,
-				EXISTS(SELECT 1 FROM channel_pins cp WHERE cp.message_id = m.id) as is_pinned,
-				EXISTS(SELECT 1 FROM user_bookmarks ub WHERE ub.message_id = m.id AND ub.user_id = $2) as is_bookmarked
-			FROM messages m
-			JOIN users u ON m.user_id = u.id
-			LEFT JOIN messages fsm ON m.forward_source_id = fsm.id
-			LEFT JOIN users fsu ON fsm.user_id = fsu.id
-			WHERE m.channel_id = $1 AND m.parent_id IS NULL
+			LIMIT $4
+		)
+		UNION ALL
+		(` + baseSelect + `$3) as is_bookmarked` + baseFrom + ` AND m.created_at > (SELECT created_at FROM target)
+			ORDER BY m.created_at ASC
+			LIMIT $5
+		)
+		ORDER BY created_at ASC`
+		args = []interface{}{channelID, params.Around, currentUserID, half + 1, half}
+
+	case params.After != "":
+		query = baseSelect + `$3) as is_bookmarked` + baseFrom + ` AND m.created_at > $2::timestamp
+			ORDER BY m.created_at ASC
+			LIMIT $4`
+		args = []interface{}{channelID, params.After, currentUserID, params.Limit + 1}
+
+	case params.Before != "":
+		query = baseSelect + `$3) as is_bookmarked` + baseFrom + ` AND m.created_at < $2::timestamp
 			ORDER BY m.created_at DESC
-			LIMIT 50
-		`
-		args = []interface{}{channelID, currentUserID}
+			LIMIT $4`
+		args = []interface{}{channelID, params.Before, currentUserID, params.Limit + 1}
+
+	default:
+		query = baseSelect + `$2) as is_bookmarked` + baseFrom + `
+			ORDER BY m.created_at DESC
+			LIMIT $3`
+		args = []interface{}{channelID, currentUserID, params.Limit + 1}
 	}
 
 	rows, err := s.db.Pool.Query(ctx, query, args...)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return []Message{}, nil
+			return []Message{}, false, nil
 		}
-		return nil, err
+		return nil, false, err
 	}
 	defer rows.Close()
 
@@ -256,19 +284,27 @@ func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID s
 	for rows.Next() {
 		var msg Message
 		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ReplyTo, &msg.ForwardSourceID, &msg.ForwardSourceUsername, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.IsEdited, &msg.ReplyCount, &msg.IsPinned, &msg.IsBookmarked); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		messages = append(messages, msg)
 	}
 
-	// Reverse messages to return them in chronological order (oldest first)
-	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
-		messages[i], messages[j] = messages[j], messages[i]
+	// Determine if there are more messages beyond this page
+	hasMore := len(messages) > params.Limit
+	if hasMore {
+		messages = messages[:params.Limit]
+	}
+
+	// For "before" and default (latest) queries, results come in DESC order — reverse to chronological
+	if params.Around == "" && params.After == "" {
+		for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
+			messages[i], messages[j] = messages[j], messages[i]
+		}
 	}
 
 	messages = s.Reactions.InjectReactionsIntoMessages(messages, currentUserID)
 
-	return messages, nil
+	return messages, hasMore, nil
 }
 
 func (s *MessagingService) GetThreadReplies(ctx context.Context, messageID string, currentUserID string) ([]Message, error) {
