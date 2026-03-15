@@ -54,7 +54,7 @@ export const usePresenceStore = create<PresenceState>((set, get) => ({
 
   clearStealthError: () => set({ stealthError: null }),
 
-  startHeartbeat: (userId: string, token: string) => {
+  startHeartbeat: (_userId: string, token: string) => {
     const { heartbeatInterval } = get();
     if (heartbeatInterval) return; // Already running
 
