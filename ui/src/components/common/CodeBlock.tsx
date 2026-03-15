@@ -55,9 +55,6 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, language }) => {
       <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/5 backdrop-blur-md">
         <div className="flex items-center gap-2">
           <Code size={14} className="text-blue-400" />
-          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
-            {detectedLanguage}
-          </span>
         </div>
         
         <button

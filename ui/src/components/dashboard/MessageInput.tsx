@@ -9,11 +9,6 @@ import { MentionAutocomplete } from './MentionAutocomplete';
 import { encodeMention } from '../../utils/mentions';
 import type { MentionUser } from '../../utils/mentions';
 
-const CODE_LANGUAGES = [
-  'javascript', 'typescript', 'python', 'rust', 'go', 'java',
-  'c', 'cpp', 'csharp', 'html', 'css', 'json', 'yaml', 'sql',
-  'bash', 'ruby', 'php', 'swift', 'kotlin', 'plaintext',
-];
 
 interface MessageInputProps {
   channelId: string | undefined;
@@ -22,8 +17,7 @@ interface MessageInputProps {
 export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
   const [content, setContent] = useState('');
   const [isFocused, setIsFocused] = useState(false);
-  const [showCodeLangPicker, setShowCodeLangPicker] = useState(false);
-  const codeLangRef = useRef<HTMLDivElement>(null);
+  const [codeMode, setCodeMode] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sendMessage = useMessageStore((state) => state.sendMessage);
   const activeChannel = useMessageStore((state) => state.activeChannel);
@@ -38,41 +32,48 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionStartPos, setMentionStartPos] = useState<number>(0);
 
-  // Close language picker on outside click
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (codeLangRef.current && !codeLangRef.current.contains(e.target as Node)) {
-        setShowCodeLangPicker(false);
-      }
-    };
-    if (showCodeLangPicker) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [showCodeLangPicker]);
-
-  const insertCodeBlock = (language: string) => {
+  const toggleCodeMode = () => {
     const textarea = textareaRef.current;
-    if (!textarea) return;
+    if (!textarea) { setCodeMode(v => !v); return; }
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = content.substring(start, end);
-    const codeTemplate = `\`\`\`${language}\n${selectedText || ''}\n\`\`\``;
+    if (!codeMode) {
+      // Entering code mode: wrap existing content or insert empty fences
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const selectedText = content.substring(start, end);
 
-    const before = content.substring(0, start);
-    const after = content.substring(end);
-    const newContent = before + codeTemplate + after;
-    setContent(newContent);
-    setShowCodeLangPicker(false);
-
-    // Place cursor inside the code block
-    requestAnimationFrame(() => {
-      textarea.focus();
-      const cursorPos = start + language.length + 4 + (selectedText?.length || 0);
-      textarea.selectionStart = cursorPos;
-      textarea.selectionEnd = cursorPos;
-    });
+      if (selectedText) {
+        const before = content.substring(0, start);
+        const after = content.substring(end);
+        const newContent = `${before}\`\`\`\n${selectedText}\n\`\`\`${after}`;
+        setContent(newContent);
+        requestAnimationFrame(() => {
+          textarea.focus();
+          const cursorPos = start + 4 + selectedText.length;
+          textarea.selectionStart = cursorPos;
+          textarea.selectionEnd = cursorPos;
+        });
+      } else if (!content.includes('```')) {
+        const newContent = content ? `\`\`\`\n${content}\n\`\`\`` : '```\n\n```';
+        setContent(newContent);
+        requestAnimationFrame(() => {
+          textarea.focus();
+          const cursorPos = 4 + (content ? content.length : 0);
+          textarea.selectionStart = cursorPos;
+          textarea.selectionEnd = cursorPos;
+        });
+      }
+    } else {
+      // Exiting code mode: strip wrapping fences if present
+      const stripped = content.replace(/^```\n?/, '').replace(/\n?```$/, '');
+      setContent(stripped);
+      requestAnimationFrame(() => {
+        textarea.focus();
+        textarea.selectionStart = stripped.length;
+        textarea.selectionEnd = stripped.length;
+      });
+    }
+    setCodeMode(v => !v);
   };
 
   const handleTyping = () => {
@@ -235,8 +236,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
             onKeyDown={handleKeyDown}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            placeholder={`Message #${placeholderSuffix}...`}
-            className="w-full bg-transparent text-white px-4 py-4 resize-none outline-none min-h-[56px] max-h-[40vh] text-[15px] placeholder:text-gray-500 rounded-t-2xl custom-scrollbar"
+            placeholder={codeMode ? 'Paste or type code...' : `Message #${placeholderSuffix}...`}
+            className={`w-full bg-transparent text-white px-4 py-4 resize-none outline-none min-h-[56px] max-h-[40vh] placeholder:text-gray-500 rounded-t-2xl custom-scrollbar ${
+              codeMode
+                ? 'font-mono text-[13px] leading-relaxed bg-[#0d1117]/60'
+                : 'text-[15px]'
+            }`}
             rows={1}
           />
 
@@ -257,37 +262,18 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
               <button type="button" title="Add emoji" className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
                 <Smile size={18} />
               </button>
-              <div className="relative" ref={codeLangRef}>
-                <button
-                  type="button"
-                  title="Insert code block"
-                  onClick={() => setShowCodeLangPicker(!showCodeLangPicker)}
-                  className={`p-1.5 rounded-lg transition-colors ${
-                    showCodeLangPicker
-                      ? 'text-blue-400 bg-blue-500/10'
-                      : 'text-gray-500 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  <Code size={18} />
-                </button>
-                {showCodeLangPicker && (
-                  <div className="absolute bottom-full left-0 mb-2 w-48 max-h-64 overflow-y-auto rounded-xl bg-[#1a1a2e] border border-white/10 shadow-2xl backdrop-blur-xl z-50 custom-scrollbar">
-                    <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-500 border-b border-white/5">
-                      Select language
-                    </div>
-                    {CODE_LANGUAGES.map((lang) => (
-                      <button
-                        key={lang}
-                        type="button"
-                        onClick={() => insertCodeBlock(lang)}
-                        className="w-full text-left px-3 py-1.5 text-sm text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
-                      >
-                        {lang}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <button
+                type="button"
+                title={codeMode ? 'Exit code mode' : 'Code mode'}
+                onClick={toggleCodeMode}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  codeMode
+                    ? 'text-blue-400 bg-blue-500/10'
+                    : 'text-gray-500 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Code size={18} />
+              </button>
             </div>
 
             <motion.button
