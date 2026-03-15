@@ -12,6 +12,7 @@ import (
 	"github.com/nox-labs/bifrost/internal/auth"
 	"github.com/nox-labs/bifrost/internal/db"
 	"github.com/nox-labs/bifrost/internal/messaging"
+	"github.com/nox-labs/bifrost/internal/email"
 	"github.com/nox-labs/bifrost/internal/notification"
 	"github.com/nox-labs/bifrost/internal/presence"
 	pb "github.com/nox-labs/bifrost/pkg/authv1/auth/v1"
@@ -107,6 +108,9 @@ func main() {
 	presenceHandler := presence.NewPresenceHandler(presenceService)
 	notificationService := notification.NewService(database)
 	notificationHandler := notification.NewHandler(notificationService)
+	emailSender := &email.LogSender{}
+	emailService := email.NewService(database, emailSender)
+	emailHandler := email.NewHandler(emailService)
 
 	// Serve uploaded avatars as static files
 	r.Static("/uploads", "./uploads")
@@ -128,6 +132,9 @@ func main() {
 
 		// Public invitation routes (no auth for viewing link info)
 		v1.GET("/join/:code", invitationHandler.GetInviteLinkInfo)
+
+		// Public email unsubscribe (no auth - clicked from email)
+		v1.GET("/email/unsubscribe/:token", emailHandler.Unsubscribe)
 
 		// Authenticated routes (require JWT)
 		authenticated := v1.Group("")
@@ -240,6 +247,10 @@ func main() {
 			authenticated.GET("/notifications/unread-count", notificationHandler.UnreadCount)
 			authenticated.PATCH("/notifications/:notificationId/read", notificationHandler.MarkRead)
 			authenticated.POST("/notifications/read-all", notificationHandler.MarkAllRead)
+
+			// Email Notification Preferences (Issue #56)
+			authenticated.GET("/email/preferences", emailHandler.GetPreferences)
+			authenticated.PATCH("/email/preferences", emailHandler.UpdatePreferences)
 
 			// Presence Routes
 			authenticated.POST("/presence/heartbeat", presenceHandler.Heartbeat)

@@ -383,3 +383,31 @@ CREATE INDEX IF NOT EXISTS idx_channel_categories_org ON channel_categories(org_
 
 ALTER TABLE channels ADD COLUMN IF NOT EXISTS category_id UUID REFERENCES channel_categories(id) ON DELETE SET NULL;
 ALTER TABLE channels ADD COLUMN IF NOT EXISTS position INT NOT NULL DEFAULT 0;
+
+-- 26. Email Notification Preferences (Issue #56)
+CREATE TABLE IF NOT EXISTS email_preferences (
+    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    dm_emails BOOLEAN NOT NULL DEFAULT TRUE,
+    mention_emails BOOLEAN NOT NULL DEFAULT TRUE,
+    digest_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    digest_frequency VARCHAR(10) NOT NULL DEFAULT 'daily' CHECK (digest_frequency IN ('daily', 'weekly', 'never')),
+    unsubscribed BOOLEAN NOT NULL DEFAULT FALSE,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 27. Email Queue (Issue #56)
+CREATE TABLE IF NOT EXISTS email_queue (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    email_type VARCHAR(20) NOT NULL CHECK (email_type IN ('dm', 'mention', 'digest')),
+    subject TEXT NOT NULL,
+    body_html TEXT NOT NULL,
+    body_text TEXT NOT NULL,
+    status VARCHAR(10) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'failed')),
+    attempts INT NOT NULL DEFAULT 0,
+    last_error TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    sent_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_email_queue_status ON email_queue(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_email_queue_user ON email_queue(user_id, created_at DESC);
