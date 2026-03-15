@@ -50,6 +50,7 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ channelId }) =
         initial={{ opacity: 0, y: 5 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 5 }}
+        data-testid="typing-indicator"
         className="px-4 py-1 flex items-center gap-1.5"
       >
         <div className="flex items-center">
