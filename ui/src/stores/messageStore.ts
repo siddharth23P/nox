@@ -97,6 +97,7 @@ interface MessageState {
   fetchChannels: () => Promise<void>;
   fetchMessages: (channelId: string) => Promise<void>;
   loadMoreMessages: (channelId: string, before: string) => Promise<void>;
+  loadMessagesAround: (channelId: string, messageId: string) => Promise<void>;
   sendMessage: (channelId: string, contentMd: string, parentId?: string, replyToId?: string) => Promise<void>;
   setReplyTo: (message: Message | null) => void;
 
@@ -369,10 +370,12 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages`, {
         headers: authHeaders()
       });
-      
+
       if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
-      
-      const data = await response.json();
+
+      const body = await response.json();
+      const data: Message[] = body.messages || body;
+      const hasMore: boolean = body.has_more ?? data.length === 50;
       // Backend already returns messages in chronological order (oldest first)
       set((state) => {
         const currentChannelId = state.activeChannel?.id;
@@ -384,10 +387,10 @@ export const useMessageStore = create<MessageState>((set, get) => ({
           return {
             messages: [...data, ...localMessages],
             isLoading: false,
-            hasMore: data.length === 50
+            hasMore,
           };
         }
-        
+
         return state;
       });
     } catch (err) {
@@ -400,21 +403,50 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   loadMoreMessages: async (channelId, before) => {
     const state = get();
     if (state.isLoading || !state.hasMore) return;
-    
+
     set({ isLoading: true, error: null });
     try {
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages?before=${encodeURIComponent(before)}`, {
         headers: authHeaders()
       });
       if (!response.ok) throw new Error('Failed to load more messages');
-      
-      const data = await response.json();
+
+      const body = await response.json();
+      const data: Message[] = body.messages || body;
+      const hasMore: boolean = body.has_more ?? data.length === 50;
       // Backend already returns in chronological order (oldest first)
       set((prev) => ({
         messages: [...data, ...prev.messages],
         isLoading: false,
-        hasMore: data.length === 50
+        hasMore,
       }));
+    } catch (err) {
+      set({ error: (err as Error).message, isLoading: false });
+    }
+  },
+
+  loadMessagesAround: async (channelId, messageId) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/channels/${channelId}/messages?around=${encodeURIComponent(messageId)}&limit=50`,
+        { headers: authHeaders() }
+      );
+      if (!response.ok) throw new Error('Failed to load messages');
+      const body = await response.json();
+      const data: Message[] = body.messages || body;
+      set({
+        messages: data,
+        isLoading: false,
+        hasMore: true, // there may be older messages above
+        highlightedMessageId: messageId,
+      });
+      // Clear highlight after 3 seconds
+      setTimeout(() => {
+        if (get().highlightedMessageId === messageId) {
+          set({ highlightedMessageId: null });
+        }
+      }, 3000);
     } catch (err) {
       set({ error: (err as Error).message, isLoading: false });
     }

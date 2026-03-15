@@ -1,0 +1,45 @@
+:root {
+  /* Light theme (default) */
+  --nox-bg-primary: #ffffff;
+  --nox-bg-secondary: #f8f9fa;
+  --nox-bg-tertiary: #f0f1f3;
+  --nox-bg-glass: rgba(255, 255, 255, 0.7);
+  --nox-glass-blur: 12px;
+  --nox-text-primary: #1a1a2e;
+  --nox-text-secondary: #6b7280;
+  --nox-text-muted: #9ca3af;
+  --nox-border: #e5e7eb;
+  --nox-accent: #6366f1;
+  --nox-accent-hover: #4f46e5;
+  --nox-hover: rgba(0, 0, 0, 0.04);
+  --nox-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --nox-sidebar-bg: #f8f9fa;
+  --nox-message-hover: rgba(0, 0, 0, 0.02);
+  --nox-input-bg: #ffffff;
+  --nox-input-border: #d1d5db;
+}
+
+.dark {
+  --nox-bg-primary: #0f0f1a;
+  --nox-bg-secondary: #1a1a2e;
+  --nox-bg-tertiary: #16213e;
+  --nox-bg-glass: rgba(15, 15, 26, 0.8);
+  --nox-glass-blur: 16px;
+  --nox-text-primary: #e2e8f0;
+  --nox-text-secondary: #94a3b8;
+  --nox-text-muted: #64748b;
+  --nox-border: #2d3748;
+  --nox-accent: #818cf8;
+  --nox-accent-hover: #6366f1;
+  --nox-hover: rgba(255, 255, 255, 0.05);
+  --nox-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --nox-sidebar-bg: #1a1a2e;
+  --nox-message-hover: rgba(255, 255, 255, 0.02);
+  --nox-input-bg: #1e1e36;
+  --nox-input-border: #374151;
+}
+
+/* Smooth theme transition */
+*, *::before, *::after {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
+}
