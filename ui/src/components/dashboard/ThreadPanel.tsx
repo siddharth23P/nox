@@ -46,7 +46,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
           animate={{ width: 420, opacity: 1 }}
           exit={{ width: 0, opacity: 0 }}
           transition={{ type: "spring", bounce: 0, duration: 0.35 }}
-          className="h-full border-l border-white/10 bg-[#0a0e1a] flex flex-col flex-shrink-0 relative overflow-hidden z-20"
+          className="h-full border-l border-white/10 bg-[#0a0e1a] flex flex-col flex-shrink-0 relative overflow-hidden z-20 max-md:!w-full"
           style={{ minWidth: 0 }}
           data-testid="thread-panel"
         >

@@ -18,7 +18,7 @@
 body {
   margin: 0;
   background-color: var(--nox-bg);
-  background-image: 
+  background-image:
     radial-gradient(circle at 50% -20%, #1a1a1a 0%, transparent 60%),
     radial-gradient(circle at -20% 50%, #0d0d0d 0%, transparent 40%);
   color: var(--nox-text-primary);
@@ -26,6 +26,10 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
+  /* PWA: safe area padding for devices with notches */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  /* Prevent overscroll/bounce on mobile */
+  overscroll-behavior: none;
 }
 
 /* Custom Scrollbar */
@@ -90,5 +94,26 @@ body {
   }
   .mention-special:hover {
     background: rgba(234, 179, 8, 0.25);
+  }
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 767px) {
+  /* Reduce scrollbar width on mobile */
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  /* Prevent pull-to-refresh interfering with scroll */
+  html, body {
+    overflow: hidden;
+    height: 100%;
+    position: fixed;
+    width: 100%;
+  }
+
+  #root {
+    height: 100%;
+    overflow: hidden;
   }
 }

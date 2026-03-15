@@ -189,7 +189,11 @@ const NewDMModal: React.FC<{ isOpen: boolean; onClose: () => void; onSelect: (us
   );
 };
 
-export const Sidebar: React.FC = () => {
+interface SidebarProps {
+  onClose?: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const { user, orgId, orgName, organizations, logout, fetchOrganizations, switchOrganization } = useAuthStore();
   const { activeChannel, setActiveChannel, channels, fetchChannels, fetchJoinedChannels, dmConversations, fetchDMs, createOrGetDM, convertDMToChannel, fetchMessages } = useMessageStore();
   const { onlineUsers, isStealth, stealthError, setStealth, clearStealthError } = usePresenceStore();
@@ -230,6 +234,7 @@ export const Sidebar: React.FC = () => {
   const handleChannelSelect = (channel: Channel) => {
     setActiveChannel(channel);
     navigate('/dashboard');
+    onClose?.();
   };
 
   const handleDMSelect = (dm: DMConversation) => {
@@ -245,6 +250,7 @@ export const Sidebar: React.FC = () => {
     setActiveChannel(dmChannel);
     fetchMessages(dm.channel_id);
     navigate('/dashboard');
+    onClose?.();
   };
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -283,7 +289,7 @@ const handleNewDM = async (userId: string, _username: string) => {
   const displayOrgName = orgName || 'Nox Workspace';
 
   return (
-    <div className="w-64 h-full bg-[#0d0d0d] border-r border-white/5 flex flex-col pt-4 pb-4">
+    <div className="w-full md:w-64 h-full bg-[#0d0d0d] border-r border-white/5 flex flex-col pt-4 pb-4">
 
       {/* Org Header with Switcher */}
       <div className="relative px-2 mb-6">
