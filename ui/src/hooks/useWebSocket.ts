@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useMessageStore } from '../stores/messageStore';
 import { useAuthStore } from '../stores/authStore';
+import { useNotificationStore } from '../stores/notificationStore';
 
 const WS_BASE_URL = 'ws://localhost:8080/ws';
 let globalWs: WebSocket | null = null;
@@ -71,6 +72,9 @@ export function useWebSocket() {
               if (payload.user_id !== user?.id) {
                 store.onTypingIndicator(payload.channel_id, payload.username, payload.is_typing);
               }
+              break;
+            case 'NOTIFICATION_NEW':
+              useNotificationStore.getState().addNotification(payload);
               break;
           }
         } catch (e) {

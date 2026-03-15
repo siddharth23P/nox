@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../stores/authStore';
 import { useMessageStore, type Channel, type DMConversation } from '../../stores/messageStore';
 import { usePresenceStore } from '../../stores/presenceStore';
+import { useNotificationStore, type Notification as NotifType } from '../../stores/notificationStore';
 import { useFriendStore } from '../../stores/friendStore';
 import { PresenceAvatar } from '../common/PresenceAvatar';
 import {
@@ -187,6 +188,8 @@ export const Sidebar: React.FC = () => {
   const { user, orgId, orgName, organizations, logout, fetchOrganizations, switchOrganization } = useAuthStore();
   const { activeChannel, setActiveChannel, channels, fetchChannels, fetchJoinedChannels, dmConversations, fetchDMs, createOrGetDM, convertDMToChannel, fetchMessages } = useMessageStore();
   const { onlineUsers, isStealth, stealthError, setStealth, clearStealthError } = usePresenceStore();
+  const { notifications, unreadCount, fetchNotifications, markRead, markAllRead } = useNotificationStore();
+  const [showNotifications, setShowNotifications] = useState(false);
   const [showOrgSwitcher, setShowOrgSwitcher] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [showNewDM, setShowNewDM] = useState(false);
@@ -210,7 +213,8 @@ export const Sidebar: React.FC = () => {
     });
     fetchOrganizations();
     fetchDMs();
-  }, [fetchChannels, fetchJoinedChannels, fetchOrganizations, fetchDMs]);
+    fetchNotifications();
+  }, [fetchChannels, fetchJoinedChannels, fetchOrganizations, fetchDMs, fetchNotifications]);
 
   const handleChannelSelect = (channel: Channel) => {
     setActiveChannel(channel);
@@ -345,7 +349,85 @@ const handleNewDM = async (userId: string, _username: string) => {
 
         <div className="space-y-1">
           <NavItem icon={Search} text="Search" />
-          <NavItem icon={Bell} text="Activity" />
+          <div className="relative">
+            <motion.button
+              whileHover={{ x: 4 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => { setShowNotifications(!showNotifications); if (!showNotifications) fetchNotifications(); }}
+              className={`w-full h-10 px-3 rounded-xl flex items-center gap-3 transition-colors hover:bg-white/5 ${
+                showNotifications ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <div className="relative">
+                <Bell size={18} className={showNotifications ? 'text-blue-400' : ''} />
+                {unreadCount > 0 && (
+                  <div className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-red-500 rounded-full flex items-center justify-center">
+                    <span className="text-[9px] font-bold text-white">{unreadCount > 99 ? '99+' : unreadCount}</span>
+                  </div>
+                )}
+              </div>
+              <span className="text-[14px] font-medium truncate">Activity</span>
+            </motion.button>
+
+            {/* Notification Dropdown */}
+            <AnimatePresence>
+              {showNotifications && (
+                <motion.div
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  className="absolute left-full top-0 ml-2 w-80 max-h-[500px] bg-[#111] border border-white/10 rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden"
+                >
+                  <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between shrink-0">
+                    <h3 className="text-sm font-semibold text-white">Notifications</h3>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={() => markAllRead()}
+                        className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors"
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+                  <div className="overflow-y-auto flex-1 custom-scrollbar">
+                    {notifications.length === 0 ? (
+                      <div className="px-4 py-8 text-center text-sm text-gray-500">No notifications yet</div>
+                    ) : (
+                      notifications.map((notif: NotifType) => (
+                        <button
+                          key={notif.id}
+                          onClick={() => {
+                            if (!notif.is_read) markRead(notif.id);
+                            if (notif.channel_id) {
+                              setActiveChannel({ id: notif.channel_id, org_id: '', name: '', is_private: false, created_at: '', updated_at: '' });
+                              fetchMessages(notif.channel_id);
+                              navigate('/dashboard');
+                            }
+                            setShowNotifications(false);
+                          }}
+                          className={`w-full px-4 py-3 text-left hover:bg-white/5 transition-colors border-b border-white/5 last:border-0 ${
+                            notif.is_read ? 'opacity-60' : ''
+                          }`}
+                        >
+                          <div className="flex items-start gap-2">
+                            {!notif.is_read && <div className="w-2 h-2 mt-1.5 bg-blue-400 rounded-full shrink-0" />}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[13px] text-white font-medium truncate">{notif.title}</p>
+                              {notif.body && <p className="text-[12px] text-gray-400 truncate">{notif.body}</p>}
+                              <p className="text-[10px] text-gray-600 mt-1">
+                                {notif.actor_name && `${notif.actor_name} · `}
+                                {new Date(notif.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
           <NavItem
             icon={Users}
             text="Friends"
