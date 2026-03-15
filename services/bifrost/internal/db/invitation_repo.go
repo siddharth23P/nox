@@ -43,11 +43,11 @@ type InviteLinkInfo struct {
 
 // CreateInvitation inserts a new email invitation.
 func (db *Database) CreateInvitation(ctx context.Context, inv *Invitation) error {
-	_, err := db.Pool.Exec(ctx,
+	err := db.Pool.QueryRow(ctx,
 		`INSERT INTO org_invitations (org_id, inviter_id, email, role, token, max_uses, expires_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		 VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
 		inv.OrgID, inv.InviterID, inv.Email, inv.Role, inv.Token, inv.MaxUses, inv.ExpiresAt,
-	)
+	).Scan(&inv.ID)
 	if err != nil {
 		return fmt.Errorf("failed to create invitation: %w", err)
 	}
