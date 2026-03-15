@@ -118,7 +118,7 @@ test.describe('Password Reset & Account Recovery (Issue #40)', () => {
   test('Account recovery page renders', async ({ page }) => {
     await page.goto('/account-recovery');
     await expect(page.locator('text=Account Recovery')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('text=Security Question')).toBeVisible();
+    await expect(page.getByText('Security Question', { exact: true })).toBeVisible();
   });
 
   test('Account recovery via security questions API', async () => {
@@ -138,10 +138,13 @@ test.describe('Password Reset & Account Recovery (Issue #40)', () => {
 
   test('Login page has Forgot Password link', async ({ page }) => {
     await page.goto('/');
-    // Switch to login view if on register
-    if (await page.getByText('Create Nexus Identity').isVisible().catch(() => false)) {
-      await page.click('button:has-text("Sign in")');
+    await page.waitForLoadState('networkidle');
+    // If on register view, switch to login via the nav button
+    const signInButton = page.locator('nav button:has-text("Sign in")');
+    if (await signInButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await signInButton.click();
     }
-    await expect(page.locator('text=Forgot password?')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Welcome Back')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('button:has-text("Forgot password")')).toBeVisible({ timeout: 10000 });
   });
 });
