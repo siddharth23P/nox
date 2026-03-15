@@ -83,7 +83,7 @@ test.describe('Organization Settings & Member Management', () => {
     const inviteData = await inviteRes.json();
 
     // Member joins via link
-    const joinRes = await fetch(`${API_BASE}/join/${inviteData.code}`, {
+    const joinRes = await fetch(`${API_BASE}/join/${inviteData.invite_link.code}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${memberToken}` },
     });
@@ -193,7 +193,7 @@ test.describe('Organization Settings & Member Management', () => {
       body: JSON.stringify({ role: 'member' }),
     });
     const inviteData = await inviteRes.json();
-    await fetch(`${API_BASE}/join/${inviteData.code}`, {
+    await fetch(`${API_BASE}/join/${inviteData.invite_link.code}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${throwawayData.token}` },
     });

@@ -21,9 +21,10 @@ func NewInvitationHandler(service *InvitationService) *InvitationHandler {
 func (h *InvitationHandler) CreateInvitation(c *gin.Context) {
 	orgID := c.Param("orgId")
 	userID := c.GetString("user_id")
-	role := c.GetString("role")
 
-	if role != "owner" && role != "admin" {
+	// Look up the caller's role in the target org (not the JWT role)
+	role, err := h.service.repo.GetUserOrgRole(c.Request.Context(), userID, orgID)
+	if err != nil || (role != "owner" && role != "admin") {
 		c.JSON(http.StatusForbidden, gin.H{"error": "only admins can create invitations"})
 		return
 	}
@@ -66,9 +67,10 @@ func (h *InvitationHandler) CreateInvitation(c *gin.Context) {
 func (h *InvitationHandler) CreateInviteLink(c *gin.Context) {
 	orgID := c.Param("orgId")
 	userID := c.GetString("user_id")
-	role := c.GetString("role")
 
-	if role != "owner" && role != "admin" {
+	// Look up the caller's role in the target org (not the JWT role)
+	role, err := h.service.repo.GetUserOrgRole(c.Request.Context(), userID, orgID)
+	if err != nil || (role != "owner" && role != "admin") {
 		c.JSON(http.StatusForbidden, gin.H{"error": "only admins can create invite links"})
 		return
 	}
@@ -109,9 +111,11 @@ func (h *InvitationHandler) CreateInviteLink(c *gin.Context) {
 // ListInvitations handles GET /v1/orgs/:orgId/invitations
 func (h *InvitationHandler) ListInvitations(c *gin.Context) {
 	orgID := c.Param("orgId")
-	role := c.GetString("role")
+	userID := c.GetString("user_id")
 
-	if role != "owner" && role != "admin" {
+	// Look up the caller's role in the target org (not the JWT role)
+	role, err := h.service.repo.GetUserOrgRole(c.Request.Context(), userID, orgID)
+	if err != nil || (role != "owner" && role != "admin") {
 		c.JSON(http.StatusForbidden, gin.H{"error": "only admins can view invitations"})
 		return
 	}
@@ -138,14 +142,16 @@ func (h *InvitationHandler) ListInvitations(c *gin.Context) {
 func (h *InvitationHandler) RevokeInvitation(c *gin.Context) {
 	orgID := c.Param("orgId")
 	inviteID := c.Param("inviteId")
-	role := c.GetString("role")
+	userID := c.GetString("user_id")
 
-	if role != "owner" && role != "admin" {
+	// Look up the caller's role in the target org (not the JWT role)
+	role, err := h.service.repo.GetUserOrgRole(c.Request.Context(), userID, orgID)
+	if err != nil || (role != "owner" && role != "admin") {
 		c.JSON(http.StatusForbidden, gin.H{"error": "only admins can revoke invitations"})
 		return
 	}
 
-	err := h.service.RevokeInvitation(c.Request.Context(), inviteID, orgID)
+	err = h.service.RevokeInvitation(c.Request.Context(), inviteID, orgID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
@@ -158,14 +164,16 @@ func (h *InvitationHandler) RevokeInvitation(c *gin.Context) {
 func (h *InvitationHandler) RevokeInviteLink(c *gin.Context) {
 	orgID := c.Param("orgId")
 	linkID := c.Param("linkId")
-	role := c.GetString("role")
+	userID := c.GetString("user_id")
 
-	if role != "owner" && role != "admin" {
+	// Look up the caller's role in the target org (not the JWT role)
+	role, err := h.service.repo.GetUserOrgRole(c.Request.Context(), userID, orgID)
+	if err != nil || (role != "owner" && role != "admin") {
 		c.JSON(http.StatusForbidden, gin.H{"error": "only admins can revoke invite links"})
 		return
 	}
 
-	err := h.service.RevokeInviteLink(c.Request.Context(), linkID, orgID)
+	err = h.service.RevokeInviteLink(c.Request.Context(), linkID, orgID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return

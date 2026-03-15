@@ -249,7 +249,7 @@ test.describe('Organization Invitations & Join Flow', () => {
   test('UI: Invalid invite link shows error', async ({ page }) => {
     await page.goto('/join/XXXXXXXXXXX');
     await expect(
-      page.getByText('invalid').or(page.getByText('expired')).or(page.getByText('Go Home'))
+      page.getByText('This invite link is invalid or has expired.')
     ).toBeVisible({ timeout: 10000 });
   });
 });

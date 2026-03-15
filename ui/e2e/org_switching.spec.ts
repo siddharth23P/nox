@@ -59,13 +59,13 @@ test.describe('Organization Switching & Listing', () => {
     await page.goto('/');
     await expect(page.locator('input[placeholder="name@nexus.com"]')).toBeVisible({ timeout: 10000 });
 
-    if (await page.getByText('Create Your Nexus Identity').isVisible()) {
+    if (await page.getByRole('heading', { name: 'Create Nexus Identity' }).isVisible()) {
       await page.click('button:has-text("Sign in")');
     }
 
     await page.fill('input[placeholder="name@nexus.com"]', testEmail);
     await page.fill('input[placeholder="••••••••"]', testPassword);
-    await page.getByRole('button', { name: 'Enter the Nexus' }).click({ force: true });
+    await page.getByRole('button', { name: 'Enter Nexus' }).click({ force: true });
 
     // 4. Wait for dashboard and verify org name shows in sidebar
     await page.waitForURL('**/dashboard', { timeout: 15000 });
