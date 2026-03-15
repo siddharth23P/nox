@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"html"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/microcosm-cc/bluemonday"
@@ -785,6 +786,9 @@ func (s *MessagingService) CreateOrGetDM(ctx context.Context, orgID, currentUser
 	`, u1, u2, currentUserID).Scan(&dm.ID, &dm.ChannelID, &dm.UserID, &dm.Username, &dm.CreatedAt)
 
 	if err == nil {
+		// Ensure both users are channel members (backfill for DMs created before ACL)
+		s.db.Pool.Exec(ctx, `INSERT INTO channel_members (channel_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, dm.ChannelID, currentUserID)
+		s.db.Pool.Exec(ctx, `INSERT INTO channel_members (channel_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, dm.ChannelID, otherUserID)
 		return &dm, nil
 	}
 	if err != pgx.ErrNoRows {
@@ -823,12 +827,23 @@ func (s *MessagingService) CreateOrGetDM(ctx context.Context, orgID, currentUser
 	}
 
 	// Create dm_channels record
-	var dmID, createdAt string
+	var dmID string
+	var createdAt time.Time
 	err = tx.QueryRow(ctx, `
 		INSERT INTO dm_channels (channel_id, user1_id, user2_id)
 		VALUES ($1, $2, $3)
 		RETURNING id, created_at
 	`, channelID, u1, u2).Scan(&dmID, &createdAt)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add both users as channel members so private channel ACL allows access
+	_, err = tx.Exec(ctx, `INSERT INTO channel_members (channel_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, channelID, currentUserID)
+	if err != nil {
+		return nil, err
+	}
+	_, err = tx.Exec(ctx, `INSERT INTO channel_members (channel_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, channelID, otherUserID)
 	if err != nil {
 		return nil, err
 	}

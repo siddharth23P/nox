@@ -7,11 +7,6 @@ test.describe('Enhanced Messaging (E2E)', () => {
 
     await context.addInitScript(() => {
       (window as unknown as { IS_PLAYWRIGHT: boolean }).IS_PLAYWRIGHT = true;
-    });
-
-    await page.goto('/');
-    
-    await page.evaluate(() => {
       localStorage.setItem('nox_token', 'test_jwt_token_enhanced');
       localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
       localStorage.setItem('nox_role', 'admin');
@@ -20,7 +15,6 @@ test.describe('Enhanced Messaging (E2E)', () => {
         username: 'TestUser',
         email: 'test@example.com'
       }));
-      // Force active channel in localStorage
       localStorage.setItem('nox_active_channel', JSON.stringify({
         id: '00000000-0000-0000-0000-000000000001',
         org_id: '00000000-0000-0000-0000-000000000001',
@@ -30,9 +24,9 @@ test.describe('Enhanced Messaging (E2E)', () => {
       }));
     });
 
-    await page.reload();
+    await page.goto('/');
     await expect(page).toHaveURL(/.*\/dashboard/);
-    
+
     // Wait for WS
     await page.waitForFunction(() => (window as unknown as { WS_CONNECTED: boolean }).WS_CONNECTED === true, { timeout: 10000 });
   });

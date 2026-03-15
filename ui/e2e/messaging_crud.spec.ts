@@ -5,10 +5,6 @@ test.describe('Core Messaging CRUD (Issue #4)', () => {
   test.beforeEach(async ({ context, page }) => {
     await context.addInitScript(() => {
       (window as unknown as { IS_PLAYWRIGHT: boolean }).IS_PLAYWRIGHT = true;
-    });
-
-    // Inject auth state (AliceReacts seeded user)
-    await page.evaluate(() => {
       localStorage.setItem('nox_token', 'mock_jwt_token_alice');
       localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
       localStorage.setItem('nox_role', 'admin');
@@ -36,7 +32,7 @@ test.describe('Core Messaging CRUD (Issue #4)', () => {
     await expect(msgLocator).toBeVisible({ timeout: 15000 });
 
     // Verify markdown was rendered (bold should be in <strong> tag)
-    const htmlContent = await msgLocator.locator('[class*="text-"]').last().innerHTML();
+    const htmlContent = await msgLocator.locator('[data-testid="message-content"]').innerHTML();
     expect(htmlContent).toContain('<strong>');
     expect(htmlContent).toContain('<em>');
   });

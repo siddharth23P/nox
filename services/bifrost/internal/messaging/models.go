@@ -108,11 +108,11 @@ type AddMemberRequest struct {
 // DM models (Issue #113)
 
 type DMChannel struct {
-	ID        string `json:"id"`
-	ChannelID string `json:"channel_id"`
-	UserID    string `json:"user_id"`
-	Username  string `json:"username"`
-	CreatedAt string `json:"created_at"`
+	ID        string    `json:"id"`
+	ChannelID string    `json:"channel_id"`
+	UserID    string    `json:"user_id"`
+	Username  string    `json:"username"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type CreateDMRequest struct {

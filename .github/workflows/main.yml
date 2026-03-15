@@ -124,7 +124,7 @@ jobs:
         run: |
           psql "$DATABASE_URL" -f infra/db/schema.sql
           cd services/bifrost && go run cmd/seed/main.go && go run cmd/gateway/main.go &
-          cd ui && npx wait-on tcp:8080 && npx playwright test e2e/auth_regression.spec.ts e2e/dashboard_layout.spec.ts --workers=1
+          cd ui && npx wait-on tcp:8080 && npx playwright test e2e/auth_regression.spec.ts e2e/dashboard_layout.spec.ts e2e/password_reset.spec.ts e2e/user_profile.spec.ts --workers=1
 
   e2e-messaging:
     name: "E2E: Messaging & Threads"
@@ -162,7 +162,7 @@ jobs:
         run: |
           psql "$DATABASE_URL" -f infra/db/schema.sql
           cd services/bifrost && go run cmd/seed/main.go && go run cmd/gateway/main.go &
-          cd ui && npx wait-on tcp:8080 && npx playwright test e2e/messaging_regression.spec.ts e2e/message_edits.spec.ts e2e/thread_regression.spec.ts e2e/reply.spec.ts --workers=1
+          cd ui && npx wait-on tcp:8080 && npx playwright test e2e/messaging_regression.spec.ts e2e/message_edits.spec.ts e2e/thread_regression.spec.ts e2e/messaging_crud.spec.ts e2e/pin_bookmark.spec.ts e2e/forwarding.spec.ts --workers=1
 
   e2e-realtime:
     name: "E2E: Real-time Presence & Reactions"
@@ -200,4 +200,86 @@ jobs:
         run: |
           psql "$DATABASE_URL" -f infra/db/schema.sql
           cd services/bifrost && go run cmd/seed/main.go && go run cmd/gateway/main.go &
-          cd ui && npx wait-on tcp:8080 && npx playwright test e2e/presence.spec.ts e2e/reactions.spec.ts --workers=1
+          cd ui && npx wait-on tcp:8080 && npx playwright test e2e/presence.spec.ts e2e/reactions.spec.ts e2e/indicators.spec.ts --workers=1
+
+  e2e-channels:
+    name: "E2E: Channels, DMs & ACL"
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: nox
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install UI Dependencies
+        working-directory: ui
+        run: npm ci
+      - name: Install Playwright Browsers
+        working-directory: ui
+        run: npx playwright install --with-deps
+      - name: Run Channel & DM Tests
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/nox?sslmode=disable
+        run: |
+          psql "$DATABASE_URL" -f infra/db/schema.sql
+          cd services/bifrost && go run cmd/seed/main.go && go run cmd/gateway/main.go &
+          cd ui && npx wait-on tcp:8080 && npx playwright test e2e/channel_crud.spec.ts e2e/dm.spec.ts e2e/private_channel_members.spec.ts --workers=1
+
+  e2e-org:
+    name: "E2E: Organizations, RBAC & Social"
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: nox
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install UI Dependencies
+        working-directory: ui
+        run: npm ci
+      - name: Install Playwright Browsers
+        working-directory: ui
+        run: npx playwright install --with-deps
+      - name: Run Org & RBAC Tests
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/nox?sslmode=disable
+        run: |
+          psql "$DATABASE_URL" -f infra/db/schema.sql
+          cd services/bifrost && go run cmd/seed/main.go && go run cmd/gateway/main.go &
+          cd ui && npx wait-on tcp:8080 && npx playwright test e2e/org_switching.spec.ts e2e/org_settings.spec.ts e2e/rbac.spec.ts e2e/invitations.spec.ts e2e/friends.spec.ts --workers=1

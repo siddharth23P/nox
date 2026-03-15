@@ -8,22 +8,24 @@ test.describe('Pinning and Bookmarking Engine (E2E)', () => {
 
 
   test('Alice sets a pin, Bob sees it globally. Bob bookmarks it privately.', async ({ browser }) => {
-    const aliceContext = await browser.newContext();
-    const bobContext = await browser.newContext();
-    
-    const alicePage = await aliceContext.newPage();
-    const bobPage = await bobContext.newPage();
-
-    // 1. Alice logs in (Bypassing UI via localStorage)
     const aliceUser = { id: '22222222-2222-2222-2222-222222222222', username: 'AlicePB', email: aliceEmail };
-    await alicePage.goto('http://localhost:5173/login');
-    await alicePage.evaluate(([token, user, org]) => {
-      localStorage.setItem('nox_token', String(token));
+    const aliceContext = await browser.newContext();
+    await aliceContext.addInitScript((user) => {
+      (window as unknown as { IS_PLAYWRIGHT?: boolean }).IS_PLAYWRIGHT = true;
+      localStorage.setItem('nox_token', 'test-jwt-token-pb-alice');
       localStorage.setItem('nox_user', JSON.stringify(user));
-      localStorage.setItem('nox_org_id', String(org));
-    }, ['test-jwt-token-pb-alice', aliceUser, '00000000-0000-0000-0000-000000000001']);
+      localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
+      localStorage.setItem('nox_active_channel', JSON.stringify({
+        id: '00000000-0000-0000-0000-000000000001',
+        org_id: '00000000-0000-0000-0000-000000000001',
+        name: 'general',
+        is_private: false
+      }));
+    }, aliceUser);
+    const alicePage = await aliceContext.newPage();
     await alicePage.goto('http://localhost:5173/dashboard');
-    
+    await alicePage.waitForFunction(() => (window as unknown as { WS_CONNECTED?: boolean }).WS_CONNECTED === true, { timeout: 20000 });
+
     // Send a message
     const uniqueMessage = `This is a highly important pin target ${Date.now()}`;
     await alicePage.waitForSelector('textarea[placeholder="Message #general..."]');
@@ -45,12 +47,20 @@ test.describe('Pinning and Bookmarking Engine (E2E)', () => {
 
     // Bob logs in
     const bobUser = { id: '33333333-3333-3333-3333-333333333333', username: 'BobPB', email: bobEmail };
-    await bobPage.goto('http://localhost:5173/login');
-    await bobPage.evaluate(([token, user, org]) => {
-      localStorage.setItem('nox_token', String(token));
+    const bobContext = await browser.newContext();
+    await bobContext.addInitScript((user) => {
+      (window as unknown as { IS_PLAYWRIGHT?: boolean }).IS_PLAYWRIGHT = true;
+      localStorage.setItem('nox_token', 'test-jwt-token-pb-bob');
       localStorage.setItem('nox_user', JSON.stringify(user));
-      localStorage.setItem('nox_org_id', String(org));
-    }, ['test-jwt-token-pb-bob', bobUser, '00000000-0000-0000-0000-000000000001']);
+      localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
+      localStorage.setItem('nox_active_channel', JSON.stringify({
+        id: '00000000-0000-0000-0000-000000000001',
+        org_id: '00000000-0000-0000-0000-000000000001',
+        name: 'general',
+        is_private: false
+      }));
+    }, bobUser);
+    const bobPage = await bobContext.newPage();
     await bobPage.goto('http://localhost:5173/dashboard');
     
     // Bob should see the exact message and it should already have the pin badge

@@ -5,10 +5,6 @@ test.describe('Channel CRUD (Issue #28)', () => {
   test.beforeEach(async ({ context, page }) => {
     await context.addInitScript(() => {
       (window as unknown as { IS_PLAYWRIGHT: boolean }).IS_PLAYWRIGHT = true;
-    });
-
-    // Inject auth state (AliceReacts seeded user)
-    await page.evaluate(() => {
       localStorage.setItem('nox_token', 'mock_jwt_token_alice');
       localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
       localStorage.setItem('nox_role', 'admin');
@@ -31,7 +27,7 @@ test.describe('Channel CRUD (Issue #28)', () => {
     await createBtn.click();
 
     // Modal should be visible
-    await expect(page.getByText('Create Channel')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole('heading', { name: 'Create Channel' })).toBeVisible({ timeout: 5000 });
     await expect(page.getByTestId('channel-name-input')).toBeVisible();
     await expect(page.getByTestId('channel-description-input')).toBeVisible();
     await expect(page.getByTestId('channel-topic-input')).toBeVisible();

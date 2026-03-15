@@ -92,5 +92,26 @@ func main() {
 		}
 	}
 
+	// Add all users as members of all public channels
+	for _, ch := range channels {
+		for _, u := range users {
+			_, _ = conn.Exec(ctx, `INSERT INTO channel_members (channel_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, ch.ID, u.ID)
+		}
+	}
+
+	// Seed "test" private channel with creator as member
+	testChannelID := "00000000-0000-0000-0000-000000000005"
+	aliceReadsID := "a1111111-1111-1111-1111-111111111111"
+	_, _ = conn.Exec(ctx, `INSERT INTO channels (id, org_id, name, is_private, created_by) VALUES ($1, $2, 'test', TRUE, $3) ON CONFLICT (id) DO NOTHING`, testChannelID, orgID, aliceReadsID)
+	_, _ = conn.Exec(ctx, `INSERT INTO channel_members (channel_id, user_id, added_by) VALUES ($1, $2, $2) ON CONFLICT DO NOTHING`, testChannelID, aliceReadsID)
+
+	// Seed DM between AliceReads and AliceReacts (required by dashboard_layout E2E test)
+	aliceReactsID := "a1000000-0000-0000-0000-000000000000"
+	dmChannelID := "d0000000-0000-0000-0000-000000000001"
+	_, _ = conn.Exec(ctx, `INSERT INTO channels (id, org_id, name, is_private, is_dm) VALUES ($1, $2, 'dm-AliceReads-AliceReacts', TRUE, TRUE) ON CONFLICT (id) DO NOTHING`, dmChannelID, orgID)
+	_, _ = conn.Exec(ctx, `INSERT INTO dm_channels (channel_id, user1_id, user2_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`, dmChannelID, aliceReactsID, aliceReadsID)
+	_, _ = conn.Exec(ctx, `INSERT INTO channel_members (channel_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, dmChannelID, aliceReactsID)
+	_, _ = conn.Exec(ctx, `INSERT INTO channel_members (channel_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, dmChannelID, aliceReadsID)
+
 	fmt.Println("Seeding complete.")
 }
