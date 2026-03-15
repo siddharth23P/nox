@@ -85,7 +85,6 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
     if (isFetchingOlder && scrollContainerRef.current) {
       const container = scrollContainerRef.current;
       container.scrollTop = container.scrollHeight - previousScrollHeight;
-      // eslint-disable-next-line
       setIsFetchingOlder(false);
     }
   }, [messages, isFetchingOlder, previousScrollHeight]);
