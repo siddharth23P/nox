@@ -46,12 +46,12 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
           animate={{ width: 420, opacity: 1 }}
           exit={{ width: 0, opacity: 0 }}
           transition={{ type: "spring", bounce: 0, duration: 0.35 }}
-          className="h-full border-l border-white/10 bg-[#0a0e1a] flex flex-col flex-shrink-0 relative overflow-hidden z-20 max-md:!w-full"
-          style={{ minWidth: 0 }}
+          className="h-full border-l flex flex-col flex-shrink-0 relative overflow-hidden z-20 max-md:!w-full"
+          style={{ borderColor: 'var(--nox-border)', backgroundColor: 'var(--nox-bg-secondary)', minWidth: 0 }}
           data-testid="thread-panel"
         >
           {/* Header */}
-          <div className="h-14 border-b border-white/10 flex items-center justify-between px-4 shrink-0 bg-white/[0.02] backdrop-blur-sm w-full">
+          <div className="h-14 border-b flex items-center justify-between px-4 shrink-0 backdrop-blur-sm w-full" style={{ borderColor: 'var(--nox-border)', backgroundColor: 'var(--nox-bg-glass)' }}>
             <h3 className="text-white font-semibold flex items-center gap-2">
               <MessageCircle size={18} className="text-blue-400" />
               Thread
@@ -145,8 +145,8 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({ channelId }) => {
           </div>
 
           {/* Simple Reply Input below the list */}
-          <div className="p-4 w-full border-t border-white/10 shrink-0 bg-[#0a0e1a]">
-             <div className="bg-[#1a1a1a]/80 backdrop-blur border border-white/10 rounded-xl focus-within:border-blue-500/30 transition-all p-3 flex flex-col gap-2 shadow-2xl group relative">
+          <div className="p-4 w-full border-t shrink-0" style={{ borderColor: 'var(--nox-border)', backgroundColor: 'var(--nox-bg-secondary)' }}>
+             <div className="backdrop-blur rounded-xl focus-within:border-blue-500/30 transition-all p-3 flex flex-col gap-2 shadow-2xl group relative" style={{ backgroundColor: 'var(--nox-bg-glass)', border: '1px solid var(--nox-border)' }}>
                 <div className={`absolute -inset-0.5 bg-blue-500/10 rounded-xl blur transition-opacity opacity-0 group-focus-within:opacity-100 pointer-events-none`} />
                 <textarea
                   value={replyInput}

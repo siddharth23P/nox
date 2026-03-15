@@ -24,7 +24,7 @@ export const DashboardLayout: React.FC = () => {
   }, [sidebarOpen]);
 
   return (
-    <div className="h-screen w-full bg-[#030712] flex overflow-hidden">
+    <div className="h-screen w-full flex overflow-hidden" style={{ backgroundColor: 'var(--nox-bg-primary)' }}>
       {/* Desktop sidebar - always visible */}
       <div className="hidden md:block">
         <Sidebar />

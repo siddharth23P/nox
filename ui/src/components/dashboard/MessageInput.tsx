@@ -292,10 +292,10 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
 
   if (!channelId) {
     return (
-      <div className="p-4 bg-[#030712]">
+      <div className="p-4" style={{ backgroundColor: 'var(--nox-bg-primary)' }}>
         <div className="max-w-4xl mx-auto">
-          <div className="h-14 rounded-2xl bg-[#0d0d0d] border border-white/5 flex items-center px-4 opacity-50 cursor-not-allowed">
-            <span className="text-gray-500 text-sm">Select a channel to send a message...</span>
+          <div className="h-14 rounded-2xl flex items-center px-4 opacity-50 cursor-not-allowed" style={{ backgroundColor: 'var(--nox-input-bg)', border: '1px solid var(--nox-border)' }}>
+            <span className="text-sm" style={{ color: 'var(--nox-text-muted)' }}>Select a channel to send a message...</span>
           </div>
         </div>
       </div>
@@ -303,7 +303,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
   }
 
   return (
-    <div className="p-2 md:p-6 bg-gradient-to-t from-[#030712] via-[#030712] to-transparent shrink-0">
+    <div className="p-2 md:p-6 shrink-0" style={{ background: `linear-gradient(to top, var(--nox-bg-primary), var(--nox-bg-primary), transparent)` }}>
       <div className="max-w-4xl mx-auto relative group">
         <TypingIndicator channelId={channelId} />
         <ReplyPreview />
@@ -313,7 +313,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
 
         <form
           onSubmit={handleSubmit}
-          className={`relative rounded-2xl bg-[#0d0d0d] border transition-colors duration-200 flex flex-col ${isFocused ? 'border-blue-500/30' : 'border-white/5 group-hover:border-white/10'}`}
+          className={`relative rounded-2xl border transition-colors duration-200 flex flex-col ${isFocused ? 'border-blue-500/30' : ''}`}
+          style={{ backgroundColor: 'var(--nox-input-bg)', borderColor: isFocused ? undefined : 'var(--nox-input-border)' }}
         >
           {/* Mention Autocomplete Dropdown */}
           <MentionAutocomplete
@@ -372,7 +373,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             placeholder={codeMode ? 'Paste or type code...' : `Message #${placeholderSuffix}...`}
-            className={`w-full bg-transparent text-white px-4 py-3 resize-none outline-none min-h-[56px] max-h-[40vh] placeholder:text-gray-500 custom-scrollbar ${
+            className={`w-full bg-transparent px-4 py-3 resize-none outline-none min-h-[56px] max-h-[40vh] custom-scrollbar ${
               codeMode
                 ? 'font-mono text-[13px] leading-relaxed bg-[#0d1117]/60'
                 : 'text-[15px]'

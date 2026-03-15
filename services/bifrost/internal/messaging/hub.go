@@ -1,11 +1,14 @@
 package messaging
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/nox-labs/bifrost/internal/ephemeral"
 )
 
 // Client represents a single WebSocket connection
@@ -46,6 +49,8 @@ type Hub struct {
 	unregister   chan *Client
 	mu           sync.Mutex
 	OnDisconnect OnDisconnectFunc
+	// Ephemeral is an optional ephemeral store for typing indicator state.
+	Ephemeral ephemeral.Store
 }
 
 func NewHub() *Hub {
@@ -137,6 +142,12 @@ func (c *Client) ReadPump() {
 			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
 				log.Printf("Error unmarshaling typing payload: %v", err)
 				continue
+			}
+			// Persist typing state in ephemeral store (5s TTL).
+			if c.Hub.Ephemeral != nil && payload.IsTyping {
+				if err := c.Hub.Ephemeral.SetTyping(context.Background(), payload.ChannelID, payload.UserID, 5*time.Second); err != nil {
+					log.Printf("ephemeral.SetTyping error: %v", err)
+				}
 			}
 			// Broadcast the typing indicator to all clients
 			c.Hub.BroadcastEvent("TYPING_INDICATOR", payload)

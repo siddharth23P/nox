@@ -3,12 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FormattedMessage } from '../common/FormattedMessage';
 import { useMessageStore } from '../../stores/messageStore';
 import { useAuthStore } from '../../stores/authStore';
-import { MessageCircle, Edit2, SmilePlus, Pin, Bookmark, Quote, Send, Trash2, ArrowDown } from 'lucide-react';
+import { MessageCircle, Edit2, SmilePlus, Pin, Bookmark, Quote, Send, Trash2, ArrowDown, Shield } from 'lucide-react';
 import { PresenceAvatar } from '../common/PresenceAvatar';
 import { EditHistoryModal } from './EditHistoryModal';
 import ForwardModal from './ForwardModal';
 import { ReactionBubble } from './ReactionBubble';
 import { EmojiPicker } from './EmojiPicker';
+import { ModerationDialog } from './ModerationDialog';
 import type { Message } from '../../stores/messageStore';
 
 interface MessageListProps {
@@ -71,6 +72,10 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
   const [historyModalMessageId, setHistoryModalMessageId] = useState<string | null>(null);
   const [activeEmojiPickerMsgId, setActiveEmojiPickerMsgId] = useState<string | null>(null);
   const [forwardModalMessage, setForwardModalMessage] = useState<Message | null>(null);
+  const [moderationTarget, setModerationTarget] = useState<{ userId: string; username: string } | null>(null);
+
+  const userRole = useAuthStore((s) => s.role);
+  const isModerator = userRole === 'owner' || userRole === 'admin' || userRole === 'moderator';
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -283,7 +288,8 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                             onChange={(e) => setEditContent(e.target.value)}
                             aria-label="Edit message"
                             placeholder="Edit your message..."
-                            className={`w-full bg-[#2a2a2a] border border-white/10 rounded-xl p-3 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none min-h-[80px] custom-scrollbar`}
+                            className="w-full rounded-xl p-3 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none min-h-[80px] custom-scrollbar"
+                            style={{ backgroundColor: 'var(--nox-input-bg)', border: '1px solid var(--nox-input-border)', color: 'var(--nox-text-primary)' }}
                             autoFocus
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' && !e.shiftKey) {
@@ -385,7 +391,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                             setEditingMessageId(msg.id);
                             setEditContent(msg.content_md);
                           }}
-                          className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-white hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                          className="p-1.5 rounded-lg border text-gray-400 hover:text-white hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
                           title="Edit message"
                         >
                           <Edit2 size={14} />
@@ -394,7 +400,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                           onClick={() => {
                             if (channelId) deleteMessage(channelId, msg.id);
                           }}
-                          className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-red-400 hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                          className="p-1.5 rounded-lg border text-gray-400 hover:text-red-400 hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
                           title="Delete message"
                         >
                           <Trash2 size={14} />
@@ -405,7 +411,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                     <div className="relative">
                       <button
                         onClick={() => setActiveEmojiPickerMsgId(activeEmojiPickerMsgId === msg.id ? null : msg.id)}
-                        className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-white hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                        className="p-1.5 rounded-lg border text-gray-400 hover:text-white hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
                         title="Add reaction"
                       >
                         <SmilePlus size={14} />
@@ -420,7 +426,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
 
                     <button
                       onClick={() => useMessageStore.getState().toggleBookmark(channelId!, msg.id)}
-                      className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-blue-400 hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                      className="p-1.5 rounded-lg border text-gray-400 hover:text-blue-400 hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
                       title={msg.is_bookmarked ? "Remove bookmark" : "Bookmark"}
                     >
                       <Bookmark size={14} className={msg.is_bookmarked ? "fill-blue-400 text-blue-400" : ""} />
@@ -428,7 +434,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
 
                     <button
                       onClick={() => useMessageStore.getState().togglePin(channelId!, msg.id)}
-                      className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-yellow-500 hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                      className="p-1.5 rounded-lg border text-gray-400 hover:text-yellow-500 hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
                       title={msg.is_pinned ? "Unpin message" : "Pin to channel"}
                     >
                       <Pin size={14} className={msg.is_pinned ? "fill-yellow-500 text-yellow-500" : ""} />
@@ -436,7 +442,7 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
 
                     <button
                       onClick={() => setActiveThread(msg.id)}
-                      className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-white hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                      className="p-1.5 rounded-lg border text-gray-400 hover:text-white hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
                       title="Open thread"
                     >
                       <MessageCircle size={14} />
@@ -445,11 +451,21 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
 
                     <button
                       onClick={() => setForwardModalMessage(msg)}
-                      className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-white hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                      className="p-1.5 rounded-lg border text-gray-400 hover:text-white hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
                       title="Forward message"
                     >
                       <Send size={14} />
                     </button>
+
+                    {isModerator && !isCurrentUser && (
+                      <button
+                        onClick={() => setModerationTarget({ userId: msg.user_id, username: msg.username || 'Unknown' })}
+                        className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-red-400 hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                        title="Moderate user"
+                      >
+                        <Shield size={14} />
+                      </button>
+                    )}
                   </div>
 
                 </motion.div>
@@ -496,6 +512,16 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
           isOpen={!!forwardModalMessage}
           onClose={() => setForwardModalMessage(null)}
           message={forwardModalMessage}
+        />
+      )}
+
+      {moderationTarget && (
+        <ModerationDialog
+          isOpen={!!moderationTarget}
+          onClose={() => setModerationTarget(null)}
+          targetUserId={moderationTarget.userId}
+          targetUsername={moderationTarget.username}
+          channelId={channelId}
         />
       )}
     </div>

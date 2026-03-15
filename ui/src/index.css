@@ -2,14 +2,7 @@
 
 @import "tailwindcss";
 
-:root {
-  --nox-bg: #030303;
-  --nox-card: #0d0d0d;
-  --nox-border: #1a1a1a;
-  --nox-accent: #1d8cf8;
-  --nox-text-primary: #ffffff;
-  --nox-text-secondary: #888888;
-}
+/* Legacy aliases that reference the theme system from theme.css */
 
 * {
   box-sizing: border-box;
@@ -17,10 +10,7 @@
 
 body {
   margin: 0;
-  background-color: var(--nox-bg);
-  background-image:
-    radial-gradient(circle at 50% -20%, #1a1a1a 0%, transparent 60%),
-    radial-gradient(circle at -20% 50%, #0d0d0d 0%, transparent 40%);
+  background-color: var(--nox-bg-primary);
   color: var(--nox-text-primary);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -32,19 +22,25 @@ body {
   overscroll-behavior: none;
 }
 
+.dark body {
+  background-image:
+    radial-gradient(circle at 50% -20%, #1a1a1a 0%, transparent 60%),
+    radial-gradient(circle at -20% 50%, #0d0d0d 0%, transparent 40%);
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--nox-bg);
+  background: var(--nox-bg-primary);
 }
 ::-webkit-scrollbar-thumb {
   background: var(--nox-border);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #252525;
+  background: var(--nox-text-muted);
 }
 
 @layer components {
