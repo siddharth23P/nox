@@ -3,12 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FormattedMessage } from '../common/FormattedMessage';
 import { useMessageStore } from '../../stores/messageStore';
 import { useAuthStore } from '../../stores/authStore';
-import { MessageCircle, Edit2, SmilePlus, Pin, Bookmark, Quote, Send, Trash2, ArrowDown } from 'lucide-react';
+import { MessageCircle, Edit2, SmilePlus, Pin, Bookmark, Quote, Send, Trash2, ArrowDown, Shield } from 'lucide-react';
 import { PresenceAvatar } from '../common/PresenceAvatar';
 import { EditHistoryModal } from './EditHistoryModal';
 import ForwardModal from './ForwardModal';
 import { ReactionBubble } from './ReactionBubble';
 import { EmojiPicker } from './EmojiPicker';
+import { ModerationDialog } from './ModerationDialog';
 import type { Message } from '../../stores/messageStore';
 
 interface MessageListProps {
@@ -71,6 +72,10 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
   const [historyModalMessageId, setHistoryModalMessageId] = useState<string | null>(null);
   const [activeEmojiPickerMsgId, setActiveEmojiPickerMsgId] = useState<string | null>(null);
   const [forwardModalMessage, setForwardModalMessage] = useState<Message | null>(null);
+  const [moderationTarget, setModerationTarget] = useState<{ userId: string; username: string } | null>(null);
+
+  const userRole = useAuthStore((s) => s.role);
+  const isModerator = userRole === 'owner' || userRole === 'admin' || userRole === 'moderator';
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -450,6 +455,16 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
                     >
                       <Send size={14} />
                     </button>
+
+                    {isModerator && !isCurrentUser && (
+                      <button
+                        onClick={() => setModerationTarget({ userId: msg.user_id, username: msg.username || 'Unknown' })}
+                        className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-red-400 hover:bg-[#333] transition-all shadow-lg flex items-center gap-1.5"
+                        title="Moderate user"
+                      >
+                        <Shield size={14} />
+                      </button>
+                    )}
                   </div>
 
                 </motion.div>
@@ -496,6 +511,16 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
           isOpen={!!forwardModalMessage}
           onClose={() => setForwardModalMessage(null)}
           message={forwardModalMessage}
+        />
+      )}
+
+      {moderationTarget && (
+        <ModerationDialog
+          isOpen={!!moderationTarget}
+          onClose={() => setModerationTarget(null)}
+          targetUserId={moderationTarget.userId}
+          targetUsername={moderationTarget.username}
+          channelId={channelId}
         />
       )}
     </div>
