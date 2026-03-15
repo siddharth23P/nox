@@ -215,6 +215,7 @@ func main() {
 			// Direct Message Routes (Issue #113)
 			authenticated.GET("/dm", messagingHandler.ListDMs)
 			authenticated.POST("/dm", messagingHandler.CreateOrGetDM)
+			authenticated.POST("/dm/:dmId/convert", messagingHandler.ConvertDMToChannel)
 
 			// Presence Routes
 			authenticated.POST("/presence/heartbeat", presenceHandler.Heartbeat)

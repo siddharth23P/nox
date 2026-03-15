@@ -116,6 +116,7 @@ interface MessageState {
   dmConversations: DMConversation[];
   fetchDMs: () => Promise<void>;
   createOrGetDM: (otherUserId: string) => Promise<DMConversation>;
+  convertDMToChannel: (dmId: string, name: string, isPrivate?: boolean) => Promise<Channel>;
 
   resetForOrgSwitch: () => void;
 
@@ -245,6 +246,30 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     });
 
     return dm;
+  },
+
+  convertDMToChannel: async (dmId: string, name: string, isPrivate = true) => {
+    const response = await fetch(`${API_BASE_URL}/dm/${dmId}/convert`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ name, is_private: isPrivate }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || 'Failed to convert DM to channel');
+    }
+
+    const channel: Channel = await response.json();
+
+    // Remove from DM list and add to channels
+    set((state) => ({
+      dmConversations: state.dmConversations.filter(d => d.id !== dmId),
+      channels: [...state.channels, channel],
+      activeChannel: channel,
+    }));
+
+    return channel;
   },
 
   // Handlers

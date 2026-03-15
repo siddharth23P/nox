@@ -119,6 +119,11 @@ type CreateDMRequest struct {
 	UserID string `json:"user_id" binding:"required"`
 }
 
+type ConvertDMRequest struct {
+	Name      string `json:"name" binding:"required"`
+	IsPrivate *bool  `json:"is_private"`
+}
+
 // BrowsableChannel extends Channel with member count and join status for the browse endpoint (Issue #121).
 type BrowsableChannel struct {
 	ID          string     `json:"id"`
