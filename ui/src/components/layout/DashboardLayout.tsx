@@ -2,9 +2,14 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { useWebSocket } from '../../hooks/useWebSocket';
+import { useOnboardingStore } from '../../stores/onboardingStore';
+import { WelcomeWizard } from '../onboarding/WelcomeWizard';
+import { TourSpotlight } from '../onboarding/TourSpotlight';
 
 export const DashboardLayout: React.FC = () => {
   useWebSocket();
+
+  const { hasCompletedOnboarding, showTour } = useOnboardingStore();
 
   return (
     <div className="h-screen w-full bg-[#030712] flex overflow-hidden">
@@ -15,6 +20,9 @@ export const DashboardLayout: React.FC = () => {
           <Outlet />
         </div>
       </main>
+
+      {!hasCompletedOnboarding && <WelcomeWizard />}
+      {hasCompletedOnboarding && showTour && <TourSpotlight />}
     </div>
   );
 };

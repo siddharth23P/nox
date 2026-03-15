@@ -257,10 +257,11 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         </button>
         
         {!hideReply && (
-          <button 
+          <button
             onClick={() => setActiveThread(msg.id)}
             className="p-1.5 rounded-lg bg-[#2a2a2a] border border-white/5 text-gray-400 hover:text-white hover:bg-[#333] transition-all shadow-lg"
             title="Reply in thread"
+            data-tour="thread-hint"
           >
             <MessageCircle size={14} />
           </button>

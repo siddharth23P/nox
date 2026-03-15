@@ -303,7 +303,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({ channelId }) => {
   }
 
   return (
-    <div className="p-6 bg-gradient-to-t from-[#030712] via-[#030712] to-transparent shrink-0">
+    <div className="p-6 bg-gradient-to-t from-[#030712] via-[#030712] to-transparent shrink-0" data-tour="message-input">
       <div className="max-w-4xl mx-auto relative group">
         <TypingIndicator channelId={channelId} />
         <ReplyPreview />

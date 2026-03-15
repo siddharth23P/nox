@@ -283,7 +283,7 @@ const handleNewDM = async (userId: string, _username: string) => {
   const displayOrgName = orgName || 'Nox Workspace';
 
   return (
-    <div className="w-64 h-full bg-[#0d0d0d] border-r border-white/5 flex flex-col pt-4 pb-4">
+    <div className="w-64 h-full bg-[#0d0d0d] border-r border-white/5 flex flex-col pt-4 pb-4" data-tour="sidebar">
 
       {/* Org Header with Switcher */}
       <div className="relative px-2 mb-6">
@@ -448,7 +448,7 @@ const handleNewDM = async (userId: string, _username: string) => {
         </div>
 
         <div>
-          <div className="px-3 mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-500 flex items-center justify-between group">
+          <div className="px-3 mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-500 flex items-center justify-between group" data-tour="channel-list">
             <span>Channels</span>
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
