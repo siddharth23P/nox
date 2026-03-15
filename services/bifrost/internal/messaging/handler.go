@@ -788,3 +788,44 @@ func (h *MessagingHandler) CreateOrGetDM(c *gin.Context) {
 
 	c.JSON(http.StatusOK, dm)
 }
+
+func (h *MessagingHandler) ConvertDMToChannel(c *gin.Context) {
+	_, userID := getAuthInfo(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "X-User-ID required"})
+		return
+	}
+
+	dmID := c.Param("dmId")
+	if dmID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "DM ID required"})
+		return
+	}
+
+	var req ConvertDMRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	isPrivate := true
+	if req.IsPrivate != nil {
+		isPrivate = *req.IsPrivate
+	}
+
+	channel, err := h.service.ConvertDMToChannel(c.Request.Context(), dmID, userID, req.Name, isPrivate)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		if strings.Contains(err.Error(), "unauthorized") {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, channel)
+}

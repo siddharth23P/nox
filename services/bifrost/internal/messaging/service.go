@@ -860,3 +860,57 @@ func (s *MessagingService) CreateOrGetDM(ctx context.Context, orgID, currentUser
 		CreatedAt: createdAt,
 	}, nil
 }
+
+// ConvertDMToChannel converts a DM into a regular channel. The backing channel
+// is updated (is_dm=false, new name, optional privacy toggle) and the
+// dm_channels record is removed. All messages and members are preserved.
+func (s *MessagingService) ConvertDMToChannel(ctx context.Context, dmID, userID, newName string, isPrivate bool) (*Channel, error) {
+	// Verify the DM exists and the user is a participant
+	var channelID, user1ID, user2ID string
+	err := s.db.Pool.QueryRow(ctx,
+		`SELECT channel_id, user1_id, user2_id FROM dm_channels WHERE id = $1`, dmID,
+	).Scan(&channelID, &user1ID, &user2ID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, fmt.Errorf("DM not found")
+		}
+		return nil, err
+	}
+
+	if userID != user1ID && userID != user2ID {
+		return nil, fmt.Errorf("unauthorized: not a participant of this DM")
+	}
+
+	tx, err := s.db.Pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	// Update the backing channel: clear is_dm flag and set new name/privacy
+	var ch Channel
+	err = tx.QueryRow(ctx, `
+		UPDATE channels
+		SET is_dm = FALSE, name = $1, is_private = $2, updated_at = NOW()
+		WHERE id = $3
+		RETURNING id, org_id, name, description, topic, is_private, created_by, archived_at, created_at, updated_at
+	`, newName, isPrivate, channelID).Scan(
+		&ch.ID, &ch.OrgID, &ch.Name, &ch.Description, &ch.Topic,
+		&ch.IsPrivate, &ch.CreatedBy, &ch.ArchivedAt, &ch.CreatedAt, &ch.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Remove the dm_channels record
+	_, err = tx.Exec(ctx, `DELETE FROM dm_channels WHERE id = $1`, dmID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+
+	return &ch, nil
+}

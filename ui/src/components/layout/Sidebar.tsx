@@ -22,7 +22,8 @@ import {
   Archive,
   X,
   Compass,
-  Shield
+  Shield,
+  ArrowRightLeft
 } from 'lucide-react';
 import CreateChannelModal from '../dashboard/CreateChannelModal';
 import BrowseChannelsModal from '../dashboard/BrowseChannelsModal';
@@ -184,13 +185,17 @@ const NewDMModal: React.FC<{ isOpen: boolean; onClose: () => void; onSelect: (us
 
 export const Sidebar: React.FC = () => {
   const { user, orgId, orgName, organizations, logout, fetchOrganizations, switchOrganization } = useAuthStore();
-  const { activeChannel, setActiveChannel, channels, fetchChannels, fetchJoinedChannels, dmConversations, fetchDMs, createOrGetDM, fetchMessages } = useMessageStore();
+  const { activeChannel, setActiveChannel, channels, fetchChannels, fetchJoinedChannels, dmConversations, fetchDMs, createOrGetDM, convertDMToChannel, fetchMessages } = useMessageStore();
   const { onlineUsers, isStealth, stealthError, setStealth, clearStealthError } = usePresenceStore();
   const [showOrgSwitcher, setShowOrgSwitcher] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [showNewDM, setShowNewDM] = useState(false);
   const [showBrowseChannels, setShowBrowseChannels] = useState(false);
   const [showCreateOrg, setShowCreateOrg] = useState(false);
+  const [convertDM, setConvertDM] = useState<DMConversation | null>(null);
+  const [convertName, setConvertName] = useState('');
+  const [convertPrivate, setConvertPrivate] = useState(true);
+  const [convertError, setConvertError] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -242,6 +247,21 @@ const handleNewDM = async (userId: string, _username: string) => {
       switchOrganization(newOrgId);
     }
     setShowOrgSwitcher(false);
+  };
+
+  const handleConvertDM = async () => {
+    if (!convertDM || !convertName.trim()) return;
+    setConvertError('');
+    try {
+      const channel = await convertDMToChannel(convertDM.id, convertName.trim(), convertPrivate);
+      setConvertDM(null);
+      setConvertName('');
+      setActiveChannel(channel);
+      fetchMessages(channel.id);
+      navigate('/dashboard');
+    } catch (err) {
+      setConvertError((err as Error).message);
+    }
   };
 
   const currentChannelId = activeChannel?.id || '00000000-0000-0000-0000-000000000001';
@@ -390,25 +410,33 @@ const handleNewDM = async (userId: string, _username: string) => {
             {dmConversations.map(dm => {
               const isOnline = onlineUsers.includes(dm.user_id);
               return (
-                <motion.button
-                  key={dm.id}
-                  whileHover={{ x: 4 }}
-                  whileTap={{ scale: 0.98 }}
-                  animate={{ backgroundColor: currentChannelId === dm.channel_id ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0)' }}
-                  onClick={() => handleDMSelect(dm)}
-                  className={`w-full h-10 px-3 rounded-xl flex items-center gap-3 transition-colors hover:bg-white/5 ${
-                    currentChannelId === dm.channel_id ? 'text-white' : 'text-gray-400 hover:text-white'
-                  }`}
-                  data-testid={`dm-${dm.username}`}
-                >
-                  <div className="relative">
-                    <MessageSquare size={18} className={currentChannelId === dm.channel_id ? 'text-blue-400' : ''} />
-                    {isOnline && (
-                      <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full border border-[#0d0d0d]" />
-                    )}
-                  </div>
-                  <span className="text-[14px] font-medium truncate">{dm.username}</span>
-                </motion.button>
+                <div key={dm.id} className="relative group/dm">
+                  <motion.button
+                    whileHover={{ x: 4 }}
+                    whileTap={{ scale: 0.98 }}
+                    animate={{ backgroundColor: currentChannelId === dm.channel_id ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0)' }}
+                    onClick={() => handleDMSelect(dm)}
+                    className={`w-full h-10 px-3 rounded-xl flex items-center gap-3 transition-colors hover:bg-white/5 ${
+                      currentChannelId === dm.channel_id ? 'text-white' : 'text-gray-400 hover:text-white'
+                    }`}
+                    data-testid={`dm-${dm.username}`}
+                  >
+                    <div className="relative">
+                      <MessageSquare size={18} className={currentChannelId === dm.channel_id ? 'text-blue-400' : ''} />
+                      {isOnline && (
+                        <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full border border-[#0d0d0d]" />
+                      )}
+                    </div>
+                    <span className="text-[14px] font-medium truncate">{dm.username}</span>
+                  </motion.button>
+                  <button
+                    title="Convert to channel"
+                    onClick={(e) => { e.stopPropagation(); setConvertDM(dm); setConvertName(''); setConvertError(''); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-gray-500 hover:text-white hover:bg-white/10 opacity-0 group-hover/dm:opacity-100 transition-opacity"
+                  >
+                    <ArrowRightLeft size={14} />
+                  </button>
+                </div>
               );
             })}
             {dmConversations.length === 0 && (
@@ -492,6 +520,72 @@ const handleNewDM = async (userId: string, _username: string) => {
       <NewDMModal isOpen={showNewDM} onClose={() => setShowNewDM(false)} onSelect={handleNewDM} />
       <BrowseChannelsModal isOpen={showBrowseChannels} onClose={() => setShowBrowseChannels(false)} />
       <CreateOrgModal isOpen={showCreateOrg} onClose={() => setShowCreateOrg(false)} />
+
+      {/* Convert DM to Channel Modal */}
+      <AnimatePresence>
+        {convertDM && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
+            onClick={() => setConvertDM(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#111] border border-white/10 rounded-2xl p-6 w-[400px] shadow-2xl"
+            >
+              <h3 className="text-lg font-semibold text-white mb-1">Convert to Channel</h3>
+              <p className="text-sm text-gray-400 mb-4">
+                Convert your conversation with <span className="text-white font-medium">{convertDM.username}</span> into a channel. All messages will be preserved.
+              </p>
+
+              <label className="block text-sm text-gray-400 mb-1">Channel Name</label>
+              <input
+                value={convertName}
+                onChange={(e) => setConvertName(e.target.value)}
+                placeholder="e.g. project-collab"
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500/50 mb-3"
+                autoFocus
+                onKeyDown={(e) => e.key === 'Enter' && handleConvertDM()}
+              />
+
+              <label className="flex items-center gap-2 text-sm text-gray-400 mb-4 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={convertPrivate}
+                  onChange={(e) => setConvertPrivate(e.target.checked)}
+                  className="rounded border-gray-600"
+                />
+                Private channel
+              </label>
+
+              {convertError && (
+                <p className="text-sm text-red-400 mb-3">{convertError}</p>
+              )}
+
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setConvertDM(null)}
+                  className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConvertDM}
+                  disabled={!convertName.trim()}
+                  className="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Convert
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
