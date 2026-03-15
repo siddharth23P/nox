@@ -3,6 +3,7 @@ package messaging
 import (
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -230,9 +231,16 @@ func (h *MessagingHandler) GetMessages(c *gin.Context) {
 		}
 	}
 
-	before := c.Query("before")
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 
-	messages, err := h.service.GetMessagesByChannel(c.Request.Context(), channelID, before, userID)
+	params := MessageQueryParams{
+		Before: c.Query("before"),
+		After:  c.Query("after"),
+		Around: c.Query("around"),
+		Limit:  limit,
+	}
+
+	messages, hasMore, err := h.service.GetMessagesByChannel(c.Request.Context(), channelID, params, userID)
 	if err != nil {
 		log.Printf("ERROR in GetMessages: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -242,7 +250,10 @@ func (h *MessagingHandler) GetMessages(c *gin.Context) {
 	if messages == nil {
 		messages = []Message{}
 	}
-	c.JSON(http.StatusOK, messages)
+	c.JSON(http.StatusOK, gin.H{
+		"messages": messages,
+		"has_more": hasMore,
+	})
 }
 
 func (h *MessagingHandler) GetThreadReplies(c *gin.Context) {
