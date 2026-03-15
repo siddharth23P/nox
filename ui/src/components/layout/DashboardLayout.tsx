@@ -39,13 +39,13 @@ export const DashboardLayout: React.FC = () => {
       )}
 
       {/* Mobile sidebar drawer */}
-      <div
-        className={`fixed inset-y-0 left-0 z-50 w-full max-w-[300px] transform transition-transform duration-300 ease-in-out md:hidden ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        <Sidebar onClose={handleSidebarClose} />
-      </div>
+      {sidebarOpen && (
+        <div
+          className="fixed inset-y-0 left-0 z-50 w-full max-w-[300px] md:hidden animate-slide-in-left"
+        >
+          <Sidebar onClose={handleSidebarClose} />
+        </div>
+      )}
 
       <main className="flex-1 h-full overflow-hidden relative">
         {/* Mobile hamburger button */}
