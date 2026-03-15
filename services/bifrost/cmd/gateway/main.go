@@ -225,6 +225,7 @@ func main() {
 			authenticated.GET("/channels/:id/messages/:messageId/replies", messagingHandler.GetThreadReplies)
 			authenticated.PATCH("/channels/:id/messages/:messageId", messagingHandler.EditMessage)
 			authenticated.DELETE("/channels/:id/messages/:messageId", messagingHandler.DeleteMessage)
+			authenticated.POST("/channels/:id/messages/:messageId/hide", messagingHandler.HideMessage)
 			authenticated.GET("/channels/:id/messages/:messageId/history", messagingHandler.GetMessageEditHistory)
 			authenticated.POST("/channels/:id/messages/:messageId/react", messagingHandler.ReactToMessage)
 			authenticated.POST("/channels/:id/messages/:messageId/pin", messagingHandler.TogglePin)

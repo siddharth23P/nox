@@ -54,8 +54,15 @@ test.describe('Core Messaging CRUD (Issue #4)', () => {
     await expect(deleteBtn).toBeVisible({ timeout: 5000 });
     await deleteBtn.click({ force: true });
 
-    // Message should disappear
-    await expect(msgLocator).not.toBeVisible({ timeout: 10000 });
+    // Confirm deletion in the dialog
+    const deleteForEveryoneBtn = page.getByRole('button', { name: 'Delete for Everyone' });
+    await expect(deleteForEveryoneBtn).toBeVisible({ timeout: 5000 });
+    await deleteForEveryoneBtn.click();
+
+    // Message should show tombstone instead of original content
+    await expect(page.getByText('This message was deleted').first()).toBeVisible({ timeout: 10000 });
+    // Original text should no longer be visible
+    await expect(page.locator('.message-item').filter({ hasText: uniqueText })).not.toBeVisible({ timeout: 5000 });
   });
 
   test('DELETE /v1/channels/:id/messages/:messageId returns 401 without auth', async ({ page }) => {

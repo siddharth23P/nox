@@ -262,8 +262,8 @@ func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID s
 		SELECT
 			m.id, m.channel_id, m.user_id, u.username, m.parent_id, m.reply_to, m.forward_source_id,
 			fsu.username as forward_source_username,
-			m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited,
-			(SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id) as reply_count,
+			m.content_md, m.content_html, m.created_at, m.updated_at, m.is_edited, m.deleted_at,
+			(SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id AND r.deleted_at IS NULL) as reply_count,
 			EXISTS(SELECT 1 FROM channel_pins cp WHERE cp.message_id = m.id) as is_pinned,
 			EXISTS(SELECT 1 FROM user_bookmarks ub WHERE ub.message_id = m.id AND ub.user_id = `
 
@@ -274,6 +274,8 @@ func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID s
 		LEFT JOIN users fsu ON fsm.user_id = fsu.id
 		WHERE m.channel_id = $1 AND m.parent_id IS NULL`
 
+	hiddenFilter := ` AND NOT EXISTS (SELECT 1 FROM user_hidden_messages uhm WHERE uhm.user_id = %s AND uhm.message_id = m.id)`
+
 	switch {
 	case params.Around != "":
 		// Fetch messages around a specific message ID: half before, half after
@@ -281,12 +283,12 @@ func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID s
 		query = `WITH target AS (
 			SELECT created_at FROM messages WHERE id = $2 AND channel_id = $1
 		)
-		(` + baseSelect + `$3) as is_bookmarked` + baseFrom + ` AND m.created_at <= (SELECT created_at FROM target)
+		(` + baseSelect + `$3) as is_bookmarked` + baseFrom + ` AND m.created_at <= (SELECT created_at FROM target)` + fmt.Sprintf(hiddenFilter, "$3") + `
 			ORDER BY m.created_at DESC
 			LIMIT $4
 		)
 		UNION ALL
-		(` + baseSelect + `$3) as is_bookmarked` + baseFrom + ` AND m.created_at > (SELECT created_at FROM target)
+		(` + baseSelect + `$3) as is_bookmarked` + baseFrom + ` AND m.created_at > (SELECT created_at FROM target)` + fmt.Sprintf(hiddenFilter, "$3") + `
 			ORDER BY m.created_at ASC
 			LIMIT $5
 		)
@@ -294,19 +296,19 @@ func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID s
 		args = []interface{}{channelID, params.Around, currentUserID, half + 1, half}
 
 	case params.After != "":
-		query = baseSelect + `$3) as is_bookmarked` + baseFrom + ` AND m.created_at > $2::timestamp
+		query = baseSelect + `$3) as is_bookmarked` + baseFrom + ` AND m.created_at > $2::timestamp` + fmt.Sprintf(hiddenFilter, "$3") + `
 			ORDER BY m.created_at ASC
 			LIMIT $4`
 		args = []interface{}{channelID, params.After, currentUserID, params.Limit + 1}
 
 	case params.Before != "":
-		query = baseSelect + `$3) as is_bookmarked` + baseFrom + ` AND m.created_at < $2::timestamp
+		query = baseSelect + `$3) as is_bookmarked` + baseFrom + ` AND m.created_at < $2::timestamp` + fmt.Sprintf(hiddenFilter, "$3") + `
 			ORDER BY m.created_at DESC
 			LIMIT $4`
 		args = []interface{}{channelID, params.Before, currentUserID, params.Limit + 1}
 
 	default:
-		query = baseSelect + `$2) as is_bookmarked` + baseFrom + `
+		query = baseSelect + `$2) as is_bookmarked` + baseFrom + fmt.Sprintf(hiddenFilter, "$2") + `
 			ORDER BY m.created_at DESC
 			LIMIT $3`
 		args = []interface{}{channelID, currentUserID, params.Limit + 1}
@@ -324,8 +326,14 @@ func (s *MessagingService) GetMessagesByChannel(ctx context.Context, channelID s
 	var messages []Message
 	for rows.Next() {
 		var msg Message
-		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ReplyTo, &msg.ForwardSourceID, &msg.ForwardSourceUsername, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.IsEdited, &msg.ReplyCount, &msg.IsPinned, &msg.IsBookmarked); err != nil {
+		if err := rows.Scan(&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Username, &msg.ParentID, &msg.ReplyTo, &msg.ForwardSourceID, &msg.ForwardSourceUsername, &msg.ContentMD, &msg.ContentHTML, &msg.CreatedAt, &msg.UpdatedAt, &msg.IsEdited, &msg.DeletedAt, &msg.ReplyCount, &msg.IsPinned, &msg.IsBookmarked); err != nil {
 			return nil, false, err
+		}
+		// For deleted messages, clear content and mark as deleted (tombstone)
+		if msg.DeletedAt != nil {
+			msg.IsDeleted = true
+			msg.ContentMD = ""
+			msg.ContentHTML = ""
 		}
 		messages = append(messages, msg)
 	}
@@ -518,7 +526,7 @@ func (s *MessagingService) EditMessage(ctx context.Context, messageID string, us
 func (s *MessagingService) DeleteMessage(ctx context.Context, messageID string, userID string) error {
 	// Verify author
 	var authorID, channelID string
-	err := s.db.Pool.QueryRow(ctx, "SELECT user_id, channel_id FROM messages WHERE id = $1", messageID).Scan(&authorID, &channelID)
+	err := s.db.Pool.QueryRow(ctx, "SELECT user_id, channel_id FROM messages WHERE id = $1 AND deleted_at IS NULL", messageID).Scan(&authorID, &channelID)
 	if err != nil {
 		return err
 	}
@@ -526,8 +534,8 @@ func (s *MessagingService) DeleteMessage(ctx context.Context, messageID string, 
 		return pgx.ErrNoRows
 	}
 
-	// Delete the message (cascade will handle edits, pins, bookmarks)
-	_, err = s.db.Pool.Exec(ctx, "DELETE FROM messages WHERE id = $1", messageID)
+	// Soft delete the message
+	_, err = s.db.Pool.Exec(ctx, "UPDATE messages SET deleted_at = NOW(), deleted_by = $2 WHERE id = $1", messageID, userID)
 	if err != nil {
 		return err
 	}
@@ -546,6 +554,15 @@ func (s *MessagingService) DeleteMessage(ctx context.Context, messageID string, 
 	})
 
 	return nil
+}
+
+// HideMessage hides a message for the current user only ("Delete for Me").
+func (s *MessagingService) HideMessage(ctx context.Context, messageID string, userID string) error {
+	_, err := s.db.Pool.Exec(ctx,
+		`INSERT INTO user_hidden_messages (user_id, message_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+		userID, messageID,
+	)
+	return err
 }
 
 func (s *MessagingService) GetMessageEditHistory(ctx context.Context, messageID string) ([]MessageEdit, error) {
