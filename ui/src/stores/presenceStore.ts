@@ -3,10 +3,12 @@ import { create } from 'zustand';
 interface PresenceState {
   onlineUsers: string[];
   isStealth: boolean;
+  stealthError: string | null;
   heartbeatInterval: ReturnType<typeof setInterval> | null;
-  
+
   // Actions
   setStealth: (stealth: boolean) => void;
+  clearStealthError: () => void;
   startHeartbeat: (userId: string, token: string) => void;
   stopHeartbeat: () => void;
 }
@@ -14,16 +16,19 @@ interface PresenceState {
 export const usePresenceStore = create<PresenceState>((set, get) => ({
   onlineUsers: [],
   isStealth: false,
+  stealthError: null,
   heartbeatInterval: null,
 
   setStealth: (stealth: boolean) => {
-    set({ isStealth: stealth });
-    // Trigger an immediate heartbeat with the new status if it's already running
+    const previousStealth = get().isStealth;
+    // Optimistic update: flip UI state immediately
+    set({ isStealth: stealth, stealthError: null });
+
+    // Persist the new status in the background
     const { heartbeatInterval } = get();
     if (heartbeatInterval) {
-      // Best-effort push of the new status
-      const userId = localStorage.getItem('nox_user') 
-        ? JSON.parse(localStorage.getItem('nox_user')!).id 
+      const userId = localStorage.getItem('nox_user')
+        ? JSON.parse(localStorage.getItem('nox_user')!).id
         : null;
       const token = localStorage.getItem('nox_token');
       if (userId && token) {
@@ -35,10 +40,20 @@ export const usePresenceStore = create<PresenceState>((set, get) => ({
             'Authorization': `Bearer ${token}`,
           },
           body: JSON.stringify({ status: stealth ? 'stealth' : 'online' }),
-        }).catch(console.error);
+        }).then(res => {
+          if (!res.ok) {
+            // Revert on server error
+            set({ isStealth: previousStealth, stealthError: 'Failed to update stealth mode. Please try again.' });
+          }
+        }).catch(() => {
+          // Revert on network error
+          set({ isStealth: previousStealth, stealthError: 'Network error. Stealth mode change reverted.' });
+        });
       }
     }
   },
+
+  clearStealthError: () => set({ stealthError: null }),
 
   startHeartbeat: (userId: string, token: string) => {
     const { heartbeatInterval } = get();

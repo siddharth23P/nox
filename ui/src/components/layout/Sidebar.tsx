@@ -152,7 +152,7 @@ const NewDMModal: React.FC<{ isOpen: boolean; onClose: () => void; onSelect: (us
 export const Sidebar: React.FC = () => {
   const { user, orgId, orgName, organizations, logout, fetchOrganizations, switchOrganization } = useAuthStore();
   const { activeChannel, setActiveChannel, channels, fetchChannels, fetchJoinedChannels, dmConversations, fetchDMs, createOrGetDM, fetchMessages } = useMessageStore();
-  const { onlineUsers, isStealth, setStealth } = usePresenceStore();
+  const { onlineUsers, isStealth, stealthError, setStealth, clearStealthError } = usePresenceStore();
   const [showOrgSwitcher, setShowOrgSwitcher] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [showNewDM, setShowNewDM] = useState(false);
@@ -389,25 +389,35 @@ const handleNewDM = async (userId: string, _username: string) => {
       {/* Footer / User Profile */}
       <div className="px-3 pt-4 border-t border-white/5 space-y-1">
         {/* Stealth Toggle */}
-        <div className="px-3 py-2 flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-400">Stealth Mode</span>
-          <button
-            title="Toggle Stealth Mode"
-            aria-label="Toggle Stealth Mode"
-            onClick={() => setStealth(!isStealth)}
-            className={`w-10 h-5 rounded-full relative transition-colors ${
-              isStealth ? 'bg-emerald-500/80' : 'bg-gray-700'
-            }`}
-          >
-            <motion.div
-              layout
-              className="w-3.5 h-3.5 bg-white rounded-full absolute top-[3px]"
-              animate={{
-                left: isStealth ? '22px' : '4px'
-              }}
-              transition={{ type: "spring", stiffness: 500, damping: 30 }}
-            />
-          </button>
+        <div className="px-3 py-2 flex flex-col gap-1">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-400">Stealth Mode</span>
+            <button
+              title="Toggle Stealth Mode"
+              aria-label="Toggle Stealth Mode"
+              onClick={() => setStealth(!isStealth)}
+              className={`w-10 h-5 rounded-full relative transition-colors ${
+                isStealth ? 'bg-emerald-500/80' : 'bg-gray-700'
+              }`}
+            >
+              <motion.div
+                layout
+                className="w-3.5 h-3.5 bg-white rounded-full absolute top-[3px]"
+                animate={{
+                  left: isStealth ? '22px' : '4px'
+                }}
+                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              />
+            </button>
+          </div>
+          {stealthError && (
+            <div className="flex items-center justify-between text-[11px] text-red-400">
+              <span>{stealthError}</span>
+              <button onClick={clearStealthError} className="ml-1 hover:text-red-300" title="Dismiss">
+                <X size={12} />
+              </button>
+            </div>
+          )}
         </div>
 
         <NavItem
