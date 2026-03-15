@@ -59,7 +59,7 @@ test.describe('Organization Switching & Listing', () => {
     await page.goto('/');
     await expect(page.locator('input[placeholder="name@nexus.com"]')).toBeVisible({ timeout: 10000 });
 
-    if (await page.getByText('Create Nexus Identity').isVisible()) {
+    if (await page.getByRole('heading', { name: 'Create Nexus Identity' }).isVisible()) {
       await page.click('button:has-text("Sign in")');
     }
 
