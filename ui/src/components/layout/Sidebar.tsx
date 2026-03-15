@@ -6,6 +6,7 @@ import { useMessageStore, type Channel, type DMConversation } from '../../stores
 import { usePresenceStore } from '../../stores/presenceStore';
 import { useNotificationStore, type Notification as NotifType } from '../../stores/notificationStore';
 import { useFriendStore } from '../../stores/friendStore';
+import { useCategoryStore, type CategoryWithChannels } from '../../stores/categoryStore';
 import { PresenceAvatar } from '../common/PresenceAvatar';
 import {
   Hash,
@@ -16,6 +17,7 @@ import {
   Settings,
   LogOut,
   ChevronDown,
+  ChevronRight,
   Check,
   Building2,
   Users,
@@ -24,7 +26,10 @@ import {
   X,
   Compass,
   Shield,
-  ArrowRightLeft
+  ArrowRightLeft,
+  FolderPlus,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import CreateChannelModal from '../dashboard/CreateChannelModal';
 import BrowseChannelsModal from '../dashboard/BrowseChannelsModal';
@@ -195,6 +200,11 @@ export const Sidebar: React.FC = () => {
   const [showNewDM, setShowNewDM] = useState(false);
   const [showBrowseChannels, setShowBrowseChannels] = useState(false);
   const [showCreateOrg, setShowCreateOrg] = useState(false);
+  const [showCreateCategory, setShowCreateCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [editCategoryName, setEditCategoryName] = useState('');
+  const { categories, collapsedCategories, fetchCategories, createCategory, updateCategory, deleteCategory, toggleCollapse } = useCategoryStore();
   const [convertDM, setConvertDM] = useState<DMConversation | null>(null);
   const [convertName, setConvertName] = useState('');
   const [convertPrivate, setConvertPrivate] = useState(true);
@@ -214,7 +224,8 @@ export const Sidebar: React.FC = () => {
     fetchOrganizations();
     fetchDMs();
     fetchNotifications();
-  }, [fetchChannels, fetchJoinedChannels, fetchOrganizations, fetchDMs, fetchNotifications]);
+    fetchCategories();
+  }, [fetchChannels, fetchJoinedChannels, fetchOrganizations, fetchDMs, fetchNotifications, fetchCategories]);
 
   const handleChannelSelect = (channel: Channel) => {
     setActiveChannel(channel);
@@ -441,6 +452,14 @@ const handleNewDM = async (userId: string, _username: string) => {
             <span>Channels</span>
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
+                onClick={() => setShowCreateCategory(true)}
+                className="cursor-pointer hover:text-white"
+                title="Create Category"
+                data-testid="create-category-btn"
+              >
+                <FolderPlus size={14} />
+              </button>
+              <button
                 onClick={() => setShowBrowseChannels(true)}
                 className="cursor-pointer hover:text-white"
                 title="Browse Channels"
@@ -458,21 +477,201 @@ const handleNewDM = async (userId: string, _username: string) => {
               </button>
             </div>
           </div>
-          <div className="space-y-1">
-            {channels.map(channel => {
-              const isArchived = !!(channel as Channel & { archived_at?: string }).archived_at;
-              const channelIcon = channel.is_private ? Lock : isArchived ? Archive : Hash;
-              return (
-                <div key={channel.id} className={isArchived ? 'opacity-50' : ''}>
-                  <NavItem
-                    icon={channelIcon}
-                    text={channel.name}
-                    active={currentChannelId === channel.id}
-                    onClick={() => handleChannelSelect(channel)}
+
+          {/* Create Category Inline Form */}
+          <AnimatePresence>
+            {showCreateCategory && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="px-3 mb-2 overflow-hidden"
+              >
+                <div className="flex items-center gap-1">
+                  <input
+                    type="text"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="Category name..."
+                    autoFocus
+                    className="flex-1 px-2 py-1 text-xs bg-white/5 border border-white/10 rounded-md text-white placeholder:text-gray-500 focus:outline-none focus:border-blue-500/50"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newCategoryName.trim()) {
+                        createCategory(newCategoryName.trim());
+                        setNewCategoryName('');
+                        setShowCreateCategory(false);
+                      }
+                      if (e.key === 'Escape') {
+                        setNewCategoryName('');
+                        setShowCreateCategory(false);
+                      }
+                    }}
+                    data-testid="create-category-input"
                   />
+                  <button
+                    onClick={() => {
+                      if (newCategoryName.trim()) {
+                        createCategory(newCategoryName.trim());
+                        setNewCategoryName('');
+                        setShowCreateCategory(false);
+                      }
+                    }}
+                    className="p-1 text-blue-400 hover:text-blue-300"
+                    title="Save"
+                  >
+                    <Check size={14} />
+                  </button>
+                  <button
+                    onClick={() => { setNewCategoryName(''); setShowCreateCategory(false); }}
+                    className="p-1 text-gray-400 hover:text-white"
+                    title="Cancel"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Categorized Channels */}
+          <div className="space-y-2">
+            {categories.map((cat: CategoryWithChannels) => {
+              const isCollapsed = collapsedCategories.has(cat.id);
+              const isEditing = editingCategory === cat.id;
+              return (
+                <div key={cat.id}>
+                  {/* Category Header */}
+                  <div className="group/cat flex items-center gap-1 px-3 py-1">
+                    <button
+                      onClick={() => toggleCollapse(cat.id)}
+                      className="text-gray-500 hover:text-white transition-colors"
+                      title={isCollapsed ? 'Expand' : 'Collapse'}
+                    >
+                      <motion.div
+                        animate={{ rotate: isCollapsed ? 0 : 90 }}
+                        transition={{ duration: 0.15 }}
+                      >
+                        <ChevronRight size={12} />
+                      </motion.div>
+                    </button>
+
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editCategoryName}
+                        onChange={(e) => setEditCategoryName(e.target.value)}
+                        autoFocus
+                        className="flex-1 px-1 py-0 text-[11px] font-bold uppercase tracking-wider bg-white/5 border border-white/10 rounded text-white focus:outline-none focus:border-blue-500/50"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && editCategoryName.trim()) {
+                            updateCategory(cat.id, editCategoryName.trim());
+                            setEditingCategory(null);
+                          }
+                          if (e.key === 'Escape') {
+                            setEditingCategory(null);
+                          }
+                        }}
+                        onBlur={() => {
+                          if (editCategoryName.trim() && editCategoryName.trim() !== cat.name) {
+                            updateCategory(cat.id, editCategoryName.trim());
+                          }
+                          setEditingCategory(null);
+                        }}
+                      />
+                    ) : (
+                      <span
+                        className="flex-1 text-[11px] font-bold uppercase tracking-wider text-gray-500 cursor-pointer select-none"
+                        onClick={() => toggleCollapse(cat.id)}
+                      >
+                        {cat.name}
+                      </span>
+                    )}
+
+                    {!isEditing && (
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover/cat:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => { setEditingCategory(cat.id); setEditCategoryName(cat.name); }}
+                          className="p-0.5 text-gray-500 hover:text-white"
+                          title="Edit Category"
+                        >
+                          <Pencil size={11} />
+                        </button>
+                        <button
+                          onClick={() => { if (window.confirm(`Delete category "${cat.name}"? Channels will become uncategorized.`)) deleteCategory(cat.id); }}
+                          className="p-0.5 text-gray-500 hover:text-red-400"
+                          title="Delete Category"
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Category Channels */}
+                  <AnimatePresence>
+                    {!isCollapsed && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.15 }}
+                        className="space-y-0.5 overflow-hidden"
+                      >
+                        {cat.channels.map(channel => {
+                          const isArchived = !!channel.archived_at;
+                          const channelIcon = channel.is_private ? Lock : isArchived ? Archive : Hash;
+                          return (
+                            <div key={channel.id} className={isArchived ? 'opacity-50' : ''}>
+                              <NavItem
+                                icon={channelIcon}
+                                text={channel.name}
+                                active={currentChannelId === channel.id}
+                                onClick={() => handleChannelSelect(channel as Channel)}
+                              />
+                            </div>
+                          );
+                        })}
+                        {cat.channels.length === 0 && (
+                          <div className="px-6 py-1 text-[11px] text-gray-600 italic">No channels</div>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               );
             })}
+
+            {/* Uncategorized Channels */}
+            {(() => {
+              const categorizedIds = new Set(categories.flatMap((cat: CategoryWithChannels) => cat.channels.map(ch => ch.id)));
+              const uncategorized = channels.filter(ch => !categorizedIds.has(ch.id));
+              if (uncategorized.length === 0) return null;
+              return (
+                <div>
+                  {categories.length > 0 && (
+                    <div className="px-3 py-1">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600">Uncategorized</span>
+                    </div>
+                  )}
+                  <div className="space-y-0.5">
+                    {uncategorized.map(channel => {
+                      const isArchived = !!(channel as Channel & { archived_at?: string }).archived_at;
+                      const channelIcon = channel.is_private ? Lock : isArchived ? Archive : Hash;
+                      return (
+                        <div key={channel.id} className={isArchived ? 'opacity-50' : ''}>
+                          <NavItem
+                            icon={channelIcon}
+                            text={channel.name}
+                            active={currentChannelId === channel.id}
+                            onClick={() => handleChannelSelect(channel)}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
 
