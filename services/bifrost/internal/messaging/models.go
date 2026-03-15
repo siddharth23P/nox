@@ -34,6 +34,7 @@ type Message struct {
 	UserReactions []string       `json:"user_reactions,omitempty"`
 	IsPinned      bool           `json:"is_pinned"`
 	IsBookmarked  bool           `json:"is_bookmarked"`
+	Depth         int            `json:"depth,omitempty"`
 	CreatedAt     time.Time      `json:"created_at"`
 	UpdatedAt     time.Time      `json:"updated_at"`
 }

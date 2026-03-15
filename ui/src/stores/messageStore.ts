@@ -35,6 +35,7 @@ export interface Message {
   is_bookmarked?: boolean;
   forward_source_id?: string;
   forward_source_username?: string;
+  depth?: number;
   created_at: string;
   updated_at: string;
   expires_at?: string;
