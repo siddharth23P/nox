@@ -383,3 +383,20 @@ CREATE INDEX IF NOT EXISTS idx_channel_categories_org ON channel_categories(org_
 
 ALTER TABLE channels ADD COLUMN IF NOT EXISTS category_id UUID REFERENCES channel_categories(id) ON DELETE SET NULL;
 ALTER TABLE channels ADD COLUMN IF NOT EXISTS position INT NOT NULL DEFAULT 0;
+
+-- 26. Moderation Actions (Issue #66)
+CREATE TABLE IF NOT EXISTS moderation_actions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    target_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    moderator_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    action_type VARCHAR(20) NOT NULL CHECK (action_type IN ('timeout', 'channel_mute', 'server_mute', 'warn', 'ban')),
+    reason TEXT NOT NULL,
+    channel_id UUID REFERENCES channels(id) ON DELETE CASCADE,
+    expires_at TIMESTAMPTZ,
+    revoked_at TIMESTAMPTZ,
+    revoked_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_moderation_actions_target ON moderation_actions(target_user_id, org_id);
+CREATE INDEX IF NOT EXISTS idx_moderation_actions_org ON moderation_actions(org_id, created_at DESC);

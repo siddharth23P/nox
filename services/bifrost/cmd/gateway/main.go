@@ -12,6 +12,7 @@ import (
 	"github.com/nox-labs/bifrost/internal/auth"
 	"github.com/nox-labs/bifrost/internal/db"
 	"github.com/nox-labs/bifrost/internal/messaging"
+	"github.com/nox-labs/bifrost/internal/moderation"
 	"github.com/nox-labs/bifrost/internal/notification"
 	"github.com/nox-labs/bifrost/internal/presence"
 	pb "github.com/nox-labs/bifrost/pkg/authv1/auth/v1"
@@ -101,7 +102,9 @@ func main() {
 	friendHandler := auth.NewFriendHandler(friendService)
 	orgService := auth.NewOrgService(database)
 	orgHandler := auth.NewOrgHandler(orgService)
-	messagingHandler := messaging.NewMessagingHandler(messagingService, hub)
+	moderationService := moderation.NewService(database)
+	moderationHandler := moderation.NewHandler(moderationService)
+	messagingHandler := messaging.NewMessagingHandler(messagingService, hub, moderationService)
 	categoryRepo := messaging.NewCategoryRepo(database)
 	categoryHandler := messaging.NewCategoryHandler(categoryRepo)
 	presenceHandler := presence.NewPresenceHandler(presenceService)
@@ -234,6 +237,15 @@ func main() {
 			authenticated.GET("/dm", messagingHandler.ListDMs)
 			authenticated.POST("/dm", messagingHandler.CreateOrGetDM)
 			authenticated.POST("/dm/:dmId/convert", messagingHandler.ConvertDMToChannel)
+
+			// Moderation Routes (Issue #66)
+			authenticated.POST("/moderation/timeout", moderationHandler.TimeoutUser)
+			authenticated.POST("/moderation/mute", moderationHandler.MuteUser)
+			authenticated.POST("/moderation/warn", moderationHandler.WarnUser)
+			authenticated.POST("/moderation/ban", moderationHandler.BanUser)
+			authenticated.POST("/moderation/actions/:id/revoke", moderationHandler.RevokeAction)
+			authenticated.GET("/moderation/actions", moderationHandler.ListActions)
+			authenticated.GET("/moderation/users/:userId/status", moderationHandler.GetUserStatus)
 
 			// Notification Routes (Issue #33)
 			authenticated.GET("/notifications", notificationHandler.ListNotifications)
