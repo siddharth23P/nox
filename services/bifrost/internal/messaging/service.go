@@ -678,6 +678,38 @@ func (s *MessagingService) GetChannelReadReceipts(ctx context.Context, channelID
 	return reads, nil
 }
 
+// GetUnreadCounts returns the number of unread messages per channel for the given user.
+// A channel is included if the user has a channel_reads entry; messages created after
+// the last_read_message's created_at are counted as unread.
+func (s *MessagingService) GetUnreadCounts(ctx context.Context, userID string) ([]UnreadCount, error) {
+	query := `
+		SELECT cr.channel_id,
+			COUNT(m.id)::int AS unread_count
+		FROM channel_reads cr
+		JOIN messages last_msg ON last_msg.id = cr.last_read_message_id
+		LEFT JOIN messages m ON m.channel_id = cr.channel_id
+			AND m.created_at > last_msg.created_at
+			AND m.parent_id IS NULL
+		WHERE cr.user_id = $1
+		GROUP BY cr.channel_id
+	`
+	rows, err := s.db.Pool.Query(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var counts []UnreadCount
+	for rows.Next() {
+		var uc UnreadCount
+		if err := rows.Scan(&uc.ChannelID, &uc.Count); err != nil {
+			return nil, err
+		}
+		counts = append(counts, uc)
+	}
+	return counts, nil
+}
+
 // ---------- Channel Members (Private Channel ACL - Issue #120) ----------
 
 func (s *MessagingService) IsChannelMember(ctx context.Context, channelID, userID string) (bool, error) {

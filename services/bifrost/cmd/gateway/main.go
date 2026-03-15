@@ -209,6 +209,7 @@ func main() {
 			// Channel CRUD Routes
 			authenticated.POST("/channels", messagingHandler.CreateChannel)
 			authenticated.GET("/channels", messagingHandler.GetChannels)
+			authenticated.GET("/channels/unread-counts", messagingHandler.GetUnreadCounts)
 			authenticated.GET("/channels/browse", messagingHandler.BrowseChannels)
 			authenticated.GET("/channels/joined", messagingHandler.GetJoinedChannels)
 			authenticated.GET("/channels/:id", messagingHandler.GetChannel)

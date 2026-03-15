@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FormattedMessage } from '../common/FormattedMessage';
 import { useMessageStore } from '../../stores/messageStore';
 import { useAuthStore } from '../../stores/authStore';
+import { useReadStore } from '../../stores/readStore';
 import { MessageCircle, Edit2, SmilePlus, Pin, Bookmark, Quote, Send, Trash2, ArrowDown, Shield } from 'lucide-react';
 import { PresenceAvatar } from '../common/PresenceAvatar';
 import { EditHistoryModal } from './EditHistoryModal';
@@ -65,6 +66,7 @@ const DateSeparator: React.FC<{ date: string }> = ({ date }) => (
 export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
   const { messages, fetchMessages, loadMoreMessages, isLoading, hasMore, setActiveThread, editMessage, deleteMessage, highlightedMessageId, activeThreadId } = useMessageStore();
   const { user } = useAuthStore();
+  const { markChannelRead, unreadCounts } = useReadStore();
   const currentUserId = user?.id;
 
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -72,6 +74,8 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
   const [historyModalMessageId, setHistoryModalMessageId] = useState<string | null>(null);
   const [activeEmojiPickerMsgId, setActiveEmojiPickerMsgId] = useState<string | null>(null);
   const [forwardModalMessage, setForwardModalMessage] = useState<Message | null>(null);
+  // Track the first unread message ID for the "New messages" separator
+  const [firstUnreadMsgId, setFirstUnreadMsgId] = useState<string | null>(null);
   const [moderationTarget, setModerationTarget] = useState<{ userId: string; username: string } | null>(null);
 
   const userRole = useAuthStore((s) => s.role);
@@ -99,6 +103,34 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
     };
   }, [channelId, fetchMessages]);
 
+  // Compute the first unread message when messages or unread counts change
+  useEffect(() => {
+    if (!channelId || messages.length === 0) {
+      setFirstUnreadMsgId(null);
+      return;
+    }
+    const unread = unreadCounts[channelId] || 0;
+    if (unread > 0 && unread <= messages.length) {
+      // The first unread message is at index (messages.length - unread)
+      setFirstUnreadMsgId(messages[messages.length - unread].id);
+    } else {
+      setFirstUnreadMsgId(null);
+    }
+  // Only recompute when channel changes or initial load, not on every message
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channelId]);
+
+  // Mark channel as read when user scrolls to bottom
+  const checkScrollBottom = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container || !channelId || messages.length === 0) return;
+    const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
+    if (isAtBottom) {
+      const lastMsg = messages[messages.length - 1];
+      markChannelRead(channelId, lastMsg.id);
+    }
+  }, [channelId, messages, markChannelRead]);
+
   // Track new messages arriving while scrolled up
   const messagesLen = messages.length;
   useEffect(() => {
@@ -118,10 +150,19 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
     if (isFetchingOlder && scrollContainerRef.current) {
       const container = scrollContainerRef.current;
       container.scrollTop = container.scrollHeight - previousScrollHeight;
-      // eslint-disable-next-line
       setIsFetchingOlder(false);
     }
   }, [messages, isFetchingOlder, previousScrollHeight]);
+
+  // Mark as read when initially scrolled to bottom after load
+  useEffect(() => {
+    if (!isLoading && messages.length > 0 && !isFetchingOlder) {
+      // Use a small timeout to let the layout settle
+      const timer = setTimeout(checkScrollBottom, 100);
+      return () => clearTimeout(timer);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, messages.length, channelId]);
 
   const handleScroll = useCallback(async (e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
@@ -140,7 +181,9 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
       const oldestMessage = messages[0];
       await loadMoreMessages(channelId, oldestMessage.created_at);
     }
-  }, [hasMore, isLoading, messages, channelId, loadMoreMessages]);
+    // Check if scrolled to bottom to mark as read
+    checkScrollBottom();
+  }, [hasMore, isLoading, messages, channelId, loadMoreMessages, checkScrollBottom]);
 
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -206,10 +249,18 @@ export const MessageList: React.FC<MessageListProps> = ({ channelId }) => {
           {messages.map((msg: Message, i) => {
             const isConsecutive = i > 0 && messages[i - 1].user_id === msg.user_id && !isDifferentDay(messages[i - 1].created_at, msg.created_at);
             const isCurrentUser = msg.user_id === currentUserId;
+            const showNewMessagesSeparator = firstUnreadMsgId === msg.id;
             const showDateSeparator = i === 0 || isDifferentDay(messages[i - 1].created_at, msg.created_at);
 
             return (
               <React.Fragment key={msg.id}>
+                {showNewMessagesSeparator && (
+                  <div className="flex items-center gap-3 my-4" data-testid="new-messages-separator">
+                    <div className="flex-1 h-px bg-red-500/50" />
+                    <span className="text-xs font-semibold text-red-400 uppercase tracking-wider shrink-0">New messages</span>
+                    <div className="flex-1 h-px bg-red-500/50" />
+                  </div>
+                )}
                 {showDateSeparator && <DateSeparator date={msg.created_at} />}
                 <motion.div
                   data-message-id={msg.id}

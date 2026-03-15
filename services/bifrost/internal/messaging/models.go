@@ -124,6 +124,12 @@ type ConvertDMRequest struct {
 	IsPrivate *bool  `json:"is_private"`
 }
 
+// UnreadCount represents the number of unread messages for a channel.
+type UnreadCount struct {
+	ChannelID string `json:"channel_id"`
+	Count     int    `json:"count"`
+}
+
 // BrowsableChannel extends Channel with member count and join status for the browse endpoint (Issue #121).
 type BrowsableChannel struct {
 	ID          string     `json:"id"`

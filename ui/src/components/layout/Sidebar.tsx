@@ -7,6 +7,7 @@ import { usePresenceStore } from '../../stores/presenceStore';
 import { useNotificationStore, type Notification as NotifType } from '../../stores/notificationStore';
 import { useFriendStore } from '../../stores/friendStore';
 import { useCategoryStore, type CategoryWithChannels } from '../../stores/categoryStore';
+import { useReadStore } from '../../stores/readStore';
 import { PresenceAvatar } from '../common/PresenceAvatar';
 import {
   Hash,
@@ -39,7 +40,7 @@ import CreateChannelModal from '../dashboard/CreateChannelModal';
 import BrowseChannelsModal from '../dashboard/BrowseChannelsModal';
 import CreateOrgModal from '../dashboard/CreateOrgModal';
 
-const NavItem = ({ icon: Icon, text, active, onClick }: { icon: React.ElementType, text: string, active?: boolean, onClick?: () => void }) => (
+const NavItem = ({ icon: Icon, text, active, onClick, unreadCount }: { icon: React.ElementType, text: string, active?: boolean, onClick?: () => void, unreadCount?: number }) => (
   <motion.button
     whileHover={{ x: 4 }}
     whileTap={{ scale: 0.98 }}
@@ -49,7 +50,12 @@ const NavItem = ({ icon: Icon, text, active, onClick }: { icon: React.ElementTyp
     style={{ color: active ? 'var(--nox-text-primary)' : 'var(--nox-text-secondary)' }}
   >
     <Icon size={18} className={active ? 'text-blue-400' : ''} />
-    <span className="text-[14px] font-medium truncate">{text}</span>
+    <span className={`text-[14px] truncate flex-1 text-left ${unreadCount && unreadCount > 0 ? 'font-bold text-white' : 'font-medium'}`}>{text}</span>
+    {unreadCount != null && unreadCount > 0 && (
+      <span className="min-w-[20px] h-5 px-1.5 bg-blue-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0">
+        {unreadCount > 99 ? '99+' : unreadCount}
+      </span>
+    )}
   </motion.button>
 );
 
@@ -240,6 +246,7 @@ export const Sidebar: React.FC = () => {
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [editCategoryName, setEditCategoryName] = useState('');
   const { categories, collapsedCategories, fetchCategories, createCategory, updateCategory, deleteCategory, toggleCollapse } = useCategoryStore();
+  const { unreadCounts, fetchUnreadCounts, markChannelRead } = useReadStore();
   const [convertDM, setConvertDM] = useState<DMConversation | null>(null);
   const [convertName, setConvertName] = useState('');
   const [convertPrivate, setConvertPrivate] = useState(true);
@@ -260,9 +267,17 @@ export const Sidebar: React.FC = () => {
     fetchDMs();
     fetchNotifications();
     fetchCategories();
-  }, [fetchChannels, fetchJoinedChannels, fetchOrganizations, fetchDMs, fetchNotifications, fetchCategories]);
+    fetchUnreadCounts();
+  }, [fetchChannels, fetchJoinedChannels, fetchOrganizations, fetchDMs, fetchNotifications, fetchCategories, fetchUnreadCounts]);
 
   const handleChannelSelect = (channel: Channel) => {
+    // Mark the previous channel as read before switching
+    if (activeChannel && activeChannel.id !== channel.id) {
+      const msgs = useMessageStore.getState().messages;
+      if (msgs.length > 0) {
+        markChannelRead(activeChannel.id, msgs[msgs.length - 1].id);
+      }
+    }
     setActiveChannel(channel);
     navigate('/dashboard');
   };
@@ -664,6 +679,7 @@ const handleNewDM = async (userId: string, _username: string) => {
                                 text={channel.name}
                                 active={currentChannelId === channel.id}
                                 onClick={() => handleChannelSelect(channel as Channel)}
+                                unreadCount={unreadCounts[channel.id]}
                               />
                             </div>
                           );
@@ -701,6 +717,7 @@ const handleNewDM = async (userId: string, _username: string) => {
                             text={channel.name}
                             active={currentChannelId === channel.id}
                             onClick={() => handleChannelSelect(channel)}
+                            unreadCount={unreadCounts[channel.id]}
                           />
                         </div>
                       );
