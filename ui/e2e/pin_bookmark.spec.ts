@@ -1,27 +1,12 @@
 import { test, expect } from '@playwright/test';
 import { waitForElementStable } from './utils';
+import { loginAndInjectContext, USERS } from './auth-helper';
 
 test.describe('Pinning and Bookmarking Engine (E2E)', () => {
-  const aliceEmail = `alice.pb.${Date.now()}@example.com`;
-  const bobEmail = `bob.pb.${Date.now()}@example.com`;
-
-
 
   test('Alice sets a pin, Bob sees it globally. Bob bookmarks it privately.', async ({ browser }) => {
-    const aliceUser = { id: '22222222-2222-2222-2222-222222222222', username: 'AlicePB', email: aliceEmail };
     const aliceContext = await browser.newContext();
-    await aliceContext.addInitScript((user) => {
-      (window as unknown as { IS_PLAYWRIGHT?: boolean }).IS_PLAYWRIGHT = true;
-      localStorage.setItem('nox_token', 'test-jwt-token-pb-alice');
-      localStorage.setItem('nox_user', JSON.stringify(user));
-      localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
-      localStorage.setItem('nox_active_channel', JSON.stringify({
-        id: '00000000-0000-0000-0000-000000000001',
-        org_id: '00000000-0000-0000-0000-000000000001',
-        name: 'general',
-        is_private: false
-      }));
-    }, aliceUser);
+    await loginAndInjectContext(aliceContext, USERS.TestUser);
     const alicePage = await aliceContext.newPage();
     await alicePage.goto('http://localhost:5173/dashboard');
     await alicePage.waitForFunction(() => (window as unknown as { WS_CONNECTED?: boolean }).WS_CONNECTED === true, { timeout: 20000 });
@@ -32,37 +17,25 @@ test.describe('Pinning and Bookmarking Engine (E2E)', () => {
     await alicePage.fill('textarea[placeholder="Message #general..."]', uniqueMessage);
     await alicePage.press('textarea[placeholder="Message #general..."]', 'Enter');
     await waitForElementStable(alicePage, `text=${uniqueMessage}`);
-    
+
     // Find message and hover to click pin
     const messageLocator = alicePage.locator(`text=${uniqueMessage}`).locator('xpath=./ancestor::div[contains(@class, "group relative")]');
     await waitForElementStable(alicePage, `text=${uniqueMessage}`);
     await messageLocator.hover();
-    
+
     const pinButton = messageLocator.locator('button[title="Pin to channel"]');
     await pinButton.waitFor({ state: 'visible' });
     await pinButton.click();
-    
+
     // Ensure UI stability by waiting for the pin badge
     await expect(messageLocator.locator('span[title="Pinned to channel"]').first()).toBeVisible({ timeout: 15000 });
 
     // Bob logs in
-    const bobUser = { id: '33333333-3333-3333-3333-333333333333', username: 'BobPB', email: bobEmail };
     const bobContext = await browser.newContext();
-    await bobContext.addInitScript((user) => {
-      (window as unknown as { IS_PLAYWRIGHT?: boolean }).IS_PLAYWRIGHT = true;
-      localStorage.setItem('nox_token', 'test-jwt-token-pb-bob');
-      localStorage.setItem('nox_user', JSON.stringify(user));
-      localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
-      localStorage.setItem('nox_active_channel', JSON.stringify({
-        id: '00000000-0000-0000-0000-000000000001',
-        org_id: '00000000-0000-0000-0000-000000000001',
-        name: 'general',
-        is_private: false
-      }));
-    }, bobUser);
+    await loginAndInjectContext(bobContext, USERS.ThreadMaster);
     const bobPage = await bobContext.newPage();
     await bobPage.goto('http://localhost:5173/dashboard');
-    
+
     // Bob should see the exact message and it should already have the pin badge
     const bobMessageLocator = bobPage.locator(`text=${uniqueMessage}`).locator('xpath=./ancestor::div[contains(@class, "group relative")]');
     await bobMessageLocator.waitFor({ state: 'visible' });
@@ -73,7 +46,7 @@ test.describe('Pinning and Bookmarking Engine (E2E)', () => {
     await bobMessageLocator.hover();
     await waitForElementStable(bobPage, 'button[title="Bookmark"]');
     await bobMessageLocator.locator('button[title="Bookmark"]').click();
-    
+
     // Verify bookmark badge appears for Bob
     await expect(bobMessageLocator.locator('span[title="Bookmarked"]')).toBeVisible({ timeout: 15000 });
 

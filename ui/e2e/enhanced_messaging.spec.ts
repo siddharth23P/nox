@@ -1,28 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { loginAndInject, USERS } from './auth-helper';
 
 test.describe('Enhanced Messaging (E2E)', () => {
-  test.beforeEach(async ({ context, page }) => {
+  test.beforeEach(async ({ page }) => {
     // Add console logging
     page.on('console', msg => console.log(`BROWSER: ${msg.text()}`));
 
-    await context.addInitScript(() => {
-      (window as unknown as { IS_PLAYWRIGHT: boolean }).IS_PLAYWRIGHT = true;
-      localStorage.setItem('nox_token', 'test_jwt_token_enhanced');
-      localStorage.setItem('nox_org_id', '00000000-0000-0000-0000-000000000001');
-      localStorage.setItem('nox_role', 'admin');
-      localStorage.setItem('nox_user', JSON.stringify({
-        id: '22222222-2222-2222-2222-222222222222',
-        username: 'TestUser',
-        email: 'test@example.com'
-      }));
-      localStorage.setItem('nox_active_channel', JSON.stringify({
-        id: '00000000-0000-0000-0000-000000000001',
-        org_id: '00000000-0000-0000-0000-000000000001',
-        name: 'general',
-        description: 'General discussion',
-        is_private: false
-      }));
-    });
+    await loginAndInject(page, USERS.TestUser, { role: 'admin', activeChannel: { id: '00000000-0000-0000-0000-000000000001', name: 'general' } });
 
     await page.goto('/');
     await expect(page).toHaveURL(/.*\/dashboard/);
@@ -46,7 +30,7 @@ test.describe('Enhanced Messaging (E2E)', () => {
 
     // Verify hljs class exists (proof of highlight.js working)
     await expect(codeBlock).toHaveClass(/hljs/);
-    
+
     // Verify copy button presence
     const copyBtn = page.locator('button[title="Copy code"]').last();
     await expect(copyBtn).toBeVisible({ timeout: 15000 });
@@ -107,11 +91,11 @@ test.describe('Enhanced Messaging (E2E)', () => {
 
     // 5. Verify the pinned message is in view (visible)
     const pinnedMsg = page.locator(`[data-message-id]`).filter({ hasText: msgContent }).first();
-    
+
     // Increased wait for smooth scroll and animations
     await page.waitForTimeout(3000);
     await page.screenshot({ path: 'test-results/navigation-debug.png' });
-    
+
     // Check if it's visible, and at least some part is in viewport
     await expect(pinnedMsg).toBeVisible();
     await expect(pinnedMsg).toBeInViewport({ ratio: 0.1, timeout: 15000 });

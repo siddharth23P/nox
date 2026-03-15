@@ -58,7 +58,6 @@ const NewDMModal: React.FC<{ isOpen: boolean; onClose: () => void; onSelect: (us
       const res = await fetch(`http://localhost:8080/v1/users/search?q=${encodeURIComponent(q)}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'X-User-ID': JSON.parse(localStorage.getItem('nox_user') || '{}').id || '',
         }
       });
       if (res.ok) {

@@ -2,6 +2,12 @@ import { create } from 'zustand';
 import { marked } from 'marked';
 import { renderMentionsInHTML } from '../utils/mentions';
 
+/** Build auth headers from the JWT stored in localStorage. */
+function authHeaders(): Record<string, string> {
+  const token = localStorage.getItem('nox_token') || '';
+  return { Authorization: `Bearer ${token}` };
+}
+
 // Configure marked for GFM
 marked.setOptions({ gfm: true, breaks: true });
 
@@ -188,10 +194,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       if (!orgId) throw new Error('No organization selected');
 
       const response = await fetch(`${API_BASE_URL}/channels`, {
-        headers: {
-          'X-Org-ID': orgId,
-          'X-User-ID': JSON.parse(localStorage.getItem('nox_user') || '{}').id || '',
-        }
+        headers: authHeaders()
       });
 
       if (!response.ok) throw new Error('Failed to fetch channels');
@@ -210,10 +213,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       if (!userId) return;
 
       const response = await fetch(`${API_BASE_URL}/dm`, {
-        headers: {
-          'X-Org-ID': localStorage.getItem('nox_org_id') || '',
-          'X-User-ID': userId,
-        }
+        headers: authHeaders()
       });
 
       if (!response.ok) throw new Error('Failed to fetch DMs');
@@ -225,16 +225,9 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   },
 
   createOrGetDM: async (otherUserId: string) => {
-    const userStr = localStorage.getItem('nox_user');
-    const userId = userStr ? JSON.parse(userStr).id : '';
-
     const response = await fetch(`${API_BASE_URL}/dm`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Org-ID': localStorage.getItem('nox_org_id') || '',
-        'X-User-ID': userId,
-      },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({ user_id: otherUserId }),
     });
 
@@ -344,18 +337,11 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   },
 
   fetchMessages: async (channelId) => {
-    const userStr = localStorage.getItem('nox_user');
-    const user = userStr ? JSON.parse(userStr) : null;
-    const userId = user?.id || '';
-    
     set({ isLoading: true, error: null, hasMore: true });
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages`, {
-        headers: {
-          'X-Org-ID': localStorage.getItem('nox_org_id') || '',
-          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
-        }
+        headers: authHeaders()
       });
       
       if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
@@ -391,14 +377,8 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     
     set({ isLoading: true, error: null });
     try {
-      const userStr = localStorage.getItem('nox_user');
-      const userId = userStr ? JSON.parse(userStr).id : '' ;
-      
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages?before=${encodeURIComponent(before)}`, {
-        headers: {
-          'X-Org-ID': localStorage.getItem('nox_org_id') || '',
-          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
-        }
+        headers: authHeaders()
       });
       if (!response.ok) throw new Error('Failed to load more messages');
       
@@ -439,11 +419,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     try {
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
-          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
-        },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
           content_md: contentMd,
           content_html: mdToHtml(contentMd),
@@ -480,14 +456,8 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   fetchThread: async (channelId, messageId) => {
     set({ isLoading: true, error: null });
     try {
-      const userStr = localStorage.getItem('nox_user');
-      const userId = userStr ? JSON.parse(userStr).id : '' ;
-
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}/replies`, {
-        headers: {
-          'X-Org-ID': localStorage.getItem('nox_org_id') || '',
-          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
-        }
+        headers: authHeaders()
       });
       if (!response.ok) throw new Error('Failed to fetch thread replies');
       
@@ -522,11 +492,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     try {
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
-          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
-        },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
           content_md: contentMd,
           content_html: mdToHtml(contentMd),
@@ -556,16 +522,9 @@ export const useMessageStore = create<MessageState>((set, get) => ({
 
   editMessage: async (channelId, messageId, contentMd) => {
     try {
-      const userStr = localStorage.getItem('nox_user');
-      const userId = userStr ? JSON.parse(userStr).id : '' ;
-
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
-          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
-        },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
           content_md: contentMd,
           content_html: mdToHtml(contentMd),
@@ -587,15 +546,9 @@ export const useMessageStore = create<MessageState>((set, get) => ({
 
   deleteMessage: async (channelId, messageId) => {
     try {
-      const userStr = localStorage.getItem('nox_user');
-      const userId = userStr ? JSON.parse(userStr).id : '';
-
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}`, {
         method: 'DELETE',
-        headers: {
-          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
-          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
-        },
+        headers: authHeaders(),
       });
 
       if (!response.ok) throw new Error('Failed to delete message');
@@ -612,14 +565,8 @@ export const useMessageStore = create<MessageState>((set, get) => ({
 
   getMessageHistory: async (channelId, messageId) => {
     try {
-      const userStr = localStorage.getItem('nox_user');
-      const userId = userStr ? JSON.parse(userStr).id : '' ;
-
       const response = await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}/history`, {
-        headers: {
-          'X-Org-ID': localStorage.getItem('nox_org_id') || '',
-          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
-        }
+        headers: authHeaders()
       });
       if (!response.ok) throw new Error('Failed to fetch message history');
       return await response.json();
@@ -631,9 +578,6 @@ export const useMessageStore = create<MessageState>((set, get) => ({
 
   toggleReaction: async (channelId, messageId, emoji) => {
     const state = get();
-    const userStr = localStorage.getItem('nox_user');
-    const userId = userStr ? JSON.parse(userStr).id : '' ;
-    
     const msg = state.messages.find(m => m.id === messageId) || state.threadMessages.find(m => m.id === messageId);
     if (!msg) return;
 
@@ -665,11 +609,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     try {
       await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}/react`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
-          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
-        },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ emoji, action }),
       });
     } catch (err) {
@@ -685,15 +625,9 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     }));
 
     try {
-      const userStr = localStorage.getItem('nox_user');
-      const userId = userStr ? JSON.parse(userStr).id : '' ;
       await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}/pin`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
-          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
-        }
+        headers: { 'Content-Type': 'application/json', ...authHeaders() }
       });
     } catch (err) {
       console.error('Failed to toggle pin:', err);
@@ -708,15 +642,9 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     }));
 
     try {
-      const userStr = localStorage.getItem('nox_user');
-      const userId = userStr ? JSON.parse(userStr).id : '' ;
       await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}/bookmark`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
-          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
-        }
+        headers: { 'Content-Type': 'application/json', ...authHeaders() }
       });
     } catch (err) {
       console.error('Failed to toggle bookmark:', err);
@@ -725,16 +653,9 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   
   forwardMessage: async (messageId, targetChannelId) => {
     try {
-      const userStr = localStorage.getItem('nox_user');
-      const userId = userStr ? JSON.parse(userStr).id : '';
-
       const response = await fetch(`${API_BASE_URL}/channels/any/messages/${messageId}/forward`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Org-ID': localStorage.getItem('nox_org_id') || '00000000-0000-0000-0000-000000000001',
-          'X-User-ID': localStorage.getItem('nox_token') ? userId : '',
-        },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ target_channel_id: targetChannelId }),
       });
 
@@ -792,31 +713,19 @@ export const useMessageStore = create<MessageState>((set, get) => ({
 
   browseChannels: async () => {
     const orgId = localStorage.getItem('nox_org_id');
-    const userStr = localStorage.getItem('nox_user');
-    const userId = userStr ? JSON.parse(userStr).id : '';
     if (!orgId) throw new Error('No organization selected');
 
     const response = await fetch(`${API_BASE_URL}/channels/browse`, {
-      headers: {
-        'X-Org-ID': orgId,
-        'X-User-ID': userId,
-      },
+      headers: authHeaders(),
     });
     if (!response.ok) throw new Error('Failed to browse channels');
     return response.json();
   },
 
   joinChannel: async (channelId: string) => {
-    const userStr = localStorage.getItem('nox_user');
-    const userId = userStr ? JSON.parse(userStr).id : '';
-
     const response = await fetch(`${API_BASE_URL}/channels/${channelId}/join`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Org-ID': localStorage.getItem('nox_org_id') || '',
-        'X-User-ID': userId,
-      },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
     });
     if (!response.ok) throw new Error('Failed to join channel');
 
@@ -825,16 +734,9 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   },
 
   leaveChannel: async (channelId: string) => {
-    const userStr = localStorage.getItem('nox_user');
-    const userId = userStr ? JSON.parse(userStr).id : '';
-
     const response = await fetch(`${API_BASE_URL}/channels/${channelId}/leave`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Org-ID': localStorage.getItem('nox_org_id') || '',
-        'X-User-ID': userId,
-      },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
     });
     if (!response.ok) throw new Error('Failed to leave channel');
 
@@ -845,15 +747,10 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   fetchJoinedChannels: async () => {
     try {
       const orgId = localStorage.getItem('nox_org_id');
-      const userStr = localStorage.getItem('nox_user');
-      const userId = userStr ? JSON.parse(userStr).id : '';
       if (!orgId) return;
 
       const response = await fetch(`${API_BASE_URL}/channels/joined`, {
-        headers: {
-          'X-Org-ID': orgId,
-          'X-User-ID': userId,
-        },
+        headers: authHeaders(),
       });
       if (!response.ok) throw new Error('Failed to fetch joined channels');
       const data = await response.json();

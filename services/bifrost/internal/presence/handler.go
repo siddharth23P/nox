@@ -14,9 +14,11 @@ func NewPresenceHandler(service *PresenceService) *PresenceHandler {
 	return &PresenceHandler{service: service}
 }
 
-// Helper to extract user_id. In a real app this comes from JWT middleware.
+// getUserID extracts user_id from JWT auth context set by AuthMiddleware.
 func getUserID(c *gin.Context) string {
-	return c.GetHeader("X-User-ID")
+	userID, _ := c.Get("user_id")
+	s, _ := userID.(string)
+	return s
 }
 
 type HeartbeatRequest struct {
