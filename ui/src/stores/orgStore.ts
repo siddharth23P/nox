@@ -37,6 +37,7 @@ interface OrgState {
   changeMemberRole: (orgId: string, userId: string, role: string) => Promise<boolean>;
   removeMember: (orgId: string, userId: string) => Promise<boolean>;
   clearError: () => void;
+  reset: () => void;
 }
 
 const getAuthHeaders = (): Record<string, string> => {
@@ -190,4 +191,6 @@ export const useOrgStore = create<OrgState>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  reset: () => set({ settings: null, members: [], totalMembers: 0, isLoading: false, error: null }),
 }));

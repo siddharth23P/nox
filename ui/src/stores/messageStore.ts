@@ -111,6 +111,8 @@ interface MessageState {
   fetchDMs: () => Promise<void>;
   createOrGetDM: (otherUserId: string) => Promise<DMConversation>;
 
+  resetForOrgSwitch: () => void;
+
   // Channel Discovery (Issue #121)
   browseChannels: () => Promise<BrowsableChannel[]>;
   joinChannel: (channelId: string) => Promise<void>;
@@ -766,6 +768,24 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     setTimeout(() => {
       set((state) => state.highlightedMessageId === messageId ? { highlightedMessageId: null } : state);
     }, 2000);
+  },
+
+  resetForOrgSwitch: () => {
+    localStorage.removeItem('nox_active_channel');
+    set({
+      activeChannel: null,
+      channels: [],
+      messages: [],
+      activeThreadId: null,
+      threadMessages: [],
+      isLoading: false,
+      error: null,
+      hasMore: true,
+      typingUsers: {},
+      replyTo: null,
+      highlightedMessageId: null,
+      dmConversations: [],
+    });
   },
 
   // ---------- Channel Discovery (Issue #121) ----------
