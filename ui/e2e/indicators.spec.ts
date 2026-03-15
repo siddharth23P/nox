@@ -31,11 +31,11 @@ test.describe('Real-time Indicators', () => {
     // Use pressSequentially to simulate real typing which triggers onChange better
     await bobPage.locator('textarea[placeholder*="Message"]').pressSequentially('Hello', { delay: 100 });
 
-    // 5. Alice should see Bob is typing
-    const indicator = alicePage.locator('text=BobReacts is typing...');
+    // 5. Alice should see the typing indicator (avatar stack with bouncing dots)
+    const indicator = alicePage.getByTestId('typing-indicator');
     await expect(indicator).toBeVisible({ timeout: 15000 });
 
-    // 6. Wait for Bob's typing indicator to disappear (TTL is 5s + buffer)
+    // 6. Wait for typing indicator to disappear (TTL is 5s + buffer)
     await expect(indicator).not.toBeVisible({ timeout: 20000 });
 
     // Cleanup contexts
