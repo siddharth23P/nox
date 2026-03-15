@@ -353,3 +353,20 @@ CREATE TABLE IF NOT EXISTS banned_members (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(org_id, user_id)
 );
+
+-- 24. Notifications (Issue #33)
+CREATE TABLE IF NOT EXISTS notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type TEXT NOT NULL, -- 'mention', 'reply', 'reaction', 'channel_invite', 'system'
+    title TEXT NOT NULL,
+    body TEXT DEFAULT '',
+    channel_id UUID REFERENCES channels(id) ON DELETE CASCADE,
+    message_id UUID REFERENCES messages(id) ON DELETE CASCADE,
+    actor_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id) WHERE is_read = FALSE;

@@ -12,6 +12,7 @@ import (
 	"github.com/nox-labs/bifrost/internal/auth"
 	"github.com/nox-labs/bifrost/internal/db"
 	"github.com/nox-labs/bifrost/internal/messaging"
+	"github.com/nox-labs/bifrost/internal/notification"
 	"github.com/nox-labs/bifrost/internal/presence"
 	pb "github.com/nox-labs/bifrost/pkg/authv1/auth/v1"
 	"google.golang.org/grpc"
@@ -102,6 +103,8 @@ func main() {
 	orgHandler := auth.NewOrgHandler(orgService)
 	messagingHandler := messaging.NewMessagingHandler(messagingService, hub)
 	presenceHandler := presence.NewPresenceHandler(presenceService)
+	notificationService := notification.NewService(database)
+	notificationHandler := notification.NewHandler(notificationService)
 
 	// Serve uploaded avatars as static files
 	r.Static("/uploads", "./uploads")
@@ -220,6 +223,12 @@ func main() {
 			authenticated.GET("/dm", messagingHandler.ListDMs)
 			authenticated.POST("/dm", messagingHandler.CreateOrGetDM)
 			authenticated.POST("/dm/:dmId/convert", messagingHandler.ConvertDMToChannel)
+
+			// Notification Routes (Issue #33)
+			authenticated.GET("/notifications", notificationHandler.ListNotifications)
+			authenticated.GET("/notifications/unread-count", notificationHandler.UnreadCount)
+			authenticated.PATCH("/notifications/:notificationId/read", notificationHandler.MarkRead)
+			authenticated.POST("/notifications/read-all", notificationHandler.MarkAllRead)
 
 			// Presence Routes
 			authenticated.POST("/presence/heartbeat", presenceHandler.Heartbeat)
