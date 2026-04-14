@@ -12,7 +12,7 @@ serde_json = "1.0"
 uuid = { version = "1.4", features = ["v4", "serde"] }
 chrono = "0.4"
 ed25519-dalek = "2.2.0"
-rand = "0.10.0"
+rand = "0.10.1"
 hex = "0.4.3"
 
 [build-dependencies]
